@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["ReactNativeSiliconModule"]
+  },
+  "android": {
+    "modules": ["co.alephnull.reactnative.silicon.ReactNativeSiliconModule"]
+  }
+}

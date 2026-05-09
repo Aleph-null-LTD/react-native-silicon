@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "react-native-silicon": ["../src/index"],
+      "react-native-silicon/*": ["../src/*"]
+    }
+  }
+}
