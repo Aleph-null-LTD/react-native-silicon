@@ -21,20 +21,25 @@
     "react-native",
     "expo",
     "react-native-silicon",
-    "ReactNativeSilicon"
+    "ReactNativeSilicon",
+    "cryptography",
+    "hardware-backed"
   ],
-  "repository": "https://github.com/Aleph-null-LTD/react-native-silicon",
-  "bugs": {
-    "url": "https://github.com/Aleph-null-LTD/react-native-silicon/issues"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Aleph-null-Ltd/react-native-silicon"
   },
-  "author": "Aleph-null Ltd <contact@aleph-null.co.uk> (https://github.com/Aleph-null-LTD)",
+  "bugs": {
+    "url": "https://github.com/Aleph-null-Ltd/react-native-silicon/issues"
+  },
+  "author": "Aleph-null Ltd <contact@aleph-null.co.uk> (https://github.com/Aleph-null-Ltd)",
   "license": "MIT",
-  "homepage": "https://github.com/Aleph-null-LTD/react-native-silicon#readme",
+  "homepage": "https://github.com/Aleph-null-Ltd/react-native-silicon#readme",
   "dependencies": {},
   "devDependencies": {
-    "@types/react": "~19.1.1",
-    "expo-module-scripts": "^55.0.2",
-    "expo": "^55.0.20",
+    "@types/react": "19.1.1",
+    "expo-module-scripts": "55.0.2",
+    "expo": "55.0.20",
     "react-native": "0.82.1"
   },
   "peerDependencies": {
