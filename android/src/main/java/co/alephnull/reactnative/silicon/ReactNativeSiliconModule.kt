@@ -1,10 +1,14 @@
 package co.alephnull.reactnative.silicon
 
+import android.content.pm.PackageManager
+import android.hardware.biometrics.BiometricManager
+import android.os.Build
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import java.net.URL
 
 class ReactNativeSiliconModule : Module() {
+  private val keystoreManager by lazy { SiliconKeystoreManager(appContext) }
+
   // Each module class must implement the definition function. The definition consists of components
   // that describes the module's functionality and behavior.
   // See https://docs.expo.dev/modules/module-api for more details about available components.
@@ -36,15 +40,42 @@ class ReactNativeSiliconModule : Module() {
       ))
     }
 
-    // Enables the module to be used as a native view. Definition components that are accepted as part of
-    // the view definition: Prop, Events.
-    View(ReactNativeSiliconView::class) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { view: ReactNativeSiliconView, url: URL ->
-        view.webView.loadUrl(url.toString())
+    AsyncFunction("getCapabilities") {
+      val packageManager = appContext.reactContext?.packageManager
+      val biometricManager = BiometricManager.from(appContext.reactContext!!)
+
+      // Check for StrongBox (The dedicated security chip)
+      val hasStrongBox = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        packageManager?.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYMASTER) ?: false
+      } else {
+        false
       }
-      // Defines an event that the view can send to JavaScript.
-      Events("onLoad")
+
+      // Check for TEE (Trusted Execution Environment / Hardware isolation)
+      // Almost all devices since Android 6.0 have this, but we verify it via the feature flag
+      val hasHardwareKeystore = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        packageManager?.hasSystemFeature(PackageManager.FEATURE_HARDWARE_KEYSTORE) ?: true
+      } else {
+        // Fallback for older but still compatible versions
+        true
+      }
+
+      // Check Biometric status
+      val biometricStatus = biometricManager.canAuthenticate(BIOMETRIC_STRONG)
+      val hasBiometrics = biometricStatus == BiometricManager.BIOMETRIC_SUCCESS
+
+      // Return as a Map (which becomes a JS Object)
+      return@AsyncFunction mapOf(
+        "hasStrongBox" to hasStrongBox,
+        "hasHardwareIsolation" to hasHardwareKeystore,
+        "hasBiometrics" to hasBiometrics,
+        "hasAttest" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N),
+        "securityLevel" to if (hasStrongBox) "STRONGBOX" else if (hasHardwareKeystore) "TEE" else "SOFTWARE"
+      )
+    }
+
+    AsyncFunction("genES256Key") { opts: GenerateKeyOptions ->
+      return@AsyncFunction keystoreManager.genKey(opts).toBridgeMap()
     }
   }
 }
