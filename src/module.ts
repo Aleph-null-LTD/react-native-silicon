@@ -4,7 +4,7 @@ import { ReactNativeSiliconModuleEvents } from './types';
 import { GenerateKeyOpts } from './core/keys/types';
 
 declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconModuleEvents> {
-  genES256Key(opts: GenerateKeyOpts): Promise<string>;
+  genKey(alias: string, opts: GenerateKeyOpts): Promise<string>;
 }
 
 // This call loads the native module object from the JSI.
