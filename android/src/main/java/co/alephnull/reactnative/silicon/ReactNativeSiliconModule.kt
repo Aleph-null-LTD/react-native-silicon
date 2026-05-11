@@ -3,6 +3,8 @@ package co.alephnull.reactnative.silicon
 import android.content.pm.PackageManager
 import android.hardware.biometrics.BiometricManager
 import android.os.Build
+import co.alephnull.reactnative.silicon.keystoremanager.GenerateKeyOptions
+import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -19,26 +21,32 @@ class ReactNativeSiliconModule : Module() {
     Name("ReactNativeSilicon")
 
     // Defines constant property on the module.
+    /*
     Constant("PI") {
       Math.PI
     }
+    */
 
     // Defines event names that the module can send to JavaScript.
-    Events("onChange")
+    //Events("onChange")
 
     // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
+    /*
     Function("hello") {
       "Hello world! 👋"
     }
+    */
 
     // Defines a JavaScript function that always returns a Promise and whose native code
     // is by default dispatched on the different thread than the JavaScript runtime runs on.
+    /*
     AsyncFunction("setValueAsync") { value: String ->
       // Send an event to JavaScript.
       sendEvent("onChange", mapOf(
         "value" to value
       ))
     }
+    */
 
     AsyncFunction("getCapabilities") {
       val packageManager = appContext.reactContext?.packageManager
@@ -74,8 +82,8 @@ class ReactNativeSiliconModule : Module() {
       )
     }
 
-    AsyncFunction("genES256Key") { opts: GenerateKeyOptions ->
-      return@AsyncFunction keystoreManager.genKey(opts).toBridgeMap()
+    AsyncFunction("genKey") { alias: String, opts: GenerateKeyOptions ->
+        return@AsyncFunction keystoreManager.genKey(alias, opts).toBridgeMap()
     }
   }
 }

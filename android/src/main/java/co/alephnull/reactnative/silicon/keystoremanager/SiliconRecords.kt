@@ -1,4 +1,4 @@
-package co.alephnull.reactnative.silicon
+package co.alephnull.reactnative.silicon.keystoremanager
 
 import expo.modules.kotlin.records.Record
 import expo.modules.kotlin.records.Field
@@ -17,12 +17,25 @@ enum class KeyPurpose(val value: String) : Enumerable {
     DECRYPT("decrypt")
 }
 
+enum class KeyDigest(val value: String) : Enumerable {
+    SHA256("SHA256")
+}
+
+enum class HardwarePolicy(val value: String) : Enumerable {
+    REQUIRE_STRONGBOX("REQUIRE_STRONGBOX"),
+    PREFER_STRONGBOX("PREFER_STRONGBOX"),
+    USE_TEE("USE_TEE")
+}
+
+class AndroidOptions : Record {
+    @Field val algorithm: KeyAlgorithm = KeyAlgorithm.ES256
+    @Field lateinit var digests: List<KeyDigest>
+    @Field val hardwarePolicy: HardwarePolicy = HardwarePolicy.PREFER_STRONGBOX
+}
+
 class GenerateKeyOptions : Record {
-    @Field lateinit var alias: String
-    @Field var algorithm: KeyAlgorithm = KeyAlgorithm.ES256
     @Field lateinit var purposes: List<KeyPurpose>
-    @Field val useStrongBox: Boolean = false
-    @Field val requireStrongBox: Boolean = false
+    @Field lateinit var android: AndroidOptions
     @Field val requireUserAuth: Boolean = false
     @Field val invalidateUserAuthOnChange: Boolean = false
 }
