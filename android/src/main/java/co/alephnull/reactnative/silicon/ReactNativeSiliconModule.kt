@@ -20,7 +20,7 @@ class ReactNativeSiliconModule : Module() {
     KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
   }
 
-  private val keystoreManager by lazy { SiliconKeystoreManager(appContext) }
+  private val keystoreManager by lazy { SiliconKeystoreManager(appContext, keystore) }
   private val signer by lazy { SiliconSigner(appContext, keystore) }
 
   // Each module class must implement the definition function. The definition consists of components
@@ -96,6 +96,11 @@ class ReactNativeSiliconModule : Module() {
 
     AsyncFunction("genKey") { alias: String, opts: GenerateKeyOptions ->
       val result = keystoreManager.genKey(alias, opts)
+      return@AsyncFunction result.toBridgeMap()
+    }
+
+    AsyncFunction("deleteKey") { alias: String ->
+      val result = keystoreManager.deleteKey(alias)
       return@AsyncFunction result.toBridgeMap()
     }
 

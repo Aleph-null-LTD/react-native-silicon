@@ -9,8 +9,9 @@ import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import java.util.Base64
 import expo.modules.kotlin.AppContext
+import java.security.KeyStore
 
-class SiliconKeystoreManager(private val appContext: AppContext) {
+class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore) {
 
     fun genKey(alias: String, opts: GenerateKeyOptions): SiliconResult<String> {
         // Check if the device supports StrongBox
@@ -127,6 +128,25 @@ class SiliconKeystoreManager(private val appContext: AppContext) {
         val b64Key = Base64.getEncoder().encodeToString(keyPair.public.encoded)
         return SiliconResult.Success(b64Key);
 
+    }
+
+    fun deleteKey(alias: String): SiliconResult<Boolean> {
+        try {
+            if (!keystore.containsAlias(alias)) {
+                return SiliconResult.Success(false)
+            }
+
+            keystore.deleteEntry(alias)
+
+            return SiliconResult.Success(true)
+
+        } catch (e: Exception) {
+            // Catches underlying KeyStoreException if the hardware state is locked/corrupted
+            return SiliconResult.Failure(
+                code = "DELETE_FAILED",
+                message = e.localizedMessage ?: "Hardware key deletion failed for alias: $alias"
+            )
+        }
     }
 
     fun attestKey(alias: String) {
