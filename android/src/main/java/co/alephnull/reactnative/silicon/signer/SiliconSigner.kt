@@ -7,6 +7,7 @@ import android.util.Base64
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import co.alephnull.reactnative.silicon.SiliconException
 import expo.modules.kotlin.AppContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -51,10 +52,12 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             val privateKey = keystore.getKey(alias, null) as? PrivateKey
                 ?: return SiliconResult.Failure("INVALID_KEY", "Key is not a valid PrivateKey")
 
-            val algorithm = getSignatureAlgorithm(privateKey, opts.algorithm)
+            val algorithmResult = getSignatureAlgorithm(privateKey, opts.algorithm)
+            if (algorithmResult !is SiliconResult.Success) return algorithmResult
+            val alg = algorithmResult.data;
 
             // Initialize the Signature Engine for ES256
-            val signatureEngine = Signature.getInstance(algorithm).apply {
+            val signatureEngine = Signature.getInstance(alg).apply {
                 initSign(privateKey)
             }
 
@@ -75,9 +78,11 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             // We must recreate the engine reference to pass into a fresh CryptoObject session
             val privateKey = keystore.getKey(alias, null) as PrivateKey
 
-            val algorithm = getSignatureAlgorithm(privateKey, opts.algorithm)
+            val algorithmResult = getSignatureAlgorithm(privateKey, opts.algorithm)
+            if (algorithmResult !is SiliconResult.Success) return algorithmResult
+            val alg = algorithmResult.data;
 
-            val freshSignatureEngine = Signature.getInstance(algorithm).apply {
+            val freshSignatureEngine = Signature.getInstance(alg).apply {
                 initSign(privateKey)
             }
 
@@ -90,6 +95,9 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 "KEY_INVALIDATED",
                 "Key was permanently invalidated because biometric enrollment changed"
             )
+
+        } catch (e: SiliconException) {
+            throw e
 
         } catch (e: Exception) {
             return SiliconResult.Failure("SIGNING_FAILED", e.localizedMessage ?: "Unknown signing error")
@@ -164,17 +172,17 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
     }
 
     // Gets the algorithm string to use for signing
-    private fun getSignatureAlgorithm(key: PrivateKey, algorithm: SignAlgorithm): String {
+    private fun getSignatureAlgorithm(key: PrivateKey, algorithm: SignAlgorithm): SiliconResult<String> {
         return when (key.algorithm) {
             "EC" -> when (algorithm) {
-                SignAlgorithm.SHA256 -> "SHA256withECDSA"
+                SignAlgorithm.SHA256 -> SiliconResult.Success("SHA256withECDSA")
             }
 
             "RSA" -> when (algorithm) {
-                SignAlgorithm.SHA256 -> "SHA256withRSA"
+                SignAlgorithm.SHA256 -> SiliconResult.Success("SHA256withRSA")
             }
 
-            else -> throw UnsupportedOperationException("Unsupported hardware key family: ${key.algorithm}")
+            else -> SiliconResult.Failure("UNSUPPORTED_KEY_FAMILY", "Unsupported key family: ${key.algorithm}")
         }
     }
 
