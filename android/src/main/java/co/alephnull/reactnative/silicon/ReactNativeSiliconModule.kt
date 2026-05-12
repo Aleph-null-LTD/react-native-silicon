@@ -5,7 +5,10 @@ import android.hardware.biometrics.BiometricManager
 import android.os.Build
 import co.alephnull.reactnative.silicon.keystoremanager.GenerateKeyOptions
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
+import co.alephnull.reactnative.silicon.signer.PayloadType
+import co.alephnull.reactnative.silicon.signer.SignOptions
 import co.alephnull.reactnative.silicon.signer.SiliconSigner
+import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.security.KeyStore
@@ -96,9 +99,9 @@ class ReactNativeSiliconModule : Module() {
       return@AsyncFunction result.toBridgeMap()
     }
 
-    AsyncFunction("sign") {
-      val result = signer.sign()
-      return@AsyncFunction result.toBridgeMap()
+    AsyncFunction("sign") Coroutine { alias: String, payload: PayloadType, opts: SignOptions ->
+      val result = signer.sign(alias, payload, opts)
+      return@Coroutine result.toBridgeMap()
     }
   }
 }
