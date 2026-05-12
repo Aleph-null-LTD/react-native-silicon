@@ -3,6 +3,10 @@ plugins {
   id 'expo-module-gradle-plugin'
 }
 
+dependencies {
+    implementation 'androidx.biometric:biometric:1.4.0-alpha06' // Use the latest stable/alpha for robust API 30+ support
+}
+
 group = 'co.alephnull.reactnative.silicon'
 version = '0.1.0'
 
