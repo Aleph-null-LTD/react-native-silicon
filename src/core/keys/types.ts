@@ -35,7 +35,7 @@ export type GenerateKeyOpts = {
         timeout: number,
 
         /**
-         * Destroys the key if new Biometrics are added to the device.
+         * Invalidates the key if new Biometrics are added to the device.
          * 
          * default - true
          */

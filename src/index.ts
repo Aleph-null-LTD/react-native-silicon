@@ -5,7 +5,7 @@ export * from  './types';
 
 export * from './core/device';
 export * from './core/keys/keys';
-export * from './core/operations';
+export * from './core/operations/operations';
 export * from './core/random';
 export * from './identity/dpop';
 export * from './identity/jwk';
