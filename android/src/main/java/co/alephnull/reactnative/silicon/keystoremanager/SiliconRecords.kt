@@ -48,5 +48,6 @@ class UserAuthOptions : Record {
 class GenerateKeyOptions : Record {
     @Field lateinit var purposes: List<KeyPurpose>
     @Field lateinit var userAuth: UserAuthOptions
+    @Field var attestChallenge: String? = null
     @Field lateinit var android: AndroidOptions
 }

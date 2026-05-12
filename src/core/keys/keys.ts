@@ -12,7 +12,12 @@ import { GenerateKeyOpts } from "./types";
 export async function generateKey(alias: string, opts: GenerateKeyOpts): Promise<string> {
     const result = await NativeSilicon.genKey(alias, opts);
     if (!result.success) {
-        throw new SiliconError()
+        switch (result.errorCode) {
+            case "INVALID_ALGORITHM_PARAMETER":
+                throw new SiliconError(SiliconErrorCode.INVALID_ALGORITHM_PARAMETER, result.errorMessage);
+        }
+
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
     }
 
     return result.data;
@@ -28,10 +33,10 @@ export async function deleteKey(alias: string): Promise<boolean> {
     const result = await NativeSilicon.deleteKey(alias);
     if (!result.success) {
         if (result.errorCode == 'DELETE_FAILED') {
-            throw new SiliconError(SiliconErrorCode.DELETE_FAILED, result.errorMessage)
+            throw new SiliconError(SiliconErrorCode.DELETE_FAILED, result.errorMessage);
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`)
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
     }
 
     return result.data;
@@ -50,13 +55,13 @@ export async function deleteKey(alias: string): Promise<boolean> {
  * @returns The number of keys that were deleted
  */
 export async function deleteAllKeys(prefix?: string): Promise<number> {
-    const result = await NativeSilicon.deleteAllKeys(prefix)
+    const result = await NativeSilicon.deleteAllKeys(prefix);
     if (!result.success) {
         if (result.errorCode == 'BULK_DELETE_FAILED') {
-            throw new SiliconError(SiliconErrorCode.BULK_DELETE_FAILED, result.errorMessage)
+            throw new SiliconError(SiliconErrorCode.BULK_DELETE_FAILED, result.errorMessage);
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`)
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
     }
 
     return result.data;
@@ -69,13 +74,13 @@ export async function deleteAllKeys(prefix?: string): Promise<number> {
  * @returns true if the key exists
  */
 export async function keyExists(alias: string): Promise<boolean> {
-    const result = await NativeSilicon.keyExists(alias)
+    const result = await NativeSilicon.keyExists(alias);
     if (!result.success) {
         if (result.errorCode == 'KEY_CHECK_FAILED') {
-            throw new SiliconError(SiliconErrorCode.KEY_CHECK_FAILED, result.errorMessage)
+            throw new SiliconError(SiliconErrorCode.KEY_CHECK_FAILED, result.errorMessage);
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`)
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
     }
 
     return result.data;
@@ -93,17 +98,17 @@ export async function listKeys(prefix?: string): Promise<string[]> {
     const result = await NativeSilicon.listKeys(prefix)
     if (!result.success) {
         if (result.errorCode == 'KEY_LIST_FAILED') {
-            throw new SiliconError(SiliconErrorCode.KEY_LIST_FAILED, result.errorMessage)
+            throw new SiliconError(SiliconErrorCode.KEY_LIST_FAILED, result.errorMessage);
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`)
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
     }
 
     return result.data;
 }
 
 export function validateKey(alias: string) {
-    
+
 }
 
 export function getPubKey(alias: string) {

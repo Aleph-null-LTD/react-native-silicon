@@ -9,6 +9,7 @@ import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import java.util.Base64
 import expo.modules.kotlin.AppContext
+import java.security.InvalidAlgorithmParameterException
 import java.security.KeyStore
 
 class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore) {
@@ -59,63 +60,78 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             }
         }
 
-        @SuppressLint("WrongConstant") // Suppress the lint on setDigests - we know that the values are correct here
-        val parameterSpec = KeyGenParameterSpec.Builder(
-            alias,
-            purpose
-        ).run {
-            when (opts.android.algorithm) {
-                KeyAlgorithm.ES256 -> setAlgorithmParameterSpec(java.security.spec.ECGenParameterSpec("secp256r1")) // ES256
-            }
-
-            // Map the digests to an array of the relevant constants
-            val digests: Array<String> = opts.android.digests.mapNotNull { d ->
-                when (d) {
-                    KeyDigest.SHA256 -> KeyProperties.DIGEST_SHA256
-                    else -> null
+        try {
+            @SuppressLint("WrongConstant") // Suppress the lint on setDigests - we know that the values are correct here
+            val parameterSpec = KeyGenParameterSpec.Builder(
+                alias,
+                purpose
+            ).run {
+                when (opts.android.algorithm) {
+                    KeyAlgorithm.ES256 -> setAlgorithmParameterSpec(
+                        java.security.spec.ECGenParameterSpec(
+                            "secp256r1"
+                        )
+                    ) // ES256
                 }
-            }.toTypedArray()
 
-            setDigests(*digests)
-
-            if (useStrongBox) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    setIsStrongBoxBacked(true)
-                } else {
-                    // Should never get here, this is just a failsafe
-                    throw Exception("Attempted to use StrongBox on unsupported SDK version (${Build.VERSION.SDK_INT})");
-                }
-            }
-
-            setUserAuthenticationRequired(opts.userAuth.require)
-
-            if (opts.userAuth.require) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val authFlags = when (opts.userAuth.policy) {
-                        AuthPolicy.BIOMETRICS_ONLY -> KeyProperties.AUTH_BIOMETRIC_STRONG
-                        AuthPolicy.BIOMETRICS_OR_CREDENTIAL -> KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
+                // Map the digests to an array of the relevant constants
+                val digests: Array<String> = opts.android.digests.mapNotNull { d ->
+                    when (d) {
+                        KeyDigest.SHA256 -> KeyProperties.DIGEST_SHA256
+                        else -> null
                     }
+                }.toTypedArray()
 
-                    setUserAuthenticationParameters(opts.userAuth.timeout, authFlags)
+                setDigests(*digests)
 
-                    if (opts.userAuth.invalidateOnChange) {
-                        setInvalidatedByBiometricEnrollment(true)
+                if (useStrongBox) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        setIsStrongBoxBacked(true)
                     } else {
-                        setInvalidatedByBiometricEnrollment(false)
+                        // Should never get here, this is just a failsafe
+                        throw Exception("Attempted to use StrongBox on unsupported SDK version (${Build.VERSION.SDK_INT})");
                     }
-                } else { // Fallback for older Android devices (API 29 and below)
-                    val timeout = if (opts.userAuth.timeout == 0) {
-                        -1 // -1 enforces authentication for every use, but OS fallback rules apply
-                    } else {
-                        opts.userAuth.timeout
-                    }
-
-                    @Suppress("DEPRECATION") // Suppress the deprecation - this is a fallback for old devices
-                    setUserAuthenticationValidityDurationSeconds(timeout)
                 }
-            }
 
-            build()
+                if (opts.attestChallenge != null) {
+                    setAttestationChallenge(opts.attestChallenge?.toByteArray(Charsets.UTF_8))
+                }
+
+                setUserAuthenticationRequired(opts.userAuth.require)
+
+                if (opts.userAuth.require) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        val authFlags = when (opts.userAuth.policy) {
+                            AuthPolicy.BIOMETRICS_ONLY -> KeyProperties.AUTH_BIOMETRIC_STRONG
+                            AuthPolicy.BIOMETRICS_OR_CREDENTIAL -> KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
+                        }
+
+                        setUserAuthenticationParameters(opts.userAuth.timeout, authFlags)
+
+                        if (opts.userAuth.invalidateOnChange) {
+                            setInvalidatedByBiometricEnrollment(true)
+                        } else {
+                            setInvalidatedByBiometricEnrollment(false)
+                        }
+                    } else { // Fallback for older Android devices (API 29 and below)
+                        val timeout = if (opts.userAuth.timeout == 0) {
+                            -1 // -1 enforces authentication for every use, but OS fallback rules apply
+                        } else {
+                            opts.userAuth.timeout
+                        }
+
+                        @Suppress("DEPRECATION") // Suppress the deprecation - this is a fallback for old devices
+                        setUserAuthenticationValidityDurationSeconds(timeout)
+                    }
+                }
+
+                build()
+            }
+        } catch (e: InvalidAlgorithmParameterException) {
+            return SiliconResult.Failure(
+                "INVALID_ALGORITHM_PARAMETER",
+                e.localizedMessage ?: "Failed to generate key due to invalid algorithm parameter"
+            );
         }
 
         kpg.initialize(parameterSpec)

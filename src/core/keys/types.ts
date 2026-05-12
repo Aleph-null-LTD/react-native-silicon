@@ -39,7 +39,7 @@ export type GenerateKeyOpts = {
          * 
          * default - true
          */
-        invalidateOnChange: boolean
+        invalidateOnChange: boolean,
 
         /**
          * * BIOMETRICS_ONLY - Only allows Biometric authentication 
@@ -50,7 +50,17 @@ export type GenerateKeyOpts = {
          * default - BIOMETRICS_ONLY
          */
         policy: 'BIOMETRICS_ONLY' | 'BIOMETRICS_OR_CREDENTIAL'
-    }
+    },
+
+    /**
+     * IMPORTANT: You cannot attest an existing key after the fact.
+     * 
+     * Optional attest challenge string.
+     * 
+     * If provided, you will be able to call 'attestKey'
+     * to get the PEM certificate.
+     */
+    attestChallenge?: string,
 
     /**
      * Android specific options
@@ -69,6 +79,8 @@ export type GenerateKeyOpts = {
          * 
          * For HMAC keys, the default is the digest associated with the key algorithm (e.g., SHA-256 for key algorithm HmacSHA256). 
          * HMAC keys cannot be authorized for more than one digest.
+         * 
+         * default - SHA256
          */
         digests: KeyDigests[],
 
