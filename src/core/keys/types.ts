@@ -63,6 +63,15 @@ export type GenerateKeyOpts = {
     attestChallenge?: string,
 
     /**
+     * Format for the returned public key.
+     * * PEM - Base64 encoded string with PEM header and footer
+     * * B64 - Base64 encoded string
+     * 
+     * default - PEM
+     */
+    pubkeyFormat?: 'PEM' | 'B64',
+
+    /**
      * Android specific options
      */
     android?: {

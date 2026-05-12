@@ -128,7 +128,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
                 build()
             }
-            
+
             kpg.initialize(parameterSpec)
 
             // Generate the Key

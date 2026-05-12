@@ -125,8 +125,31 @@ export function getBiometricSupport(): BiometricsSupport {
     
 }
 
-export function attestKey(alias: string) {
+/**
+ * IMPORTANT: This will only work if an attestation challenge was provided when the
+ * key was generated (see the generateKey options)
+ * 
+ * @param alias
+ * @returns The certificate chain - An array of PEM strings
+ */
+export async function attestKey(alias: string): Promise<string[]> {
+    const result = await NativeSilicon.attestKey(alias)
+    if (!result.success) {
+        switch (result.errorCode) {
+            case 'KEY_NOT_FOUND':
+                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage);
 
+            case 'NO_CERT_CHAIN':
+                throw new SiliconError(SiliconErrorCode.NO_CERT_CHAIN, result.errorMessage)
+
+            case 'ATTEST_FAILED':
+                throw new SiliconError(SiliconErrorCode.ATTEST_FAILED, result.errorMessage)
+        }
+
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+    }
+
+    return result.data;
 }
 
 export function isHardwareBacked(alias: string) {
