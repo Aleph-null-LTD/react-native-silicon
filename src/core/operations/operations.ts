@@ -22,7 +22,7 @@ export async function sign(alias: string, payload: string | Uint8Array, opts: Si
                 throw new SiliconError(SiliconErrorCode.SIGNING_FAILED, result.errorMessage);
             
             default:
-                throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
         }
     }
 
