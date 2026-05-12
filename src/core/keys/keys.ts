@@ -81,12 +81,29 @@ export async function keyExists(alias: string): Promise<boolean> {
     return result.data;
 }
 
-export function listKeys() {
+/**
+ * Lists all keys.
+ * 
+ * prefix can be defined to list only keys with a matching prefix.
+ * 
+ * @param prefix 
+ * @returns An array of the key aliases
+ */
+export async function listKeys(prefix?: string): Promise<string[]> {
+    const result = await NativeSilicon.listKeys(prefix)
+    if (!result.success) {
+        if (result.errorCode == 'KEY_LIST_FAILED') {
+            throw new SiliconError(SiliconErrorCode.KEY_LIST_FAILED, result.errorMessage)
+        }
 
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`)
+    }
+
+    return result.data;
 }
 
 export function validateKey(alias: string) {
-
+    
 }
 
 export function getPubKey(alias: string) {
