@@ -135,16 +135,19 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             val keyPair = kpg.generateKeyPair()
 
             // Encode and format the pubkey
-            var b64Key = Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
-            if (opts.pubkeyFormat == PubkeyFormat.PEM) {
-                b64Key = buildString {
+            var pubkey = when (opts.pubkeyFormat) {
+                PubkeyFormat.PEM -> buildString {
                     append("-----BEGIN PUBLIC KEY-----\n")
-                    append(b64Key)
+                    // Line breaks are required for PEM keys
+                    append(Base64.encodeToString(keyPair.public.encoded, Base64.DEFAULT))
                     append("-----END PUBLIC KEY-----")
                 }
+
+                // Disable line breaks for raw Base64
+                PubkeyFormat.B64 -> Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
             }
 
-            return SiliconResult.Success(b64Key);
+            return SiliconResult.Success(pubkey);
         } catch (e: InvalidAlgorithmParameterException) {
             return SiliconResult.Failure(
                 "INVALID_ALGORITHM_PARAMETER",
