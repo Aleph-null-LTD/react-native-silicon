@@ -5,11 +5,20 @@ import android.hardware.biometrics.BiometricManager
 import android.os.Build
 import co.alephnull.reactnative.silicon.keystoremanager.GenerateKeyOptions
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
+import co.alephnull.reactnative.silicon.signer.SiliconSigner
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.security.KeyStore
 
 class ReactNativeSiliconModule : Module() {
+  private val keystore by lazy {
+    // Instantiate the keystore
+    // We pass in "AndroidKeyStore", and pass 'null' into load (Android OS manages the hardware-level storage automatically)
+    KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+  }
+
   private val keystoreManager by lazy { SiliconKeystoreManager(appContext) }
+  private val signer by lazy { SiliconSigner(appContext, keystore) }
 
   // Each module class must implement the definition function. The definition consists of components
   // that describes the module's functionality and behavior.
@@ -83,7 +92,13 @@ class ReactNativeSiliconModule : Module() {
     }
 
     AsyncFunction("genKey") { alias: String, opts: GenerateKeyOptions ->
-        return@AsyncFunction keystoreManager.genKey(alias, opts).toBridgeMap()
+      val result = keystoreManager.genKey(alias, opts)
+      return@AsyncFunction result.toBridgeMap()
+    }
+
+    AsyncFunction("sign") {
+      val result = signer.sign()
+      return@AsyncFunction result.toBridgeMap()
     }
   }
 }
