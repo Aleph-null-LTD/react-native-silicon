@@ -42,12 +42,18 @@ class UserAuthOptions : Record {
     @Field val require: Boolean = false
     @Field var timeout: Int = 0
     @Field val invalidateOnChange: Boolean = true
-    @Field val policy: AuthPolicy = AuthPolicy.BIOMETRICS_ONLY
+    @Field var policy: AuthPolicy = AuthPolicy.BIOMETRICS_ONLY
+}
+
+enum class PubkeyFormat(val value: String) : Enumerable {
+    PEM("PEM"),
+    B64("B64")
 }
 
 class GenerateKeyOptions : Record {
     @Field lateinit var purposes: List<KeyPurpose>
     @Field lateinit var userAuth: UserAuthOptions
     @Field var attestChallenge: String? = null
+    @Field var pubkeyFormat: PubkeyFormat = PubkeyFormat.PEM
     @Field lateinit var android: AndroidOptions
 }

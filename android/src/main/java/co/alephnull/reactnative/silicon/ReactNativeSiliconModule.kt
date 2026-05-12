@@ -121,6 +121,11 @@ class ReactNativeSiliconModule : Module() {
       return@AsyncFunction result.toBridgeMap()
     }
 
+    AsyncFunction("attestKey") { alias: String ->
+      val result = keystoreManager.attestKey(alias)
+      return@AsyncFunction result.toBridgeMap()
+    }
+
     // ---- Signer ----
 
     AsyncFunction("sign") Coroutine { alias: String, payload: PayloadType, opts: SignOptions ->

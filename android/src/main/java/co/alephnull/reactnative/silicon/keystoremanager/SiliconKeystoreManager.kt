@@ -7,10 +7,11 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
-import java.util.Base64
+import android.util.Base64
 import expo.modules.kotlin.AppContext
 import java.security.InvalidAlgorithmParameterException
 import java.security.KeyStore
+import java.security.cert.Certificate
 
 class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore) {
 
@@ -127,23 +128,29 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
                 build()
             }
+            
+            kpg.initialize(parameterSpec)
+
+            // Generate the Key
+            val keyPair = kpg.generateKeyPair()
+
+            // Encode and format the pubkey
+            var b64Key = Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
+            if (opts.pubkeyFormat == PubkeyFormat.PEM) {
+                b64Key = buildString {
+                    append("-----BEGIN PUBLIC KEY-----\n")
+                    append(b64Key)
+                    append("-----END PUBLIC KEY-----")
+                }
+            }
+
+            return SiliconResult.Success(b64Key);
         } catch (e: InvalidAlgorithmParameterException) {
             return SiliconResult.Failure(
                 "INVALID_ALGORITHM_PARAMETER",
                 e.localizedMessage ?: "Failed to generate key due to invalid algorithm parameter"
             );
         }
-
-        kpg.initialize(parameterSpec)
-
-        // Generate the Key
-        val keyPair = kpg.generateKeyPair()
-
-        // TODO: Possibly use Base64Url
-        // We encode to Base64 so it crosses the bridge as a string
-        val b64Key = Base64.getEncoder().encodeToString(keyPair.public.encoded)
-        return SiliconResult.Success(b64Key);
-
     }
 
     fun deleteKey(alias: String): SiliconResult<Boolean> {
@@ -223,7 +230,37 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         }
     }
 
-    fun attestKey(alias: String) {
+    fun attestKey(alias: String): SiliconResult<List<String>> {
+        try {
+            // Ensure the key exists
+            if (!keystore.containsAlias(alias)) {
+                return SiliconResult.Failure("KEY_NOT_FOUND", "No key exists for alias: '$alias'")
+            }
 
+            // Query the Keystore for the certificate array
+            val certChain = keystore.getCertificateChain(alias)
+                ?: return SiliconResult.Failure("NO_CERT_CHAIN", "Key exists but has no certificate chain")
+
+            // Map the raw binary certificates to an array of PEM strings
+            val pemChain = certChain.map { certificateToPem(it) }
+
+            return SiliconResult.Success(pemChain)
+
+        } catch (e: Exception) {
+            return SiliconResult.Failure(
+                code = "ATTEST_FAILED",
+                message = e.localizedMessage ?: "Failed to extract certificate chain."
+            )
+        }
+    }
+
+    private fun certificateToPem(certificate: Certificate): String {
+        // Standard Base64 encoding with line breaks formatted for standard X.509 parsers
+        val encodedCert = Base64.encodeToString(certificate.encoded, Base64.DEFAULT)
+        return buildString {
+            append("-----BEGIN CERTIFICATE-----\n")
+            append(encodedCert)
+            append("-----END CERTIFICATE-----")
+        }
     }
 }
