@@ -94,6 +94,8 @@ class ReactNativeSiliconModule : Module() {
       )
     }
 
+    // ---- Keystore Manager ----
+
     AsyncFunction("genKey") { alias: String, opts: GenerateKeyOptions ->
       val result = keystoreManager.genKey(alias, opts)
       return@AsyncFunction result.toBridgeMap()
@@ -108,6 +110,13 @@ class ReactNativeSiliconModule : Module() {
       val result = keystoreManager.deleteAllKeys(prefix)
       return@AsyncFunction result.toBridgeMap()
     }
+
+    AsyncFunction("keyExists") { alias: String ->
+      val result = keystoreManager.keyExists(alias)
+      return@AsyncFunction result.toBridgeMap()
+    }
+
+    // ---- Signer ----
 
     AsyncFunction("sign") Coroutine { alias: String, payload: PayloadType, opts: SignOptions ->
       val result = signer.sign(alias, payload, opts)

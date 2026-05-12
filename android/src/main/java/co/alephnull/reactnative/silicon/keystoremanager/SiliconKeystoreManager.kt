@@ -175,6 +175,19 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         }
     }
 
+    fun keyExists(alias: String): SiliconResult<Boolean> {
+        try {
+            val exists = keystore.containsAlias(alias)
+            return SiliconResult.Success(exists)
+
+        } catch (e: Exception) {
+            return SiliconResult.Failure(
+                code = "KEY_CHECK_FAILED",
+                message = e.localizedMessage ?: "Failed to verify key existence for alias: $alias"
+            )
+        }
+    }
+
     fun attestKey(alias: String) {
 
     }
