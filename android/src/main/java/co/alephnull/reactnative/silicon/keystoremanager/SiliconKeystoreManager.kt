@@ -149,6 +149,32 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         }
     }
 
+    fun deleteAllKeys(prefix: String? = null): SiliconResult<Int> {
+        var total = 0
+        var count = 0
+
+        try {
+            val aliases = keystore.aliases().toList()
+
+            total = aliases.count()
+
+            for (alias in aliases) {
+                if (prefix == null || alias.startsWith(prefix)) {
+                    keystore.deleteEntry(alias)
+                    count++
+                }
+            }
+
+            return SiliconResult.Success(count)
+
+        } catch (e: Exception) {
+            return SiliconResult.Failure(
+                code = "BULK_DELETE_FAILED",
+                message = e.localizedMessage ?: "Failed to execute bulk key wipe: $count/$total deleted"
+            )
+        }
+    }
+
     fun attestKey(alias: String) {
 
     }
