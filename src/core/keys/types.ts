@@ -12,22 +12,44 @@ export type GenerateKeyOpts = {
     purposes: KeyPurpose[],
     
     /**
-     * Biometrics options for the key
+     * User Authentication options for the key
      */
-    biometrics?: {
+    userAuth?: {
         /**
-         * Reuires user auth to use the key
+         * Requires user auth to use the key
          * 
          * default - false
          */
         require: boolean,
 
         /**
-         * Destroys the key if new biometrics are added
+         * Int value.
          * 
-         * default - false
+         * Sets the duration of time (seconds) and authorization type for which this key is authorized 
+         * to be used after the user is successfully authenticated.
+         * 
+         * set 0 if user authentication must take place for every use of the key.
+         * 
+         * default - 0
          */
-        invalidateOnNew: boolean
+        timeout: number,
+
+        /**
+         * Destroys the key if new Biometrics are added to the device.
+         * 
+         * default - true
+         */
+        invalidateOnChange: boolean
+
+        /**
+         * * BIOMETRICS_ONLY - Only allows Biometric authentication 
+         * * BIOMETRICS_OR_CREDENTIAL - Allows either Biometric authentication or non-biometric credential used to secure the device (i.e., PIN, pattern, or password)
+         * 
+         * Works flawlessly on Android 11+ and iOS. On Android 10 and below, it safely degrades to standard per-use biometric authentication governed by the older OS's standard system prompt behavior.
+         * 
+         * default - BIOMETRICS_ONLY
+         */
+        policy: 'BIOMETRICS_ONLY' | 'BIOMETRICS_OR_CREDENTIAL'
     }
 
     /**

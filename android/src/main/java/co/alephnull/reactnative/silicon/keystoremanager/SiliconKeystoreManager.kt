@@ -28,7 +28,7 @@ class SiliconKeystoreManager(private val appContext: AppContext) {
 
         // Fail-fast if StrongBox was required but not supported
         if (useStrongBox && requireStrongBox && !canUseStrongBox) {
-            return SiliconResult.Failure("STRONGBOX_NOT_SUPPORTED", "")
+            return SiliconResult.Failure("STRONGBOX_NOT_SUPPORTED", "StrongBox is not supported on this device")
         }
 
         // If StrongBox was preferred but not required,
@@ -39,7 +39,6 @@ class SiliconKeystoreManager(private val appContext: AppContext) {
 
         val alg = when (opts.android.algorithm) {
             KeyAlgorithm.ES256 -> KeyProperties.KEY_ALGORITHM_EC
-            else -> throw Exception("Algorithm ${opts.android.algorithm} is not valid")
         }
 
         // Initialize the Generator
@@ -56,10 +55,10 @@ class SiliconKeystoreManager(private val appContext: AppContext) {
                 KeyPurpose.VERIFY -> purpose or KeyProperties.PURPOSE_VERIFY
                 KeyPurpose.ENCRYPT -> purpose or KeyProperties.PURPOSE_ENCRYPT
                 KeyPurpose.DECRYPT -> purpose or KeyProperties.PURPOSE_DECRYPT
-                else -> throw Exception("Purpose $p is not valid")
             }
         }
 
+        @SuppressLint("WrongConstant") // Suppress the lint on setDigests - we know that the values are correct here
         val parameterSpec = KeyGenParameterSpec.Builder(
             alias,
             purpose
@@ -76,10 +75,8 @@ class SiliconKeystoreManager(private val appContext: AppContext) {
                 }
             }.toTypedArray()
 
-            @SuppressLint("WrongConstant") // Suppress the lint - we know that the values are correct here
             setDigests(*digests)
 
-            // Hardware Security Settings
             if (useStrongBox) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     setIsStrongBoxBacked(true)
@@ -89,12 +86,32 @@ class SiliconKeystoreManager(private val appContext: AppContext) {
                 }
             }
 
-            // Biometric Requirement
-            setUserAuthenticationRequired(opts.requireUserAuth)
+            setUserAuthenticationRequired(opts.userAuth.require)
 
-            // Invalidate key if new fingerprints are added (Highly secure)
-            if (opts.requireUserAuth && opts.invalidateUserAuthOnChange) {
-                setInvalidatedByBiometricEnrollment(true)
+            if (opts.userAuth.require) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val authFlags = when (opts.userAuth.policy) {
+                        AuthPolicy.BIOMETRICS_ONLY -> KeyProperties.AUTH_BIOMETRIC_STRONG
+                        AuthPolicy.BIOMETRICS_OR_CREDENTIAL -> KeyProperties.AUTH_BIOMETRIC_STRONG or KeyProperties.AUTH_DEVICE_CREDENTIAL
+                    }
+
+                    setUserAuthenticationParameters(opts.userAuth.timeout, authFlags)
+
+                    if (opts.userAuth.invalidateOnChange) {
+                        setInvalidatedByBiometricEnrollment(true)
+                    } else {
+                        setInvalidatedByBiometricEnrollment(false)
+                    }
+                } else { // Fallback for older Android devices (API 29 and below)
+                    val timeout = if (opts.userAuth.timeout == 0) {
+                        -1 // -1 enforces authentication for every use, but OS fallback rules apply
+                    } else {
+                        opts.userAuth.timeout
+                    }
+
+                    @Suppress("DEPRECATION") // Suppress the deprecation - this is a fallback for old devices
+                    setUserAuthenticationValidityDurationSeconds(timeout)
+                }
             }
 
             build()

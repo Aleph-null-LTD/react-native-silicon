@@ -33,9 +33,20 @@ class AndroidOptions : Record {
     @Field val hardwarePolicy: HardwarePolicy = HardwarePolicy.PREFER_STRONGBOX
 }
 
+enum class AuthPolicy(val value: String) : Enumerable {
+    BIOMETRICS_ONLY("BIOMETRICS_ONLY"),
+    BIOMETRICS_OR_CREDENTIAL("BIOMETRICS_OR_CREDENTIAL")
+}
+
+class UserAuthOptions : Record {
+    @Field val require: Boolean = false
+    @Field var timeout: Int = 0
+    @Field val invalidateOnChange: Boolean = true
+    @Field val policy: AuthPolicy = AuthPolicy.BIOMETRICS_ONLY
+}
+
 class GenerateKeyOptions : Record {
     @Field lateinit var purposes: List<KeyPurpose>
+    @Field lateinit var userAuth: UserAuthOptions
     @Field lateinit var android: AndroidOptions
-    @Field val requireUserAuth: Boolean = false
-    @Field val invalidateUserAuthOnChange: Boolean = false
 }
