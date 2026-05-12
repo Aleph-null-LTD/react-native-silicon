@@ -104,7 +104,7 @@ class ReactNativeSiliconModule : Module() {
       return@AsyncFunction result.toBridgeMap()
     }
 
-    AsyncFunction("deleteAllKeys") { prefix: String ->
+    AsyncFunction("deleteAllKeys") { prefix: String? ->
       val result = keystoreManager.deleteAllKeys(prefix)
       return@AsyncFunction result.toBridgeMap()
     }
