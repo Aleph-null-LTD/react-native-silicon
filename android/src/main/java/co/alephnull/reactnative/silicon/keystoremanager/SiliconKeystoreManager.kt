@@ -188,6 +188,25 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         }
     }
 
+    fun listKeys(prefix: String?): SiliconResult<List<String>> {
+        try {
+            val aliases = keystore.aliases().toList()
+
+            val filtered = if (prefix != null) {
+                aliases.filter { it.startsWith(prefix) }
+            } else {
+                aliases
+            }
+            return SiliconResult.Success(filtered)
+
+        } catch (e: Exception) {
+            return SiliconResult.Failure(
+                code = "KEY_LIST_FAILED",
+                message = e.localizedMessage ?: "Failed to list keys"
+            )
+        }
+    }
+
     fun attestKey(alias: String) {
 
     }
