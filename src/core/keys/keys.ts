@@ -62,8 +62,23 @@ export async function deleteAllKeys(prefix?: string): Promise<number> {
     return result.data;
 }
 
-export function keyExists(alias: string): boolean {
+/**
+ * Checks for the existence of a key with the specified alias.
+ * 
+ * @param alias 
+ * @returns true if the key exists
+ */
+export async function keyExists(alias: string): Promise<boolean> {
+    const result = await NativeSilicon.keyExists(alias)
+    if (!result.success) {
+        if (result.errorCode == 'KEY_CHECK_FAILED') {
+            throw new SiliconError(SiliconErrorCode.KEY_CHECK_FAILED, result.errorMessage)
+        }
 
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`)
+    }
+
+    return result.data;
 }
 
 export function listKeys() {

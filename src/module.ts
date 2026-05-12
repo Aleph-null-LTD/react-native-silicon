@@ -9,6 +9,7 @@ declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconMo
   genKey(alias: string, opts: GenerateKeyOpts): Promise<BridgeResult<string>>;
   deleteKey(alias: string): Promise<BridgeResult<boolean>>;
   deleteAllKeys(prefix?: string): Promise<BridgeResult<number>>;
+  keyExists(alias: string): Promise<BridgeResult<boolean>>;
   sign(alias: string, algorithm: string | Uint8Array, opts: SignOpts): Promise<BridgeResult<string>>;
 }
 
