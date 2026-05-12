@@ -1,0 +1,72 @@
+export type KeyPurpose = 'SIGN' | 'VERIFY' | 'ENCRYPT' | 'DECRYPT';
+type KeyDigests = 'SHA256'
+
+/**
+ * Note: We currently only support Asymmetric ES256. Other algorithms will be added soon.
+ */ 
+export type GenerateKeyOpts = {
+    /**
+     * set of purposes (e.g., encrypt, decrypt, sign) for which the key can be used. 
+     * Attempts to use the key for any other purpose will be rejected
+     */
+    purposes: KeyPurpose[],
+    
+    /**
+     * Biometrics options for the key
+     */
+    biometrics?: {
+        /**
+         * Reuires user auth to use the key
+         * 
+         * default - false
+         */
+        require: boolean,
+
+        /**
+         * Destroys the key if new biometrics are added
+         * 
+         * default - false
+         */
+        invalidateOnNew: boolean
+    }
+
+    /**
+     * Android specific options
+     */
+    android?: {
+        /**
+         * The key algorithm
+         * 
+         * default - ES256
+         */
+        algorithm: 'ES256',
+        
+        /**
+         * Sets the set of digests algorithms (e.g., SHA-256, SHA-384) with which the key can be used. 
+         * Attempts to use the key with any other digest algorithm will be rejected.
+         * 
+         * For HMAC keys, the default is the digest associated with the key algorithm (e.g., SHA-256 for key algorithm HmacSHA256). 
+         * HMAC keys cannot be authorized for more than one digest.
+         */
+        digests: KeyDigests[],
+
+        /**
+         * The policy to use when creating the key.
+         * * requireStrongbox - Will fail the key generation if StrongBox is not available on the device
+         * * preferStrongbox - Will attempt to store the key in StrongBox and fall back to TEE if strongbox is not available on the device
+         * * useTEE - Will not attempt to use StrongBox and will use TEE
+         * 
+         * default - PREFER_STRONGBOX
+         */
+        hardwarePolicy: 'REQUIRE_STRONGBOX' | 'PREFER_STRONGBOX' | 'USE_TEE'
+    },
+
+    /**
+     * IOS specific options
+     */
+    ios?: {
+        algorithm: 'ES256',
+        hardwarePolicy: 'require' | 'prefer' | 'software'
+    }
+};
+
