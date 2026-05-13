@@ -7,9 +7,11 @@ type KeyDigests = 'SHA256'
 export type GenerateKeyOpts = {
     /**
      * set of purposes (e.g., encrypt, decrypt, sign) for which the key can be used. 
-     * Attempts to use the key for any other purpose will be rejected
+     * Attempts to use the key for any other purpose will be rejected.
+     * 
+     * default - 'SIGN' and 'VERIFY'
      */
-    purposes: KeyPurpose[],
+    purposes?: KeyPurpose[],
     
     /**
      * User Authentication options for the key

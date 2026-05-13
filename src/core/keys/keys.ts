@@ -1,6 +1,10 @@
 import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
+import { isPlainObject } from '../../utils/validation';
 import { GenerateKeyOpts } from "./types";
+
+// TODO: Validate use inputs in EVERY wrapper function
+// EVERY param must be validated to ensure run-time safety
 
 /**
  * Generate a key
@@ -10,6 +14,22 @@ import { GenerateKeyOpts } from "./types";
  * @returns 
  */
 export async function generateKey(alias: string, opts: GenerateKeyOpts): Promise<string> {
+    if (!alias || typeof alias !== 'string') {
+        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+    }
+
+    if (!isPlainObject(opts)) {
+        throw new TypeError("Silicon Error: 'opts' must be an object");
+    }
+
+    if (Object.hasOwn(opts, 'purposes')) {
+        if (!Array.isArray(opts.purposes)) {
+            throw new TypeError("Silicon Error: 'purposes' must be an array");
+        }
+    }
+
+    // TODO: Finish opts validation
+
     const result = await NativeSilicon.genKey(alias, opts);
     if (!result.success) {
         switch (result.errorCode) {
@@ -30,6 +50,10 @@ export async function generateKey(alias: string, opts: GenerateKeyOpts): Promise
  * @returns true if the key was deleted
  */
 export async function deleteKey(alias: string): Promise<boolean> {
+    if (!alias || typeof alias !== 'string') {
+        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+    }
+    
     const result = await NativeSilicon.deleteKey(alias);
     if (!result.success) {
         if (result.errorCode == 'DELETE_FAILED') {
@@ -55,6 +79,10 @@ export async function deleteKey(alias: string): Promise<boolean> {
  * @returns The number of keys that were deleted
  */
 export async function deleteAllKeys(prefix?: string): Promise<number> {
+    if (prefix && typeof prefix !== 'string') {
+        throw new TypeError("Silicon Error: 'prefix' must be of type string");
+    }
+
     const result = await NativeSilicon.deleteAllKeys(prefix);
     if (!result.success) {
         if (result.errorCode == 'BULK_DELETE_FAILED') {
@@ -74,6 +102,10 @@ export async function deleteAllKeys(prefix?: string): Promise<number> {
  * @returns true if the key exists
  */
 export async function keyExists(alias: string): Promise<boolean> {
+    if (!alias || typeof alias !== 'string') {
+        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+    }
+
     const result = await NativeSilicon.keyExists(alias);
     if (!result.success) {
         if (result.errorCode == 'KEY_CHECK_FAILED') {
@@ -95,6 +127,10 @@ export async function keyExists(alias: string): Promise<boolean> {
  * @returns An array of the key aliases
  */
 export async function listKeys(prefix?: string): Promise<string[]> {
+    if (prefix && typeof prefix !== 'string') {
+        throw new TypeError("Silicon Error: 'prefix' must be of type string");
+    }
+
     const result = await NativeSilicon.listKeys(prefix)
     if (!result.success) {
         if (result.errorCode == 'KEY_LIST_FAILED') {
@@ -108,11 +144,40 @@ export async function listKeys(prefix?: string): Promise<string[]> {
 }
 
 export function validateKey(alias: string) {
+    if (!alias || typeof alias !== 'string') {
+        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+    }
 
 }
 
-export function getPubKey(alias: string) {
+export async function getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<string> {
+    if (!alias || typeof alias !== 'string') {
+        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+    }
 
+    if (typeof format !== 'string' || 
+        (format !== 'PEM' && format !== 'B64')
+    ) {
+        throw new TypeError("Silicon Error: 'format' must be of type 'PEM' | 'B64'");
+    }
+
+    const result = await NativeSilicon.getPubKey(alias, format);
+    if (!result.success) {
+        switch (result.errorCode) {
+            case 'KEY_NOT_FOUND':
+                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage)
+
+            case 'NO_CERT':
+                throw new SiliconError(SiliconErrorCode.NO_CERT, result.errorMessage)
+
+            case 'GET_PUB_KEY_FAILED':
+                throw new SiliconError(SiliconErrorCode.GET_PUB_KEY_FAILED, result.errorMessage)
+        }
+
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+    }
+
+    return result.data;
 }
 
 export type BiometricsSupport = {
@@ -133,6 +198,10 @@ export function getBiometricSupport(): BiometricsSupport {
  * @returns The certificate chain - An array of PEM strings
  */
 export async function attestKey(alias: string): Promise<string[]> {
+    if (!alias || typeof alias !== 'string') {
+        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+    }
+
     const result = await NativeSilicon.attestKey(alias)
     if (!result.success) {
         switch (result.errorCode) {
@@ -153,6 +222,9 @@ export async function attestKey(alias: string): Promise<string[]> {
 }
 
 export function isHardwareBacked(alias: string) {
+    if (!alias || typeof alias !== 'string') {
+        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+    }
 
 }
 
