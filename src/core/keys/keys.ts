@@ -35,6 +35,15 @@ export async function generateKey(alias: string, opts: GenerateKeyOpts): Promise
         switch (result.errorCode) {
             case "INVALID_ALGORITHM_PARAMETER":
                 throw new SiliconError(SiliconErrorCode.INVALID_ALGORITHM_PARAMETER, result.errorMessage);
+
+            case "STRONGBOX_NOT_SUPPORTED":
+                throw new SiliconError(SiliconErrorCode.STRONGBOX_NOT_SUPPORTED, result.errorMessage);
+            
+            case "PURPOSE_WRAP_NOT_SUPPORTED":
+                throw new SiliconError(SiliconErrorCode.PURPOSE_WRAP_NOT_SUPPORTED, result.errorMessage);
+            
+            case "PURPOSE_AGREE_NOT_SUPPORTED":
+                throw new SiliconError(SiliconErrorCode.PURPOSE_AGREE_NOT_SUPPORTED, result.errorMessage);
         }
 
         throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
