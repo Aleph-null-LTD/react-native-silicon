@@ -1,7 +1,7 @@
 import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
 import { isPlainObject } from '../../utils/validation';
-import { GenerateKeyOpts } from "./types";
+import { GenerateKeyOpts, KeyInfo } from "./types";
 
 // TODO: Validate use inputs in EVERY wrapper function
 // EVERY param must be validated to ensure run-time safety
@@ -151,9 +151,7 @@ export function validateKey(alias: string) {
 }
 
 /**
- * Gets the pubkey from an asymetric keypair.
- * 
- * 
+ * Gets the pubkey from an asymmetric keypair.
  * @param alias 
  * @param format 
  * @returns 
@@ -191,16 +189,6 @@ export async function getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<s
     return result.data;
 }
 
-export type BiometricsSupport = {
-    available: boolean, 
-    enrolled: boolean, 
-    type: 'FaceID' | 'TouchID' | 'Biometrics' | 'None' 
-}
-
-export function getBiometricSupport(): BiometricsSupport {
-    
-}
-
 /**
  * IMPORTANT: This will only work if an attestation challenge was provided when the
  * key was generated (see the generateKey options)
@@ -224,6 +212,33 @@ export async function attestKey(alias: string): Promise<string[]> {
 
             case 'ATTEST_FAILED':
                 throw new SiliconError(SiliconErrorCode.ATTEST_FAILED, result.errorMessage)
+        }
+
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+    }
+
+    return result.data;
+}
+
+export async function getKeyInfo(alias: string): Promise<KeyInfo> {
+    if (!alias || typeof alias !== 'string') {
+        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+    }
+
+    const result = await NativeSilicon.getKeyInfo(alias)
+    if (!result.success) {
+        switch (result.errorCode) {
+            case 'KEY_NOT_FOUND':
+                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage);
+
+            case 'GET_KEY_INFO_FAILED':
+                throw new SiliconError(SiliconErrorCode.GET_KEY_INFO_FAILED, result.errorMessage);
+
+            case 'UNSUPPORTED_KEY_FAMILY':
+                throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage);
+
+            case 'KEY_LOAD_FAILED':
+                throw new SiliconError(SiliconErrorCode.KEY_LOAD_FAILED, result.errorMessage);
         }
 
         throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);

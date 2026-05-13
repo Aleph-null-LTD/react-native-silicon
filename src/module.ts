@@ -1,7 +1,7 @@
 import { NativeModule, requireNativeModule } from 'expo';
 
 import { ReactNativeSiliconModuleEvents } from './types';
-import { GenerateKeyOpts } from './core/keys/types';
+import { GenerateKeyOpts, KeyInfo } from './core/keys/types';
 import { BridgeResult } from './types/bridge-result';
 import { SignOpts } from './core/operations/types';
 
@@ -13,6 +13,7 @@ declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconMo
   listKeys(prefix?: string): Promise<BridgeResult<string[]>>;
   getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<BridgeResult<string>>;
   attestKey(alias: string): Promise<BridgeResult<string[]>>;
+  getKeyInfo(alias: string): Promise<BridgeResult<KeyInfo>>;
   sign(alias: string, algorithm: string | Uint8Array, opts: SignOpts): Promise<BridgeResult<string>>;
 }
 

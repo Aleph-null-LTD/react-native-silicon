@@ -1,4 +1,4 @@
-export type KeyPurpose = 'SIGN' | 'VERIFY' | 'ENCRYPT' | 'DECRYPT';
+export type KeyPurpose = 'SIGN' | 'VERIFY' | 'ENCRYPT' | 'DECRYPT' | 'WRAP' | 'AGREE' | 'ATTEST';
 type KeyDigests = 'SHA256'
 
 /**
@@ -41,7 +41,7 @@ export type GenerateKeyOpts = {
          * 
          * default - true
          */
-        invalidateOnChange: boolean,
+        invalidateOnEnrollment: boolean,
 
         /**
          * * BIOMETRICS_ONLY - Only allows Biometric authentication 
@@ -115,3 +115,14 @@ export type GenerateKeyOpts = {
     }
 };
 
+
+export type KeyInfo = {
+    alias: string,
+    algorithm: string,
+    keySize: number,
+    securityLevel: 'STRONGBOX' | 'TEE' | 'SOFTWARE',
+    purposes: KeyPurpose[],
+    isUserAuthRequired: boolean,
+    isInvalidatedByBiometricEnrollment: boolean,
+    userAuthValidityDurationSecs: number
+}
