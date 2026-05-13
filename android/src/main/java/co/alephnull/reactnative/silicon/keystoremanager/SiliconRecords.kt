@@ -41,7 +41,7 @@ enum class AuthPolicy(val value: String) : Enumerable {
 class UserAuthOptions : Record {
     @Field var require: Boolean = false
     @Field var timeout: Int = 0
-    @Field var invalidateOnChange: Boolean = true
+    @Field var invalidateOnEnrollment: Boolean = true
     @Field var policy: AuthPolicy = AuthPolicy.BIOMETRICS_ONLY
 }
 

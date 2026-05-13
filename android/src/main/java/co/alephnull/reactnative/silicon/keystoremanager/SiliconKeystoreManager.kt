@@ -4,14 +4,21 @@ import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import android.util.Base64
+import androidx.core.graphics.createBitmap
+import co.alephnull.reactnative.silicon.SiliconException
 import expo.modules.kotlin.AppContext
 import java.security.InvalidAlgorithmParameterException
+import java.security.KeyFactory
 import java.security.KeyStore
+import java.security.PrivateKey
 import java.security.cert.Certificate
+import javax.crypto.SecretKey
+import javax.crypto.SecretKeyFactory
 
 class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore) {
 
@@ -109,7 +116,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
                         setUserAuthenticationParameters(opts.userAuth.timeout, authFlags)
 
-                        if (opts.userAuth.invalidateOnChange) {
+                        if (opts.userAuth.invalidateOnEnrollment) {
                             setInvalidatedByBiometricEnrollment(true)
                         } else {
                             setInvalidatedByBiometricEnrollment(false)
@@ -297,6 +304,77 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             append("-----BEGIN CERTIFICATE-----\n")
             append(encodedCert)
             append("-----END CERTIFICATE-----")
+        }
+    }
+
+    fun getKeyInfo(alias: String): SiliconResult<Map<String, Any?>> {
+        try {
+            // Ensure the key exists
+            if (!keystore.containsAlias(alias)) {
+                return SiliconResult.Failure("KEY_NOT_FOUND", "No key exists for alias: '$alias'")
+            }
+
+            // Grab the private key interface
+            val key = keystore.getKey(alias, null)
+                ?: return SiliconResult.Failure("KEY_LOAD_FAILED", "KeyInfo extraction requires a PrivateKey")
+
+            // Smart-cast to the correct JCA engine to extract the underlying OS KeyInfo spec
+            val keyInfo: KeyInfo = when (key) {
+                is PrivateKey -> {
+                    val factory = KeyFactory.getInstance(key.algorithm, "AndroidKeyStore")
+                    factory.getKeySpec(key, KeyInfo::class.java)
+                }
+                is SecretKey -> {
+                    val factory = SecretKeyFactory.getInstance(key.algorithm, "AndroidKeyStore")
+                    factory.getKeySpec(key, KeyInfo::class.java) as KeyInfo
+                }
+                else -> return SiliconResult.Failure(
+                    "UNSUPPORTED_KEY_FAMILY",
+                    "KeyInfo extraction is not supported for key class: ${key.javaClass.simpleName}"
+                )
+            }
+
+            // Resolve the physical isolation layer securely across Android OS boundaries
+            val securityLevel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                when (keyInfo.securityLevel) {
+                    KeyProperties.SECURITY_LEVEL_STRONGBOX -> "STRONGBOX"
+                    KeyProperties.SECURITY_LEVEL_TRUSTED_ENVIRONMENT -> "TEE"
+                    else -> "SOFTWARE"
+                }
+            } else {
+                @Suppress("Deprecation") // This is a fallback so we can suppress
+                if (keyInfo.isInsideSecureHardware) "TEE" else "SOFTWARE"
+            }
+
+            val purposes = mutableListOf<String>()
+
+            for (mask in listOf(1,2,4,8,16,32,64,128)) {
+                when (mask and keyInfo.purposes) {
+                    KeyProperties.PURPOSE_SIGN -> purposes.add("SIGN")
+                    KeyProperties.PURPOSE_VERIFY -> purposes.add("VERIFY")
+                    KeyProperties.PURPOSE_ENCRYPT -> purposes.add("ENCRYPT")
+                    KeyProperties.PURPOSE_DECRYPT -> purposes.add("DECRYPT")
+                    KeyProperties.PURPOSE_WRAP_KEY -> purposes.add("WRAP")
+                    KeyProperties.PURPOSE_AGREE_KEY -> purposes.add("AGREE")
+                    KeyProperties.PURPOSE_ATTEST_KEY -> purposes.add("ATTEST")
+                    else -> continue
+                }
+            }
+
+            val infoMap = mapOf(
+                "alias" to keyInfo.keystoreAlias,
+                "algorithm" to key.algorithm,
+                "keySize" to keyInfo.keySize,
+                "securityLevel" to securityLevel,
+                "purposes" to purposes,
+                "isUserAuthRequired" to keyInfo.isUserAuthenticationRequired,
+                "isInvalidatedByBiometricEnrollment" to keyInfo.isInvalidatedByBiometricEnrollment,
+                "userAuthValidityDurationSecs" to keyInfo.userAuthenticationValidityDurationSeconds
+            )
+            return SiliconResult.Success(infoMap)
+
+        } catch (e: Exception) {
+            return SiliconResult.Failure("GET_KEY_INFO_FAILED", e.localizedMessage ?: "Failed to read KeyInfo.")
         }
     }
 }
