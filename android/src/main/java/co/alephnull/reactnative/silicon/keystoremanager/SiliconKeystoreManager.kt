@@ -240,6 +240,13 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 return SiliconResult.Failure("KEY_NOT_FOUND", "No key exists for alias: '$alias'")
             }
 
+            if (!keystore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry::class.java)) {
+                return SiliconResult.Failure(
+                    "UNSUPPORTED_KEY_FAMILY",
+                    "The key stored under alias '$alias' is a symmetric key. Public key extraction is only supported for asymmetric keypairs (RSA/EC)."
+                )
+            }
+
             val certificate = keystore.getCertificate(alias)
                 ?: return SiliconResult.Failure("NO_CERT", "No certificate chain found for key '$alias'.")
 

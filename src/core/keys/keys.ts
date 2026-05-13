@@ -150,6 +150,14 @@ export function validateKey(alias: string) {
 
 }
 
+/**
+ * Gets the pubkey from an asymetric keypair.
+ * 
+ * 
+ * @param alias 
+ * @param format 
+ * @returns 
+ */
 export async function getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<string> {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
@@ -169,6 +177,9 @@ export async function getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<s
 
             case 'NO_CERT':
                 throw new SiliconError(SiliconErrorCode.NO_CERT, result.errorMessage)
+
+            case 'UNSUPPORTED_KEY_FAMILY':
+                throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage)
 
             case 'GET_PUB_KEY_FAILED':
                 throw new SiliconError(SiliconErrorCode.GET_PUB_KEY_FAILED, result.errorMessage)
