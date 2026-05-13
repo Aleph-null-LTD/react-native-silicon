@@ -115,7 +115,6 @@ export type GenerateKeyOpts = {
     }
 };
 
-
 export type KeyInfo = {
     alias: string,
     algorithm: string,

@@ -11,10 +11,13 @@ enum class KeyAlgorithm(val value: String) : Enumerable {
 }
 
 enum class KeyPurpose(val value: String) : Enumerable {
-    SIGN("sign"),
-    VERIFY("verify"),
-    ENCRYPT("encrypt"),
-    DECRYPT("decrypt")
+    SIGN("SIGN"),
+    VERIFY("VERIFY"),
+    ENCRYPT("ENCRYPT"),
+    DECRYPT("DECRYPT"),
+    WRAP("WRAP"),
+    AGREE("AGREE"),
+    ATTEST("ATTEST")
 }
 
 enum class KeyDigest(val value: String) : Enumerable {

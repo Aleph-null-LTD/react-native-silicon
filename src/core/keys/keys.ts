@@ -247,10 +247,11 @@ export async function getKeyInfo(alias: string): Promise<KeyInfo> {
     return result.data;
 }
 
+/*
 export function isHardwareBacked(alias: string) {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
     }
-
 }
+*/
 

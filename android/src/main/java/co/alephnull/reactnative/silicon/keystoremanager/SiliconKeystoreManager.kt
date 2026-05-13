@@ -9,8 +9,6 @@ import android.security.keystore.KeyProperties
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import android.util.Base64
-import androidx.core.graphics.createBitmap
-import co.alephnull.reactnative.silicon.SiliconException
 import expo.modules.kotlin.AppContext
 import java.security.InvalidAlgorithmParameterException
 import java.security.KeyFactory
@@ -65,6 +63,17 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 KeyPurpose.VERIFY -> purpose or KeyProperties.PURPOSE_VERIFY
                 KeyPurpose.ENCRYPT -> purpose or KeyProperties.PURPOSE_ENCRYPT
                 KeyPurpose.DECRYPT -> purpose or KeyProperties.PURPOSE_DECRYPT
+                KeyPurpose.WRAP -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    purpose or KeyProperties.PURPOSE_WRAP_KEY
+                } else {
+                    return SiliconResult.Failure("PURPOSE_WRAP_NOT_SUPPORTED", "Purpose ")
+                }
+                KeyPurpose.AGREE -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    purpose or KeyProperties.PURPOSE_AGREE_KEY
+                }  else {
+                    return SiliconResult.Failure("PURPOSE_AGREE_NOT_SUPPORTED", "Purpose ")
+                }
+                KeyPurpose.ATTEST -> purpose or KeyProperties.PURPOSE_ATTEST_KEY
             }
         }
 
