@@ -28,9 +28,9 @@ enum class HardwarePolicy(val value: String) : Enumerable {
 }
 
 class AndroidOptions : Record {
-    @Field val algorithm: KeyAlgorithm = KeyAlgorithm.ES256
+    @Field var algorithm: KeyAlgorithm = KeyAlgorithm.ES256
     @Field lateinit var digests: List<KeyDigest>
-    @Field val hardwarePolicy: HardwarePolicy = HardwarePolicy.PREFER_STRONGBOX
+    @Field var hardwarePolicy: HardwarePolicy = HardwarePolicy.PREFER_STRONGBOX
 }
 
 enum class AuthPolicy(val value: String) : Enumerable {
@@ -39,9 +39,9 @@ enum class AuthPolicy(val value: String) : Enumerable {
 }
 
 class UserAuthOptions : Record {
-    @Field val require: Boolean = false
+    @Field var require: Boolean = false
     @Field var timeout: Int = 0
-    @Field val invalidateOnChange: Boolean = true
+    @Field var invalidateOnChange: Boolean = true
     @Field var policy: AuthPolicy = AuthPolicy.BIOMETRICS_ONLY
 }
 
@@ -51,9 +51,9 @@ enum class PubkeyFormat(val value: String) : Enumerable {
 }
 
 class GenerateKeyOptions : Record {
-    @Field lateinit var purposes: List<KeyPurpose>
-    @Field lateinit var userAuth: UserAuthOptions
+    @Field var purposes: List<KeyPurpose> = listOf(KeyPurpose.SIGN, KeyPurpose.VERIFY)
+    @Field var userAuth: UserAuthOptions = UserAuthOptions()
     @Field var attestChallenge: String? = null
     @Field var pubkeyFormat: PubkeyFormat = PubkeyFormat.PEM
-    @Field lateinit var android: AndroidOptions
+    @Field var android: AndroidOptions = AndroidOptions()
 }

@@ -17,6 +17,6 @@ enum class SignAlgorithm(val value: String) : Enumerable {
 }
 
 class SignOptions : Record {
-    @Field lateinit var encoding: SignEncoding
-    @Field lateinit var algorithm: SignAlgorithm
+    @Field var encoding: SignEncoding = SignEncoding.B64_URL
+    @Field var algorithm: SignAlgorithm = SignAlgorithm.SHA256
 }
