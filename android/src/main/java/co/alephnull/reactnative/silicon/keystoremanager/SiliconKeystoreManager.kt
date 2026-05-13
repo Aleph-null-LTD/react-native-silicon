@@ -5,16 +5,22 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import android.util.Base64
 import expo.modules.kotlin.AppContext
 import java.security.InvalidAlgorithmParameterException
+import java.security.InvalidKeyException
 import java.security.KeyFactory
 import java.security.KeyStore
 import java.security.PrivateKey
+import java.security.Signature
+import java.security.UnrecoverableKeyException
 import java.security.cert.Certificate
+import javax.crypto.Cipher
+import javax.crypto.Mac
 import javax.crypto.SecretKey
 import javax.crypto.SecretKeyFactory
 
@@ -351,7 +357,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                     else -> "SOFTWARE"
                 }
             } else {
-                @Suppress("Deprecation") // This is a fallback so we can suppress
+                @Suppress("Deprecation")
                 if (keyInfo.isInsideSecureHardware) "TEE" else "SOFTWARE"
             }
 
@@ -374,6 +380,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 "alias" to keyInfo.keystoreAlias,
                 "algorithm" to key.algorithm,
                 "keySize" to keyInfo.keySize,
+                "digests" to keyInfo.digests,
                 "securityLevel" to securityLevel,
                 "purposes" to purposes,
                 "isUserAuthRequired" to keyInfo.isUserAuthenticationRequired,
@@ -384,6 +391,123 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure("GET_KEY_INFO_FAILED", e.localizedMessage ?: "Failed to read KeyInfo.")
+        }
+    }
+
+    fun validateKey(alias: String): SiliconResult<String> {
+        try {
+            // Ensure the key exists
+            if (!keystore.containsAlias(alias)) {
+                return SiliconResult.Success("MISSING")
+            }
+
+            when (val entry = keystore.getEntry(alias, null)) {
+                is KeyStore.PrivateKeyEntry -> {
+                    // ASYMMETRIC DRY-RUN
+                    val privateKey = entry.privateKey
+
+                    // Extract the spec to query authorized OS constraints
+                    val factory = KeyFactory.getInstance(privateKey.algorithm, "AndroidKeyStore")
+                    val keyInfo = factory.getKeySpec(privateKey, KeyInfo::class.java)
+
+                    // Safely resolve the first authorized digest
+                    val firstDigest = keyInfo.digests.firstOrNull() ?: KeyProperties.DIGEST_SHA256
+                    val digestPrefix = when (firstDigest) {
+                        KeyProperties.DIGEST_NONE -> "NONE"
+                        KeyProperties.DIGEST_MD5 -> "MD5"
+                        KeyProperties.DIGEST_SHA1 -> "SHA1"
+                        KeyProperties.DIGEST_SHA224 -> "SHA224"
+                        KeyProperties.DIGEST_SHA256 -> "SHA256"
+                        KeyProperties.DIGEST_SHA384 -> "SHA384"
+                        KeyProperties.DIGEST_SHA512 -> "SHA512"
+                        else -> "SHA256"
+                    }
+
+                    // Check for specific RSA PSS padding constraints
+                    val isEC = privateKey.algorithm == "EC"
+                    val isPssOnly = if (isEC) {
+                        false
+                    } else {
+                        // Unwrap the platform array
+                        val paddings = keyInfo.signaturePaddings
+
+                        KeyProperties.SIGNATURE_PADDING_RSA_PSS in paddings &&
+                                KeyProperties.SIGNATURE_PADDING_RSA_PKCS1 !in paddings
+                    }
+
+                    // Assemble the exact, authorized JCA algorithm string
+                    val jcaAlgo = when {
+                        isEC -> "${digestPrefix}withECDSA"
+                        isPssOnly -> "${digestPrefix}withRSA/PSS"
+                        else -> "${digestPrefix}withRSA"
+                    }
+
+                    try {
+                        // Execute dry-run memory mapping
+                        Signature.getInstance(jcaAlgo).apply {
+                            initSign(privateKey)
+                        }
+                    } catch (e: KeyPermanentlyInvalidatedException) {
+                        throw e // Let it bubble up to the core invalidation trap
+                    } catch (e: InvalidKeyException) {
+                        // Safe fallback trap: If a highly complex padding parameter required custom specs,
+                        // Keystore throws standard InvalidKeyException. Because it did NOT throw
+                        // KeyPermanentlyInvalidatedException, the material is certified intact.
+                    }
+                }
+                is KeyStore.SecretKeyEntry -> {
+                    // SYMMETRIC DRY-RUN
+                    val secretKey = entry.secretKey
+
+                    if (secretKey.algorithm.startsWith("Hmac")) {
+                        Mac.getInstance(secretKey.algorithm).apply { init(secretKey) }
+                    } else {
+                        // Extract KeyInfo to map authorized transformation parameters
+                        val factory = SecretKeyFactory.getInstance(secretKey.algorithm, "AndroidKeyStore")
+                        val keyInfo = factory.getKeySpec(secretKey, KeyInfo::class.java) as KeyInfo
+
+                        val blockMode = keyInfo.blockModes.firstOrNull() ?: KeyProperties.BLOCK_MODE_GCM
+                        val padding = keyInfo.encryptionPaddings.firstOrNull() ?: KeyProperties.ENCRYPTION_PADDING_NONE
+
+                        val modeStr = if (blockMode == KeyProperties.BLOCK_MODE_CBC) "CBC" else "GCM"
+                        val padStr = if (padding == KeyProperties.ENCRYPTION_PADDING_PKCS7) "PKCS7Padding" else "NoPadding"
+
+                        val cipher = Cipher.getInstance("${secretKey.algorithm}/$modeStr/$padStr")
+
+                        try {
+                            // Initialize the Cipher. Try ENCRYPT if authorized, otherwise DECRYPT.
+                            if ((keyInfo.purposes and KeyProperties.PURPOSE_ENCRYPT) != 0) {
+                                cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+                            } else {
+                                // DECRYPT_MODE without IV parameters throws a standard InvalidKeyException,
+                                // but AndroidKeyStore SPI evaluates OS biometric integrity BEFORE checking params.
+                                cipher.init(Cipher.DECRYPT_MODE, secretKey)
+                            }
+                        } catch (e: KeyPermanentlyInvalidatedException) {
+                            throw e // Explicitly re-throw to hit the core invalidation block below
+                        } catch (e: InvalidKeyException) {
+                            // Swallowed safely - Missing IV params or minor transform mismatch.
+                            // Because it didn't throw KeyPermanentlyInvalidatedException, the material is healthy.
+                        }
+                    }
+                }
+                else -> return SiliconResult.Failure("KEY_VALIDATION_FAILED", "Unrecognized Keystore entry type.")
+            }
+
+            // If we made it here without throwing, the key material is 100% healthy
+            return SiliconResult.Success("VALID")
+
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            // The user enrolled new biometrics. Key is cryptographically dead.
+            return SiliconResult.Success("INVALIDATED")
+
+        } catch (e: UnrecoverableKeyException) {
+            // The user removed their secure OS Lock Screen (PIN/Pattern).
+            return SiliconResult.Success("DISABLED_BY_OS")
+
+        } catch (e: Exception) {
+            // Catch-all for generic system/hardware state corruption
+            return SiliconResult.Failure("KEY_VALIDATION_FAILED", e.localizedMessage ?: "Key evaluation failed")
         }
     }
 }
