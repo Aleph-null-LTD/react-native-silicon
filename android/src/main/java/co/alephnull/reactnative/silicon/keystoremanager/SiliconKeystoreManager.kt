@@ -233,6 +233,32 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         }
     }
 
+    fun getPubKey(alias: String, format: PubkeyFormat): SiliconResult<String> {
+        try {
+            // Ensure the key exists
+            if (!keystore.containsAlias(alias)) {
+                return SiliconResult.Failure("KEY_NOT_FOUND", "No key exists for alias: '$alias'")
+            }
+
+            val certificate = keystore.getCertificate(alias)
+                ?: return SiliconResult.Failure("NO_CERT", "No certificate chain found for key '$alias'.")
+
+            val publicKey = when (format) {
+                PubkeyFormat.B64 -> Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
+
+                PubkeyFormat.PEM -> buildString {
+                    append("-----BEGIN PUBLIC KEY-----\n")
+                    append(Base64.encodeToString(certificate.publicKey.encoded, Base64.DEFAULT))
+                    append("-----END PUBLIC KEY-----")
+                }
+            }
+            return SiliconResult.Success(publicKey)
+
+        } catch (e: Exception) {
+            return SiliconResult.Failure("GET_PUB_KEY_FAILED", e.localizedMessage ?: "Failed to extract public key.")
+        }
+    }
+
     fun attestKey(alias: String): SiliconResult<List<String>> {
         try {
             // Ensure the key exists

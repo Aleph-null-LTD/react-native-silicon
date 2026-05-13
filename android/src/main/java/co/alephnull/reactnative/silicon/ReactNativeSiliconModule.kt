@@ -4,6 +4,7 @@ import android.content.pm.PackageManager
 import android.hardware.biometrics.BiometricManager
 import android.os.Build
 import co.alephnull.reactnative.silicon.keystoremanager.GenerateKeyOptions
+import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
 import co.alephnull.reactnative.silicon.signer.PayloadType
 import co.alephnull.reactnative.silicon.signer.SignOptions
@@ -118,6 +119,11 @@ class ReactNativeSiliconModule : Module() {
 
     AsyncFunction("listKeys") { prefix: String? ->
       val result = keystoreManager.listKeys(prefix)
+      return@AsyncFunction result.toBridgeMap()
+    }
+
+    AsyncFunction("getPubKey") { alias: String, format: PubkeyFormat ->
+      val result = keystoreManager.getPubKey(alias, format)
       return@AsyncFunction result.toBridgeMap()
     }
 
