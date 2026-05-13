@@ -4,14 +4,14 @@ type KeyDigests = 'SHA256'
 /**
  * Note: We currently only support Asymmetric ES256. Other algorithms will be added soon.
  */ 
-export type GenerateKeyOpts = {
+export interface GenerateKeyOpts {
     /**
      * set of purposes (e.g., encrypt, decrypt, sign) for which the key can be used. 
      * Attempts to use the key for any other purpose will be rejected.
      * 
      * default - 'SIGN' and 'VERIFY'
      */
-    purposes?: KeyPurpose[],
+    purposes?: KeyPurpose[];
     
     /**
      * User Authentication options for the key
@@ -22,7 +22,7 @@ export type GenerateKeyOpts = {
          * 
          * default - false
          */
-        require: boolean,
+        require: boolean;
 
         /**
          * Int value.
@@ -34,14 +34,14 @@ export type GenerateKeyOpts = {
          * 
          * default - 0
          */
-        timeout: number,
+        timeout: number;
 
         /**
          * Invalidates the key if new Biometrics are added to the device.
          * 
          * default - true
          */
-        invalidateOnEnrollment: boolean,
+        invalidateOnEnrollment: boolean;
 
         /**
          * * BIOMETRICS_ONLY - Only allows Biometric authentication 
@@ -51,8 +51,8 @@ export type GenerateKeyOpts = {
          * 
          * default - BIOMETRICS_ONLY
          */
-        policy: 'BIOMETRICS_ONLY' | 'BIOMETRICS_OR_CREDENTIAL'
-    },
+        policy: 'BIOMETRICS_ONLY' | 'BIOMETRICS_OR_CREDENTIAL';
+    };
 
     /**
      * IMPORTANT: You cannot attest an existing key after the fact.
@@ -62,7 +62,7 @@ export type GenerateKeyOpts = {
      * If provided, you will be able to call 'attestKey'
      * to get the PEM certificate.
      */
-    attestChallenge?: string,
+    attestChallenge?: string;
 
     /**
      * Format for the returned public key.
@@ -71,7 +71,7 @@ export type GenerateKeyOpts = {
      * 
      * default - PEM
      */
-    pubkeyFormat?: 'PEM' | 'B64',
+    pubkeyFormat?: 'PEM' | 'B64';
 
     /**
      * Android specific options
@@ -82,7 +82,7 @@ export type GenerateKeyOpts = {
          * 
          * default - ES256
          */
-        algorithm: 'ES256',
+        algorithm: 'ES256';
         
         /**
          * Sets the set of digests algorithms (e.g., SHA-256, SHA-384) with which the key can be used. 
@@ -93,7 +93,7 @@ export type GenerateKeyOpts = {
          * 
          * default - SHA256
          */
-        digests: KeyDigests[],
+        digests: KeyDigests[];
 
         /**
          * The policy to use when creating the key.
@@ -103,25 +103,66 @@ export type GenerateKeyOpts = {
          * 
          * default - PREFER_STRONGBOX
          */
-        hardwarePolicy: 'REQUIRE_STRONGBOX' | 'PREFER_STRONGBOX' | 'USE_TEE'
-    },
+        hardwarePolicy: 'REQUIRE_STRONGBOX' | 'PREFER_STRONGBOX' | 'USE_TEE';
+    };
 
     /**
      * IOS specific options
      */
     ios?: {
-        algorithm: 'ES256',
-        hardwarePolicy: 'require' | 'prefer' | 'software'
-    }
+        algorithm: 'ES256';
+        hardwarePolicy: 'require' | 'prefer' | 'software';
+    };
 };
 
-export type KeyInfo = {
-    alias: string,
-    algorithm: string,
-    keySize: number,
-    securityLevel: 'STRONGBOX' | 'TEE' | 'SOFTWARE',
-    purposes: KeyPurpose[],
-    isUserAuthRequired: boolean,
-    isInvalidatedByBiometricEnrollment: boolean,
-    userAuthValidityDurationSecs: number
+/**
+ * KeyInfo object returned by getKeyInfo
+ */
+export interface KeyInfo {
+    /**
+     * The alias of the key
+     */
+    alias: string;
+
+    /**
+     * The key algorithm
+     */
+    algorithm: string;
+
+    /**
+     * Size of the key in bits
+     */
+    keySize: number;
+
+    /**
+     * The set of digest algorithms (e.g., SHA-256, SHA-384) with which the key can be used
+     */
+    digests: string[];
+
+    /**
+     * Security level of the key (where it is stored)
+     */
+    securityLevel: 'STRONGBOX' | 'TEE' | 'SOFTWARE';
+    
+    /**
+     * Array of purposes for which the key can be used
+     */
+    purposes: KeyPurpose[];
+
+    /**
+     * True if user auth is required to use the key
+     */
+    isUserAuthRequired: boolean;
+
+    /**
+     * True if the key will be invalidated if new biometrics
+     * are added on the device
+     */
+    isInvalidatedByBiometricEnrollment: boolean;
+
+    /**
+     * The amount of time (in seconds) that the key can be used
+     * for after the user has successfully authenticated
+     */
+    userAuthValidityDurationSecs: number;
 }

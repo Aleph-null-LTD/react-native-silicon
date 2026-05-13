@@ -14,6 +14,7 @@ declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconMo
   getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<BridgeResult<string>>;
   attestKey(alias: string): Promise<BridgeResult<string[]>>;
   getKeyInfo(alias: string): Promise<BridgeResult<KeyInfo>>;
+  validateKey(alias: string): Promise<BridgeResult<'MISSING' | 'VALID' | 'INVALIDATED' | 'DISABLED_BY_OS'>>;
   sign(alias: string, algorithm: string | Uint8Array, opts: SignOpts): Promise<BridgeResult<string>>;
 }
 

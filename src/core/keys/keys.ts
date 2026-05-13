@@ -152,11 +152,21 @@ export async function listKeys(prefix?: string): Promise<string[]> {
     return result.data;
 }
 
-export function validateKey(alias: string) {
+export async function validateKey(alias: string): Promise<'MISSING' | 'VALID' | 'INVALIDATED' | 'DISABLED_BY_OS'> {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
     }
 
+    const result = await NativeSilicon.validateKey(alias)
+    if (!result.success) {
+        if (result.errorCode == 'KEY_VALIDATION_FAILED') {
+            throw new SiliconError(SiliconErrorCode.KEY_VALIDATION_FAILED, result.errorMessage);
+        }
+
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+    }
+
+    return result.data;
 }
 
 /**
@@ -229,6 +239,12 @@ export async function attestKey(alias: string): Promise<string[]> {
     return result.data;
 }
 
+/**
+ * Gets info about the specified key.
+ * 
+ * @param alias 
+ * @returns KeyInfo object
+ */
 export async function getKeyInfo(alias: string): Promise<KeyInfo> {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
