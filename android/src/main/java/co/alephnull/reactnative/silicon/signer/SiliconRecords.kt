@@ -13,7 +13,13 @@ enum class SignAlgorithm(val value: String) : Enumerable {
     SHA256("SHA256")
 }
 
+enum class SignFormat(val value: String) : Enumerable {
+    P1363("P1363"),
+    DER("DER")
+}
+
 class SignOptions : Record {
     @Field var encoding: SignEncoding = SignEncoding.B64_URL
     @Field var algorithm: SignAlgorithm = SignAlgorithm.SHA256
+    @Field var format: SignFormat = SignFormat.P1363
 }
