@@ -20,8 +20,8 @@ export interface SignOpts {
     algorithm: SignAlgorithms;
 
     /**
-     * Output format of the signature bytes. 
-     * @default 'P1363'
+     * Output format of the signature bytes when signing with an EC key.
+     * @default 'P1363' // (Standard WebCrypto / JWT format)
      * @note Set to 'DER' if interacting with legacy Java/ASN.1 backend systems.
      */
     format?: SignFormats;

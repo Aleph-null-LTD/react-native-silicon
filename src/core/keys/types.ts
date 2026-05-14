@@ -1,5 +1,12 @@
-export type KeyPurpose = 'SIGN' | 'VERIFY' | 'ENCRYPT' | 'DECRYPT' | 'WRAP' | 'AGREE' | 'ATTEST';
-type KeyDigests = 'SHA256'
+import { androidAlgorithms, androidHardwarePolicies, keyDigests, keyPurposes, pubkeyFormats, userAuthPolicies } from "./constants";
+
+type KeyPurpose = keyof typeof keyPurposes;
+type KeyDigests = keyof typeof keyDigests;
+type UserAuthPolicies = keyof typeof userAuthPolicies;
+type PubkeyFormat = keyof typeof pubkeyFormats;
+
+type AndroidAlgorithm = keyof typeof androidAlgorithms;
+type AndroidHardwarePolicy = keyof typeof androidHardwarePolicies;
 
 /**
  * Note: We currently only support Asymmetric ES256. Other algorithms will be added soon.
@@ -9,7 +16,7 @@ export interface GenerateKeyOpts {
      * set of purposes (e.g., encrypt, decrypt, sign) for which the key can be used. 
      * Attempts to use the key for any other purpose will be rejected.
      * 
-     * @default 'SIGN' and 'VERIFY'
+     * @default ['SIGN', 'VERIFY']
      */
     purposes?: KeyPurpose[];
     
@@ -18,11 +25,12 @@ export interface GenerateKeyOpts {
      */
     userAuth?: {
         /**
-         * Requires user auth to use the key
+         * Requires user auth to use the key.
          * 
          * @default false
+         * @note If this is false then the rest of the userAuth options will do nothing.
          */
-        require: boolean;
+        require?: boolean;
 
         /**
          * Int value.
@@ -34,14 +42,14 @@ export interface GenerateKeyOpts {
          * 
          * @default 0
          */
-        timeout: number;
+        timeout?: number;
 
         /**
          * Invalidates the key if new Biometrics are added to the device.
          * 
          * @default true
          */
-        invalidateOnEnrollment: boolean;
+        invalidateOnEnrollment?: boolean;
 
         /**
          * * BIOMETRICS_ONLY - Only allows Biometric authentication 
@@ -51,7 +59,7 @@ export interface GenerateKeyOpts {
          * 
          * @default BIOMETRICS_ONLY
          */
-        policy: 'BIOMETRICS_ONLY' | 'BIOMETRICS_OR_CREDENTIAL';
+        policy?: UserAuthPolicies;
     };
 
     /**
@@ -71,7 +79,7 @@ export interface GenerateKeyOpts {
      * 
      * @default PEM
      */
-    pubkeyFormat?: 'PEM' | 'B64';
+    pubkeyFormat?: PubkeyFormat;
 
     /**
      * Android specific options
@@ -82,7 +90,7 @@ export interface GenerateKeyOpts {
          * 
          * @default ES256
          */
-        algorithm: 'ES256';
+        algorithm?: AndroidAlgorithm;
         
         /**
          * Sets the set of digests algorithms (e.g., SHA-256, SHA-384) with which the key can be used. 
@@ -93,7 +101,7 @@ export interface GenerateKeyOpts {
          * 
          * @default SHA256
          */
-        digests: KeyDigests[];
+        digests?: KeyDigests[];
 
         /**
          * The policy to use when creating the key.
@@ -103,15 +111,15 @@ export interface GenerateKeyOpts {
          * 
          * @default PREFER_STRONGBOX
          */
-        hardwarePolicy: 'REQUIRE_STRONGBOX' | 'PREFER_STRONGBOX' | 'USE_TEE';
+        hardwarePolicy?: AndroidHardwarePolicy;
     };
 
     /**
      * IOS specific options
      */
     ios?: {
-        algorithm: 'ES256';
-        hardwarePolicy: 'require' | 'prefer' | 'software';
+        algorithm?: 'ES256';
+        hardwarePolicy?: 'require' | 'prefer' | 'software';
     };
 };
 

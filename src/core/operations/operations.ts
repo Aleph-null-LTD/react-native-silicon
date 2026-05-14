@@ -1,7 +1,7 @@
 import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
 import { hasOwn, isPlainObject } from '../../utils/validation';
-import { isSignAlgorithm, isSignEncoding, isVerifyAlgorithm, signAlgorithmsSet, signEncodingSet, verifyAlgorithmsSet } from './constants';
+import { isSignAlgorithm, isSignEncoding, isSignFormat, isVerifyAlgorithm, signAlgorithms, signEncodings, signFormats, verifyAlgorithms } from './constants';
 import { SignOpts, VerifyOpts } from './types';
 
 // -- Raw Sign & Verify --
@@ -14,10 +14,14 @@ export async function sign(alias: string, payload: string | Uint8Array, opts: Si
     if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be of type 'object'");
     
     if (!hasOwn(opts, 'encoding')) throw new TypeError("Silicon Error: 'opts' must contain the 'encoding' property");
-    if (!isSignEncoding(opts.encoding)) throw new TypeError(`Silicon Error: 'opts.encoding' must be of type ${[...signEncodingSet].join("|")}`);
+    if (!isSignEncoding(opts.encoding)) throw new TypeError(`Silicon Error: 'opts.encoding' must be of type ${Object.values(signEncodings).join("|")}`);
     
     if (!hasOwn(opts, 'algorithm')) throw new TypeError("Silicon Error: 'opts' must contain the 'algorithm' property");
-    if (!isSignAlgorithm(opts.algorithm)) throw new TypeError(`Silicon Error: 'opts.algorithm' must be of type ${[...signAlgorithmsSet].join("|")}`);
+    if (!isSignAlgorithm(opts.algorithm)) throw new TypeError(`Silicon Error: 'opts.algorithm' must be of type ${Object.values(signAlgorithms).join("|")}`);
+
+    if (hasOwn(opts, 'format') && !isSignFormat(opts.format)) {
+        throw new TypeError(`Silicon Error: 'opts.format' must be of type ${Object.values(signFormats).join("|")}`);
+    }
     
     const result = await NativeSilicon.sign(alias, payload, opts);
     if (!result.success) {
@@ -65,7 +69,7 @@ export async function verify(payload: string | Uint8Array, signature: string, op
 
     if (!hasOwn(opts, 'algorithm')) throw new TypeError("Silicon Error: 'opts' must contain the 'algorithm' property");
     if (typeof opts.algorithm !== 'string') throw new TypeError("Silicon Error: 'opts.algorithm' must be of type 'string'");
-    if (!isVerifyAlgorithm(opts.algorithm)) throw new TypeError(`Silicon Error: 'opts.algorithm' must be of type ${[...verifyAlgorithmsSet].join("|")}`);
+    if (!isVerifyAlgorithm(opts.algorithm)) throw new TypeError(`Silicon Error: 'opts.algorithm' must be of type ${Object.values(verifyAlgorithms).join("|")}`);
 
     // TODO: Ensure that either pubkey or alias is present, but not both
     let pubkey;

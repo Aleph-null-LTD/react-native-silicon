@@ -108,6 +108,10 @@ class SiliconVerifier(private val keystore: KeyStore) {
             VerifyAlgorithm.ES256 -> signatureBytes.size == 64
             //VerifyAlgorithm.ES384 -> signatureBytes.size == 96
             //VerifyAlgorithm.ES512 -> signatureBytes.size == 132 bytes
+
+            // This should be caught by the guard at the top
+            // But we include the else to satisfy the exhaustive when
+            else -> return signatureBytes
         }
 
         // If the signature is already DER then return as-is

@@ -1,3 +1,4 @@
+import { hasOwn } from "./utils/validation";
 
 type SiliconErrorOpts = {
   cause?: unknown
@@ -44,9 +45,9 @@ export class SiliconError extends Error {
     this.cause = opts?.cause; 
     this.nativeStack = opts?.nativeStack || undefined
     
-    // Maintain stack trace (standard JS)
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, SiliconError);
+    // Maintain stack trace (If supported)
+    if (hasOwn(Error, 'captureStackTrace')) {
+      (Error as any).captureStackTrace(this, SiliconError);
     }
   }
 }

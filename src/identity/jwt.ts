@@ -16,6 +16,40 @@ export interface JwtPayload {
   [key: string]: any; // Custom application claims
 }
 
+/**
+ * Sign a JWT using the specified key
+ * 
+ * @param alias 
+ * @param header 
+ * @param payload 
+ * @param opts 
+ * @returns The signed JWT
+ */
+export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayload, opts): Promise<string> {
+    // Encode the Header and Payload, then concat them with a '.' seperator
+    const encodedHeader = objectToBase64Url(header);
+    const encodedPayload = objectToBase64Url(payload);
+    const signInput = `${encodedHeader}.${encodedPayload}`;
+    
+    // Generate the signature
+    const signature = await sign(
+      alias, 
+      signInput,
+      { 
+        encoding: 'B64_URL',
+        algorithm: opts.algorithm,
+        format: 'P1363'
+      }
+    );
+    
+    // Concat the signature
+    return `${signInput}.${signature}`
+}
+
+const PLUS_REGEX = /\+/g;
+const SLASH_REGEX = /\//g;
+const EQUALS_REGEX = /=+$/;
+
 function objectToBase64Url(obj: object): string {
   // Stringify the object to JSON
   const jsonStr = JSON.stringify(obj);
@@ -42,29 +76,7 @@ function objectToBase64Url(obj: object): string {
 
   // Convert to strict Base64URL (swap chars, strip padding =)
   return standardBase64
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
-
-/**
- * Sign a JWT using the specified key
- * 
- * @param alias 
- * @param header 
- * @param payload 
- * @param opts 
- * @returns The signed JWT
- */
-export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayload, opts): Promise<string> {
-    // Encode the Header and Payload, then concat them with a '.' seperator
-    const encodedHeader = objectToBase64Url(header);
-    const encodedPayload = objectToBase64Url(payload);
-    const signInput = `${encodedHeader}.${encodedPayload}`;
-    
-    // Generate the signature
-    const signature = await sign(alias, signInput, opts.algorithm, { encoding: 'B64_URL' });
-    
-    // Concat the signature
-    return `${signInput}.${signature}`
+    .replace(PLUS_REGEX, '-')
+    .replace(SLASH_REGEX, '_')
+    .replace(EQUALS_REGEX, '');
 }

@@ -8,7 +8,7 @@ export const signEncodings = {
     B64: 'B64'
 } as const;
 
-export const signEncodingSet: ReadonlySet<keyof typeof signEncodings> = new Set(Object.values(signEncodings));
+const signEncodingSet: ReadonlySet<keyof typeof signEncodings> = new Set(Object.values(signEncodings));
 
 export const isSignEncoding = createInSetGuard(signEncodingSet);
 
@@ -17,7 +17,7 @@ export const signAlgorithms = {
     SHA256: 'SHA256'
 } as const;
 
-export const signAlgorithmsSet: ReadonlySet<keyof typeof signAlgorithms> = new Set(Object.values(signAlgorithms));
+const signAlgorithmsSet: ReadonlySet<keyof typeof signAlgorithms> = new Set(Object.values(signAlgorithms));
 
 export const isSignAlgorithm = createInSetGuard(signAlgorithmsSet);
 
@@ -27,7 +27,7 @@ export const signFormats = {
     DER: 'DER'
 } as const;
 
-export const signFormatsSet: ReadonlySet<keyof typeof signFormats> = new Set(Object.values(signFormats));
+const signFormatsSet: ReadonlySet<keyof typeof signFormats> = new Set(Object.values(signFormats));
 
 export const isSignFormat = createInSetGuard(signFormatsSet);
 
@@ -38,6 +38,6 @@ export const verifyAlgorithms = {
     ES256: 'ES256'
 } as const;
 
-export const verifyAlgorithmsSet: ReadonlySet<keyof typeof verifyAlgorithms> = new Set(Object.values(verifyAlgorithms));
+const verifyAlgorithmsSet: ReadonlySet<keyof typeof verifyAlgorithms> = new Set(Object.values(verifyAlgorithms));
 
 export const isVerifyAlgorithm = createInSetGuard(verifyAlgorithmsSet);

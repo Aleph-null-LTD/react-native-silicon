@@ -234,7 +234,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             // SignAlgorithm.SHA512 -> 66 // ES512
         }
 
-        // Guard: If it doesn't start with the DER sequence header (0x30)
+        // If it doesn't start with the DER sequence header (0x30) treat the signature as malformed
         if (derSignature.isEmpty() || derSignature[0] != 0x30.toByte()) {
             throw SiliconException("MALFORMED_SIGNATURE", "Expected DER signature to start with sequence header (0x30)")
         }
