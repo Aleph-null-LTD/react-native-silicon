@@ -9,7 +9,7 @@ export interface GenerateKeyOpts {
      * set of purposes (e.g., encrypt, decrypt, sign) for which the key can be used. 
      * Attempts to use the key for any other purpose will be rejected.
      * 
-     * default - 'SIGN' and 'VERIFY'
+     * @default 'SIGN' and 'VERIFY'
      */
     purposes?: KeyPurpose[];
     
@@ -20,7 +20,7 @@ export interface GenerateKeyOpts {
         /**
          * Requires user auth to use the key
          * 
-         * default - false
+         * @default false
          */
         require: boolean;
 
@@ -32,14 +32,14 @@ export interface GenerateKeyOpts {
          * 
          * set 0 if user authentication must take place for every use of the key.
          * 
-         * default - 0
+         * @default 0
          */
         timeout: number;
 
         /**
          * Invalidates the key if new Biometrics are added to the device.
          * 
-         * default - true
+         * @default true
          */
         invalidateOnEnrollment: boolean;
 
@@ -49,7 +49,7 @@ export interface GenerateKeyOpts {
          * 
          * Works flawlessly on Android 11+ and iOS. On Android 10 and below, it safely degrades to standard per-use biometric authentication governed by the older OS's standard system prompt behavior.
          * 
-         * default - BIOMETRICS_ONLY
+         * @default BIOMETRICS_ONLY
          */
         policy: 'BIOMETRICS_ONLY' | 'BIOMETRICS_OR_CREDENTIAL';
     };
@@ -69,7 +69,7 @@ export interface GenerateKeyOpts {
      * * PEM - Base64 encoded string with PEM header and footer
      * * B64 - Base64 encoded string
      * 
-     * default - PEM
+     * @default PEM
      */
     pubkeyFormat?: 'PEM' | 'B64';
 
@@ -80,7 +80,7 @@ export interface GenerateKeyOpts {
         /**
          * The key algorithm
          * 
-         * default - ES256
+         * @default ES256
          */
         algorithm: 'ES256';
         
@@ -91,7 +91,7 @@ export interface GenerateKeyOpts {
          * For HMAC keys, the default is the digest associated with the key algorithm (e.g., SHA-256 for key algorithm HmacSHA256). 
          * HMAC keys cannot be authorized for more than one digest.
          * 
-         * default - SHA256
+         * @default SHA256
          */
         digests: KeyDigests[];
 
@@ -101,7 +101,7 @@ export interface GenerateKeyOpts {
          * * preferStrongbox - Will attempt to store the key in StrongBox and fall back to TEE if strongbox is not available on the device
          * * useTEE - Will not attempt to use StrongBox and will use TEE
          * 
-         * default - PREFER_STRONGBOX
+         * @default PREFER_STRONGBOX
          */
         hardwarePolicy: 'REQUIRE_STRONGBOX' | 'PREFER_STRONGBOX' | 'USE_TEE';
     };

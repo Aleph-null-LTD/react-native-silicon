@@ -14,12 +14,22 @@ export const isSignEncoding = createInSetGuard(signEncodingSet);
 
 // Algorithms
 export const signAlgorithms = {
-    'SHA256': 'SHA256'
+    SHA256: 'SHA256'
 } as const;
 
 export const signAlgorithmsSet: ReadonlySet<keyof typeof signAlgorithms> = new Set(Object.values(signAlgorithms));
 
 export const isSignAlgorithm = createInSetGuard(signAlgorithmsSet);
+
+// Format
+export const signFormats = {
+    P1363: 'P1363',
+    DER: 'DER'
+} as const;
+
+export const signFormatsSet: ReadonlySet<keyof typeof signFormats> = new Set(Object.values(signFormats));
+
+export const isSignFormat = createInSetGuard(signFormatsSet);
 
 // ---- Verify ----
 

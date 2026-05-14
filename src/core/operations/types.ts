@@ -1,24 +1,30 @@
-import { signAlgorithms, signEncodings, verifyAlgorithms } from "./constants";
+import { signAlgorithms, signEncodings, signFormats, verifyAlgorithms } from "./constants";
 
 // ---- Sign ----
 
 export type SignEncodings = keyof typeof signEncodings;
 export type SignAlgorithms = keyof typeof signAlgorithms;
+export type SignFormats = keyof typeof signFormats;
 
 export interface SignOpts {
     /**
      * The encoding to use for the signature.
-     * 
-     * default - B64_URL
+     * @default B64_URL
      */
     encoding: SignEncodings;
     
     /**
      * The algorithm to use for the signature
-     * 
-     * default - SHA256
+     * @default SHA256
      */
     algorithm: SignAlgorithms;
+
+    /**
+     * Output format of the signature bytes. 
+     * @default 'P1363'
+     * @note Set to 'DER' if interacting with legacy Java/ASN.1 backend systems.
+     */
+    format?: SignFormats;
 };
 
 // ---- Verify ----
