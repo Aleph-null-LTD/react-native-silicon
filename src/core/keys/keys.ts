@@ -34,19 +34,19 @@ export async function generateKey(alias: string, opts: GenerateKeyOpts): Promise
     if (!result.success) {
         switch (result.errorCode) {
             case "INVALID_ALGORITHM_PARAMETER":
-                throw new SiliconError(SiliconErrorCode.INVALID_ALGORITHM_PARAMETER, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.INVALID_ALGORITHM_PARAMETER, result.errorMessage, { nativeStack: result.nativeStack });
 
             case "STRONGBOX_NOT_SUPPORTED":
-                throw new SiliconError(SiliconErrorCode.STRONGBOX_NOT_SUPPORTED, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.STRONGBOX_NOT_SUPPORTED, result.errorMessage, { nativeStack: result.nativeStack });
             
             case "PURPOSE_WRAP_NOT_SUPPORTED":
-                throw new SiliconError(SiliconErrorCode.PURPOSE_WRAP_NOT_SUPPORTED, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.PURPOSE_WRAP_NOT_SUPPORTED, result.errorMessage, { nativeStack: result.nativeStack });
             
             case "PURPOSE_AGREE_NOT_SUPPORTED":
-                throw new SiliconError(SiliconErrorCode.PURPOSE_AGREE_NOT_SUPPORTED, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.PURPOSE_AGREE_NOT_SUPPORTED, result.errorMessage, { nativeStack: result.nativeStack });
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
     return result.data;
@@ -66,10 +66,10 @@ export async function deleteKey(alias: string): Promise<boolean> {
     const result = await NativeSilicon.deleteKey(alias);
     if (!result.success) {
         if (result.errorCode == 'DELETE_FAILED') {
-            throw new SiliconError(SiliconErrorCode.DELETE_FAILED, result.errorMessage);
+            throw new SiliconError(SiliconErrorCode.DELETE_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
     return result.data;
@@ -95,10 +95,10 @@ export async function deleteAllKeys(prefix?: string): Promise<number> {
     const result = await NativeSilicon.deleteAllKeys(prefix);
     if (!result.success) {
         if (result.errorCode == 'BULK_DELETE_FAILED') {
-            throw new SiliconError(SiliconErrorCode.BULK_DELETE_FAILED, result.errorMessage);
+            throw new SiliconError(SiliconErrorCode.BULK_DELETE_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
     return result.data;
@@ -118,10 +118,10 @@ export async function keyExists(alias: string): Promise<boolean> {
     const result = await NativeSilicon.keyExists(alias);
     if (!result.success) {
         if (result.errorCode == 'KEY_CHECK_FAILED') {
-            throw new SiliconError(SiliconErrorCode.KEY_CHECK_FAILED, result.errorMessage);
+            throw new SiliconError(SiliconErrorCode.KEY_CHECK_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
     return result.data;
@@ -143,16 +143,25 @@ export async function listKeys(prefix?: string): Promise<string[]> {
     const result = await NativeSilicon.listKeys(prefix)
     if (!result.success) {
         if (result.errorCode == 'KEY_LIST_FAILED') {
-            throw new SiliconError(SiliconErrorCode.KEY_LIST_FAILED, result.errorMessage);
+            throw new SiliconError(SiliconErrorCode.KEY_LIST_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
     return result.data;
 }
 
-export async function validateKey(alias: string): Promise<'MISSING' | 'VALID' | 'INVALIDATED' | 'DISABLED_BY_OS'> {
+/**
+ * Validates the specified key
+ * @param alias 
+ * @returns 
+ * * 'VALID' - If the key is valid and ready for use
+ * * 'MISSING' - If the key does not exist
+ * * 'INVALIDATED' - If the key was invalidated because new biometrics were enrolled
+ * * 'UNRECOVERABLE' - If the key is in an unrecoverable state
+ */
+export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'> {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
     }
@@ -160,10 +169,10 @@ export async function validateKey(alias: string): Promise<'MISSING' | 'VALID' | 
     const result = await NativeSilicon.validateKey(alias)
     if (!result.success) {
         if (result.errorCode == 'KEY_VALIDATION_FAILED') {
-            throw new SiliconError(SiliconErrorCode.KEY_VALIDATION_FAILED, result.errorMessage);
+            throw new SiliconError(SiliconErrorCode.KEY_VALIDATION_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
     return result.data;
@@ -190,19 +199,19 @@ export async function getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<s
     if (!result.success) {
         switch (result.errorCode) {
             case 'KEY_NOT_FOUND':
-                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage)
+                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage, { nativeStack: result.nativeStack })
 
             case 'NO_CERT':
-                throw new SiliconError(SiliconErrorCode.NO_CERT, result.errorMessage)
+                throw new SiliconError(SiliconErrorCode.NO_CERT, result.errorMessage, { nativeStack: result.nativeStack })
 
             case 'UNSUPPORTED_KEY_FAMILY':
-                throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage)
+                throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage, { nativeStack: result.nativeStack })
 
             case 'GET_PUB_KEY_FAILED':
-                throw new SiliconError(SiliconErrorCode.GET_PUB_KEY_FAILED, result.errorMessage)
+                throw new SiliconError(SiliconErrorCode.GET_PUB_KEY_FAILED, result.errorMessage, { nativeStack: result.nativeStack })
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
     return result.data;
@@ -224,16 +233,16 @@ export async function attestKey(alias: string): Promise<string[]> {
     if (!result.success) {
         switch (result.errorCode) {
             case 'KEY_NOT_FOUND':
-                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage, { nativeStack: result.nativeStack });
 
             case 'NO_CERT_CHAIN':
-                throw new SiliconError(SiliconErrorCode.NO_CERT_CHAIN, result.errorMessage)
+                throw new SiliconError(SiliconErrorCode.NO_CERT_CHAIN, result.errorMessage, { nativeStack: result.nativeStack })
 
             case 'ATTEST_FAILED':
-                throw new SiliconError(SiliconErrorCode.ATTEST_FAILED, result.errorMessage)
+                throw new SiliconError(SiliconErrorCode.ATTEST_FAILED, result.errorMessage, { nativeStack: result.nativeStack })
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
     return result.data;
@@ -254,19 +263,19 @@ export async function getKeyInfo(alias: string): Promise<KeyInfo> {
     if (!result.success) {
         switch (result.errorCode) {
             case 'KEY_NOT_FOUND':
-                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage, { nativeStack: result.nativeStack });
 
             case 'GET_KEY_INFO_FAILED':
-                throw new SiliconError(SiliconErrorCode.GET_KEY_INFO_FAILED, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.GET_KEY_INFO_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
 
             case 'UNSUPPORTED_KEY_FAMILY':
-                throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage, { nativeStack: result.nativeStack });
 
             case 'KEY_LOAD_FAILED':
-                throw new SiliconError(SiliconErrorCode.KEY_LOAD_FAILED, result.errorMessage);
+                throw new SiliconError(SiliconErrorCode.KEY_LOAD_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
         }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`);
+        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
     return result.data;

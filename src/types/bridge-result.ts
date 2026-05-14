@@ -5,5 +5,6 @@ export type BridgeResult<T> = {
 } | { 
     success: false,
     errorCode: string,
-    errorMessage: string 
+    errorMessage: string,
+    nativeStack: string | null
 };

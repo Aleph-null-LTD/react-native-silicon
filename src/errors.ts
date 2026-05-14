@@ -1,3 +1,9 @@
+
+type SiliconErrorOpts = {
+  cause?: unknown
+  nativeStack?: string | null
+}
+
 export enum SiliconErrorCode {
   PLATFORM_NOT_SUPPORTED = 'PLATFORM_NOT_SUPPORTED',
   INVALID_ALGORITHM_PARAMETER = 'INVALID_ALGORITHM_PARAMETER',
@@ -23,6 +29,7 @@ export enum SiliconErrorCode {
   GET_PUB_KEY_FAILED = 'GET_PUB_KEY_FAILED',
   GET_KEY_INFO_FAILED = 'GET_KEY_INFO_FAILED',
   KEY_VALIDATION_FAILED = 'KEY_VALIDATION_FAILED',
+  VERIFICATION_FAILED = 'VERIFICATION_FAILED',
   UNKNOWN_NATIVE_ERROR = 'UNKNOWN_NATIVE_ERROR',
 };
 
@@ -30,11 +37,12 @@ export class SiliconError extends Error {
   readonly code: SiliconErrorCode;
   readonly nativeStack?: string;
 
-  constructor(code: SiliconErrorCode, message: string, cause?: unknown) {
+  constructor(code: SiliconErrorCode, message: string, opts?: SiliconErrorOpts) {
     super(message);
     this.name = 'SiliconError';
     this.code = code;
-    this.cause = cause; 
+    this.cause = opts?.cause; 
+    this.nativeStack = opts?.nativeStack || undefined
     
     // Maintain stack trace (standard JS)
     if (Error.captureStackTrace) {
