@@ -1,8 +1,5 @@
 package co.alephnull.reactnative.silicon.signer
 
-import co.alephnull.reactnative.silicon.keystoremanager.AndroidOptions
-import co.alephnull.reactnative.silicon.keystoremanager.KeyPurpose
-import co.alephnull.reactnative.silicon.keystoremanager.UserAuthOptions
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
 import expo.modules.kotlin.types.Enumerable

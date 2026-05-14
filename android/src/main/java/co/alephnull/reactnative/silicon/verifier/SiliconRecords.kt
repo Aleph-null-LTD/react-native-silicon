@@ -1,0 +1,15 @@
+package co.alephnull.reactnative.silicon.verifier
+
+import expo.modules.kotlin.records.Field
+import expo.modules.kotlin.records.Record
+import expo.modules.kotlin.types.Enumerable
+
+enum class VerifyAlgorithm(val value: String) : Enumerable {
+    ES256("ES256"),
+}
+
+class VerifyOptions : Record {
+    @Field var alias: String? = null
+    @Field var pubkeyB64: String? = null // Base64 encoded public key
+    @Field var algorithm: VerifyAlgorithm? = null
+}

@@ -191,8 +191,9 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         } catch (e: Exception) {
             // Catches underlying KeyStoreException if the hardware state is locked/corrupted
             return SiliconResult.Failure(
-                code = "DELETE_FAILED",
-                message = e.localizedMessage ?: "Hardware key deletion failed for alias: $alias"
+                "DELETE_FAILED",
+                e.localizedMessage ?: "Hardware key deletion failed for alias: $alias",
+                e.stackTraceToString()
             )
         }
     }
@@ -217,8 +218,9 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                code = "BULK_DELETE_FAILED",
-                message = e.localizedMessage ?: "Failed to execute bulk key wipe: $count/$total deleted"
+                "BULK_DELETE_FAILED",
+                e.localizedMessage ?: "Failed to execute bulk key wipe: $count/$total deleted",
+                e.stackTraceToString()
             )
         }
     }
@@ -230,8 +232,9 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                code = "KEY_CHECK_FAILED",
-                message = e.localizedMessage ?: "Failed to verify key existence for alias: $alias"
+                "KEY_CHECK_FAILED",
+                e.localizedMessage ?: "Failed to verify key existence for alias: $alias",
+                e.stackTraceToString()
             )
         }
     }
@@ -249,8 +252,9 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                code = "KEY_LIST_FAILED",
-                message = e.localizedMessage ?: "Failed to list keys"
+                "KEY_LIST_FAILED",
+                e.localizedMessage ?: "Failed to list keys",
+                e.stackTraceToString()
             )
         }
     }
@@ -284,7 +288,11 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             return SiliconResult.Success(publicKey)
 
         } catch (e: Exception) {
-            return SiliconResult.Failure("GET_PUB_KEY_FAILED", e.localizedMessage ?: "Failed to extract public key.")
+            return SiliconResult.Failure(
+                "GET_PUB_KEY_FAILED",
+                e.localizedMessage ?: "Failed to extract public key.",
+                e.stackTraceToString()
+            )
         }
     }
 
@@ -306,8 +314,9 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                code = "ATTEST_FAILED",
-                message = e.localizedMessage ?: "Failed to extract certificate chain."
+                "ATTEST_FAILED",
+                e.localizedMessage ?: "Failed to extract certificate chain.",
+                e.stackTraceToString()
             )
         }
     }
@@ -390,7 +399,11 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             return SiliconResult.Success(infoMap)
 
         } catch (e: Exception) {
-            return SiliconResult.Failure("GET_KEY_INFO_FAILED", e.localizedMessage ?: "Failed to read KeyInfo.")
+            return SiliconResult.Failure(
+                "GET_KEY_INFO_FAILED",
+                e.localizedMessage ?: "Failed to read KeyInfo.",
+                e.stackTraceToString()
+            )
         }
     }
 
@@ -424,7 +437,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                     }
 
                     // Check for specific RSA PSS padding constraints
-                    val isEC = privateKey.algorithm == "EC"
+                    val isEC = privateKey.algorithm == KeyProperties.KEY_ALGORITHM_EC
                     val isPssOnly = if (isEC) {
                         false
                     } else {
@@ -502,12 +515,16 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             return SiliconResult.Success("INVALIDATED")
 
         } catch (e: UnrecoverableKeyException) {
-            // The user removed their secure OS Lock Screen (PIN/Pattern).
-            return SiliconResult.Success("DISABLED_BY_OS")
+            // The key is unrecoverable
+            return SiliconResult.Success("UNRECOVERABLE")
 
         } catch (e: Exception) {
             // Catch-all for generic system/hardware state corruption
-            return SiliconResult.Failure("KEY_VALIDATION_FAILED", e.localizedMessage ?: "Key evaluation failed")
+            return SiliconResult.Failure(
+                "KEY_VALIDATION_FAILED",
+                e.localizedMessage ?: "Key evaluation failed",
+                e.stackTraceToString()
+            )
         }
     }
 }

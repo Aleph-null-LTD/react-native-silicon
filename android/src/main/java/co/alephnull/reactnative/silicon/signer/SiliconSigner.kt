@@ -7,6 +7,9 @@ import android.util.Base64
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import co.alephnull.reactnative.silicon.PayloadByteArr
+import co.alephnull.reactnative.silicon.PayloadText
+import co.alephnull.reactnative.silicon.PayloadType
 import co.alephnull.reactnative.silicon.SiliconException
 import expo.modules.kotlin.AppContext
 import kotlinx.coroutines.Dispatchers
@@ -16,12 +19,6 @@ import kotlin.coroutines.resume
 import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.Signature
-
-sealed interface PayloadType
-@JvmInline
-value class PayloadText(val text: String) : PayloadType
-@JvmInline
-value class PayloadByteArr(val arr: ByteArray) : PayloadType
 
 class SiliconSigner(private val appContext: AppContext, private val keystore: KeyStore) {
 
@@ -100,7 +97,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             throw e
 
         } catch (e: Exception) {
-            return SiliconResult.Failure("SIGNING_FAILED", e.localizedMessage ?: "Unknown signing error")
+            return SiliconResult.Failure("SIGNING_FAILED", e.localizedMessage ?: "Unknown signing error", e.stackTraceToString())
         }
     }
 
@@ -133,7 +130,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
 
                     } catch (e: Exception) {
                         continuation.resume(
-                            SiliconResult.Failure("PROMPT_SIGN_FAILED", e.message ?: "Failed post-auth"),
+                            SiliconResult.Failure("PROMPT_SIGN_FAILED", e.message ?: "Failed post-auth", e.stackTraceToString()),
                         )
                     }
                 }

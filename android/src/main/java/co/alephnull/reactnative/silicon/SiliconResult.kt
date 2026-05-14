@@ -9,7 +9,8 @@ sealed class SiliconResult<out T> {
 
     data class Failure(
         val code: String,
-        val message: String? = null
+        val message: String,
+        val nativeStack: String? = null
     ) : SiliconResult<Nothing>()
 
     /**
@@ -24,7 +25,8 @@ sealed class SiliconResult<out T> {
             is Failure -> mapOf(
                 "success" to false,
                 "errorCode" to code,
-                "errorMessage" to message
+                "errorMessage" to message,
+                "nativeStack" to nativeStack
             )
         }
     }

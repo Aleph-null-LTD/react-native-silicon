@@ -9,6 +9,8 @@ import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
 import co.alephnull.reactnative.silicon.signer.PayloadType
 import co.alephnull.reactnative.silicon.signer.SignOptions
 import co.alephnull.reactnative.silicon.signer.SiliconSigner
+import co.alephnull.reactnative.silicon.verifier.SiliconVerifier
+import co.alephnull.reactnative.silicon.verifier.VerifyOptions
 import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -23,6 +25,7 @@ class ReactNativeSiliconModule : Module() {
 
   private val keystoreManager by lazy { SiliconKeystoreManager(appContext, keystore) }
   private val signer by lazy { SiliconSigner(appContext, keystore) }
+  private val verifier by lazy { SiliconVerifier(keystore) }
 
   // Each module class must implement the definition function. The definition consists of components
   // that describes the module's functionality and behavior.
@@ -142,11 +145,16 @@ class ReactNativeSiliconModule : Module() {
       return@AsyncFunction result.toBridgeMap()
     }
 
-    // ---- Signer ----
+    // ---- Sign/Verify ----
 
-    AsyncFunction("sign") Coroutine { alias: String, payload: PayloadType, opts: SignOptions ->
-      val result = signer.sign(alias, payload, opts)
+    AsyncFunction("sign") Coroutine { alias: String, payload: BridgePayloadRecord, opts: SignOptions ->
+      val result = signer.sign(alias, payload.toPayloadType(), opts)
       return@Coroutine result.toBridgeMap()
+    }
+
+    AsyncFunction("verify") { payload: BridgePayloadRecord, signatureB64: String, opts: VerifyOptions ->
+      val result = verifier.verify(payload.toPayloadType(), signatureB64, opts)
+      return@AsyncFunction result.toBridgeMap()
     }
   }
 }
