@@ -3,7 +3,7 @@ import { NativeModule, requireNativeModule } from 'expo';
 import { ReactNativeSiliconModuleEvents } from './types';
 import { GenerateKeyOpts, KeyInfo } from './core/keys/types';
 import { BridgeResult } from './types/bridge-result';
-import { SignOpts } from './core/operations/types';
+import { SignOpts, BridgeVerifyOpts } from './core/operations/types';
 
 declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconModuleEvents> {
   genKey(alias: string, opts: GenerateKeyOpts): Promise<BridgeResult<string>>;
@@ -15,7 +15,8 @@ declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconMo
   attestKey(alias: string): Promise<BridgeResult<string[]>>;
   getKeyInfo(alias: string): Promise<BridgeResult<KeyInfo>>;
   validateKey(alias: string): Promise<BridgeResult<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'>>;
-  sign(alias: string, algorithm: string | Uint8Array, opts: SignOpts): Promise<BridgeResult<string>>;
+  sign(alias: string, payload: string | Uint8Array, opts: SignOpts): Promise<BridgeResult<string>>;
+  verify(payload: string | Uint8Array, signature: string, opts: BridgeVerifyOpts): Promise<BridgeResult<boolean>>;
 }
 
 // This call loads the native module object from the JSI.
