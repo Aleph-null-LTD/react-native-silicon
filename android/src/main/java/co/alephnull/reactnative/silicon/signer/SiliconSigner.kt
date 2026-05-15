@@ -286,6 +286,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 // Array expanded due to prepended 0x00 sign byte. Strip from the left.
                 bytes.copyOfRange(bytes.size - targetSize, bytes.size)
             }
+
             else -> {
                 // Array contracted due to stripped leading zeroes. Left-pad to restore bounds.
                 val padded = ByteArray(targetSize) // Natively initializes to pure 0x00 bytes
@@ -293,4 +294,5 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 padded
             }
         }
+    }
 }

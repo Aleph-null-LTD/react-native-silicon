@@ -7,7 +7,6 @@ import co.alephnull.reactnative.silicon.PayloadText
 import co.alephnull.reactnative.silicon.PayloadType
 import co.alephnull.reactnative.silicon.SiliconException
 import co.alephnull.reactnative.silicon.SiliconResult
-import co.alephnull.reactnative.silicon.signer.SignAlgorithm
 import java.io.ByteArrayOutputStream
 import java.math.BigInteger
 import java.security.KeyFactory

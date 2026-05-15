@@ -19,6 +19,7 @@ import java.security.PrivateKey
 import java.security.Signature
 import java.security.UnrecoverableKeyException
 import java.security.cert.Certificate
+import java.security.cert.X509Certificate
 import javax.crypto.Cipher
 import javax.crypto.Mac
 import javax.crypto.SecretKey
@@ -296,7 +297,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         }
     }
 
-    fun attestKey(alias: String): SiliconResult<List<String>> {
+    fun attestKey(alias: String): SiliconResult<Map<String, Any?>> {
         try {
             // Ensure the key exists
             if (!keystore.containsAlias(alias)) {
@@ -305,12 +306,21 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
             // Query the Keystore for the certificate array
             val certChain = keystore.getCertificateChain(alias)
-                ?: return SiliconResult.Failure("NO_CERT_CHAIN", "Key exists but has no certificate chain")
+                ?: return SiliconResult.Failure("NO_CERT_CHAIN", "Key exists but has no certificate chain for alias: '$alias'")
+
+            if (!isKeyAttested(certChain)) {
+                return SiliconResult.Failure("NO_ATTEST_CHALLENGE", "No key exists for alias: '$alias'")
+            }
 
             // Map the raw binary certificates to an array of PEM strings
             val pemChain = certChain.map { certificateToPem(it) }
 
-            return SiliconResult.Success(pemChain)
+            return SiliconResult.Success(
+                mapOf(
+                    "certificateChain" to pemChain
+                    // attestationObject is omitted here (IOS only)
+                )
+            )
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
@@ -319,6 +329,17 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 e.stackTraceToString()
             )
         }
+    }
+
+    private fun isKeyAttested(certChain: Array<Certificate>): Boolean {
+        // The Leaf certificate is always at index 0
+        val leafCert = certChain[0] as? X509Certificate ?: return false
+
+        // Query for the Android Key Attestation Extension OID
+        val attestationExtension = leafCert.getExtensionValue("1.3.6.1.4.1.11129.2.1.17")
+
+        // If the extension exists, the key was generated with an attestation challenge
+        return attestationExtension != null
     }
 
     private fun certificateToPem(certificate: Certificate): String {

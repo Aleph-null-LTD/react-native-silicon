@@ -1,12 +1,8 @@
 package co.alephnull.reactnative.silicon
 
-import android.content.pm.PackageManager
-import android.hardware.biometrics.BiometricManager
-import android.os.Build
 import co.alephnull.reactnative.silicon.keystoremanager.GenerateKeyOptions
 import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
-import co.alephnull.reactnative.silicon.signer.PayloadType
 import co.alephnull.reactnative.silicon.signer.SignOptions
 import co.alephnull.reactnative.silicon.signer.SiliconSigner
 import co.alephnull.reactnative.silicon.verifier.SiliconVerifier
@@ -37,37 +33,7 @@ class ReactNativeSiliconModule : Module() {
     Name("ReactNativeSilicon")
 
     AsyncFunction("getCapabilities") {
-      val packageManager = appContext.reactContext?.packageManager
-      val biometricManager = BiometricManager.from(appContext.reactContext!!)
 
-      // Check for StrongBox (The dedicated security chip)
-      val hasStrongBox = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        packageManager?.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYMASTER) ?: false
-      } else {
-        false
-      }
-
-      // Check for TEE (Trusted Execution Environment / Hardware isolation)
-      // Almost all devices since Android 6.0 have this, but we verify it via the feature flag
-      val hasHardwareKeystore = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        packageManager?.hasSystemFeature(PackageManager.FEATURE_HARDWARE_KEYSTORE) ?: true
-      } else {
-        // Fallback for older but still compatible versions
-        true
-      }
-
-      // Check Biometric status
-      val biometricStatus = biometricManager.canAuthenticate(BIOMETRIC_STRONG)
-      val hasBiometrics = biometricStatus == BiometricManager.BIOMETRIC_SUCCESS
-
-      // Return as a Map (which becomes a JS Object)
-      return@AsyncFunction mapOf(
-        "hasStrongBox" to hasStrongBox,
-        "hasHardwareIsolation" to hasHardwareKeystore,
-        "hasBiometrics" to hasBiometrics,
-        "hasAttest" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N),
-        "securityLevel" to if (hasStrongBox) "STRONGBOX" else if (hasHardwareKeystore) "TEE" else "SOFTWARE"
-      )
     }
 
     // ---- Keystore Manager ----
@@ -97,7 +63,7 @@ class ReactNativeSiliconModule : Module() {
       return@AsyncFunction result.toBridgeMap()
     }
 
-    AsyncFunction("getPubKey") { alias: String, format: PubkeyFormat ->
+    AsyncFunction("getPubkey") { alias: String, format: PubkeyFormat ->
       val result = keystoreManager.getPubKey(alias, format)
       return@AsyncFunction result.toBridgeMap()
     }
