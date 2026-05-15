@@ -108,6 +108,5 @@ class ReactNativeSiliconModule : Module() {
       return@AsyncFunction result.toBridgeMap()
     }
 
-
   }
 }

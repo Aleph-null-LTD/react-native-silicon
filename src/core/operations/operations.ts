@@ -8,7 +8,6 @@ import { SignOpts, VerifyOpts } from './types';
 
 /**
  * Signs the given payload using the key specified by 'alias'
- * 
  * @param alias 
  * @param payload 
  * @param opts 
