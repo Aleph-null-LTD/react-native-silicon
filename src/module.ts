@@ -4,7 +4,7 @@ import { AttestResult, GenerateKeyOpts, KeyInfo } from './core/keys/types';
 import { BridgeResult } from './types/bridge-result';
 import { SignOpts, BridgeVerifyOpts } from './core/operations/types';
 import { Capabilities } from './core/device/types';
-import { RandomBytesFormat } from './core/random-generator/types';
+import { RandomBytesFormat, RandomGenFormatTypeMap } from './core/random-generator/types';
 
 declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconModuleEvents> {
   getCapabilities(): Promise<BridgeResult<Capabilities>>;
@@ -19,7 +19,7 @@ declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconMo
   validateKey(alias: string): Promise<BridgeResult<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'>>;
   sign(alias: string, payload: string | Uint8Array, opts: SignOpts): Promise<BridgeResult<string>>;
   verify(payload: string | Uint8Array, signature: string, opts: BridgeVerifyOpts): Promise<BridgeResult<boolean>>;
-  generateSecureRandomBytes(length: number, format: RandomBytesFormat): Promise<BridgeResult<Uint8Array | string>>;
+  generateSecureRandomBytes<T extends RandomBytesFormat>(length: number, format: T): Promise<BridgeResult<RandomGenFormatTypeMap[T]>>;
 }
 
 // This call loads the native module object from the JSI.

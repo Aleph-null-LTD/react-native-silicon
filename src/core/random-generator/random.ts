@@ -1,4 +1,4 @@
-import { RandomBytesFormat } from "./types";
+import { RandomBytesFormat, RandomGenFormatTypeMap } from "./types";
 import NativeSilicon from '../../module';
 import { SiliconError, SiliconErrorCode } from "../../errors";
 import { isRandomBytesFormat, randomBytesFormats } from "./constants";
@@ -10,10 +10,9 @@ import { isRandomBytesFormat, randomBytesFormats } from "./constants";
  * * B64URL - Base64Url string (default)
  * * B64 - Standard Base64 string
  * * BYTES - Uint8Array of the bytes
+ * @returns The formatted/raw random bytes
  */
-export async function generateSecureRandomBytes(length: number, format: 'B64' | 'B64URL'): Promise<string>;
-export async function generateSecureRandomBytes(length: number, format: 'BYTES'): Promise<Uint8Array>;
-export async function generateSecureRandomBytes(length: number, format: RandomBytesFormat): Promise<Uint8Array | string> {
+export async function generateSecureRandomBytes<T extends RandomBytesFormat = typeof randomBytesFormats.B64URL>(length: number, format: T = randomBytesFormats.B64URL as T): Promise<RandomGenFormatTypeMap[T]> {
     if (typeof length !== 'number') throw new TypeError("Silicon Error: 'length' must be of type 'number'");
     
     if (typeof format !== 'string' || !isRandomBytesFormat(format)) {
@@ -30,13 +29,14 @@ export async function generateSecureRandomBytes(length: number, format: RandomBy
         throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack })
     }
 
-    if (format == 'BYTES') {
-        return result.data as Uint8Array
+    if (format == 'B64URL' || format == 'B64') {
+        return result.data
     }
-    if (format == 'B64') {
-        return result.data as string
+    if (format == 'BYTES') {
+        return result.data
     }
 
     // Should never get here
     throw new Error(`Silicon Error: Invalid format ${format}`);
 }
+
