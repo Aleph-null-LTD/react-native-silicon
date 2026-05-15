@@ -174,3 +174,17 @@ export interface KeyInfo {
      */
     userAuthValidityDurationSecs: number;
 }
+
+export interface AttestResult {
+  /**
+   * ANDROID ONLY: An array of Base64-encoded X.509 certificates.
+   * Index 0 is the leaf certificate containing the attestation extension.
+   */
+  certificateChain?: string[];
+
+  /**
+   * iOS ONLY: A Base64-encoded CBOR attestation object containing the 
+   * 'x5c' certificate chain and the Apple authenticator data.
+   */
+  attestationObject?: string;
+}

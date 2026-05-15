@@ -6,6 +6,15 @@ import { SignOpts, VerifyOpts } from './types';
 
 // -- Raw Sign & Verify --
 
+/**
+ * Signs the given payload using the key specified by 'alias'
+ * 
+ * @param alias 
+ * @param payload 
+ * @param opts 
+ * @returns 
+ * @note Will automatically prompt for user authentication if enabled on the key
+ */
 export async function sign(alias: string, payload: string | Uint8Array, opts: SignOpts): Promise<string> {
     if (typeof alias !== 'string') throw new TypeError("Silicon Error: 'alias' must be of type 'string'");
 
@@ -146,6 +155,7 @@ function normalizeToBase64(input: string): string {
 
 // -- Hardware-Backed Symmetric Encryption --
 
+/*
 export function encrypt(alias: string, data) {
 
 }
@@ -153,4 +163,4 @@ export function encrypt(alias: string, data) {
 export function decrypt(alias: string, cipherText) {
     
 }
-
+*/

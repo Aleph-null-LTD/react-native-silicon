@@ -1,18 +1,19 @@
 import { NativeModule, requireNativeModule } from 'expo';
-
 import { ReactNativeSiliconModuleEvents } from './types';
-import { GenerateKeyOpts, KeyInfo } from './core/keys/types';
+import { AttestResult, GenerateKeyOpts, KeyInfo } from './core/keys/types';
 import { BridgeResult } from './types/bridge-result';
 import { SignOpts, BridgeVerifyOpts } from './core/operations/types';
+import { Capabilities } from './core/device/types';
 
 declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconModuleEvents> {
+  getCapabilities(): Promise<BridgeResult<Capabilities>>;
   genKey(alias: string, opts: GenerateKeyOpts): Promise<BridgeResult<string>>;
   deleteKey(alias: string): Promise<BridgeResult<boolean>>;
   deleteAllKeys(prefix?: string): Promise<BridgeResult<number>>;
   keyExists(alias: string): Promise<BridgeResult<boolean>>;
   listKeys(prefix?: string): Promise<BridgeResult<string[]>>;
-  getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<BridgeResult<string>>;
-  attestKey(alias: string): Promise<BridgeResult<string[]>>;
+  getPubkey(alias: string, format: 'PEM' | 'B64'): Promise<BridgeResult<string>>;
+  attestKey(alias: string): Promise<BridgeResult<AttestResult>>;
   getKeyInfo(alias: string): Promise<BridgeResult<KeyInfo>>;
   validateKey(alias: string): Promise<BridgeResult<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'>>;
   sign(alias: string, payload: string | Uint8Array, opts: SignOpts): Promise<BridgeResult<string>>;

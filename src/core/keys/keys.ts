@@ -2,7 +2,7 @@ import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
 import { hasOwn, isPlainObject } from '../../utils/validation';
 import { androidAlgorithms, isAndroidAlgorithm, isAndroidHardwarePolicy, isKeyDigest, isKeyPurpose, isPubkeyFormat, isUserAuthPolicy, keyDigests, keyPurposes, pubkeyFormats, userAuthPolicies } from './constants';
-import { GenerateKeyOpts, KeyInfo } from "./types";
+import { AttestResult, GenerateKeyOpts, KeyInfo } from "./types";
 
 /**
  * Generate a key
@@ -253,7 +253,7 @@ export async function getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<s
         throw new TypeError("Silicon Error: 'format' must be of type 'PEM' | 'B64'");
     }
 
-    const result = await NativeSilicon.getPubKey(alias, format);
+    const result = await NativeSilicon.getPubkey(alias, format);
     if (!result.success) {
         switch (result.errorCode) {
             case 'KEY_NOT_FOUND':
@@ -276,13 +276,15 @@ export async function getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<s
 }
 
 /**
+ * Gets the certificate chain for attestation.
+ * 
  * IMPORTANT: This will only work if an attestation challenge was provided when the
  * key was generated (see the generateKey options)
  * 
  * @param alias
  * @returns The certificate chain - An array of PEM strings
  */
-export async function attestKey(alias: string): Promise<string[]> {
+export async function attestKey(alias: string): Promise<AttestResult> {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
     }
@@ -298,9 +300,13 @@ export async function attestKey(alias: string): Promise<string[]> {
 
             case 'ATTEST_FAILED':
                 throw new SiliconError(SiliconErrorCode.ATTEST_FAILED, result.errorMessage, { nativeStack: result.nativeStack })
-        }
 
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
+            case 'NO_ATTEST_CHALLENGE':
+                throw new SiliconError(SiliconErrorCode.NO_ATTEST_CHALLENGE, result.errorMessage, { nativeStack: result.nativeStack })
+
+            default:
+                throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
+        }
     }
 
     return result.data;

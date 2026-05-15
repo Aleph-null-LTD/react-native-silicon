@@ -1,7 +1,7 @@
 import { registerWebModule, NativeModule } from 'expo';
 
 import { ReactNativeSiliconModuleEvents } from './types';
-import { GenerateKeyOpts, KeyInfo } from './core/keys/types';
+import { AttestResult, GenerateKeyOpts, KeyInfo } from './core/keys/types';
 import { SiliconError, SiliconErrorCode } from './errors';
 import { BridgeResult } from './types/bridge-result';
 import { BridgeVerifyOpts, SignOpts } from './core/operations/types';
@@ -31,7 +31,7 @@ class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconModuleEven
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
   
-  public async attestKey(alias: string): Promise<BridgeResult<string[]>> {
+  public async attestKey(alias: string): Promise<BridgeResult<AttestResult>> {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
   
