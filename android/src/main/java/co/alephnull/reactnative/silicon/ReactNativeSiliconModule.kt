@@ -4,6 +4,8 @@ import co.alephnull.reactnative.silicon.device.SiliconDevice
 import co.alephnull.reactnative.silicon.keystoremanager.GenerateKeyOptions
 import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
+import co.alephnull.reactnative.silicon.randomgen.RandomBytesFormat
+import co.alephnull.reactnative.silicon.randomgen.SiliconRandomGen
 import co.alephnull.reactnative.silicon.signer.SignOptions
 import co.alephnull.reactnative.silicon.signer.SiliconSigner
 import co.alephnull.reactnative.silicon.verifier.SiliconVerifier
@@ -24,6 +26,7 @@ class ReactNativeSiliconModule : Module() {
   private val keystoreManager by lazy { SiliconKeystoreManager(appContext, keystore) }
   private val signer by lazy { SiliconSigner(appContext, keystore) }
   private val verifier by lazy { SiliconVerifier(keystore) }
+  private val randomGen by lazy { SiliconRandomGen() }
 
   // Each module class must implement the definition function. The definition consists of components
   // that describes the module's functionality and behavior.
@@ -97,5 +100,14 @@ class ReactNativeSiliconModule : Module() {
       val result = verifier.verify(payload.toPayloadType(), signatureB64, opts)
       return@AsyncFunction result.toBridgeMap()
     }
+
+    // ---- Random Generator ----
+
+    AsyncFunction("generateSecureRandomBytes") { length: Int, format: RandomBytesFormat ->
+      val result = randomGen.generate(length, format)
+      return@AsyncFunction result.toBridgeMap()
+    }
+
+
   }
 }
