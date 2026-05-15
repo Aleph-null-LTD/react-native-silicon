@@ -17,7 +17,7 @@ export interface SignOpts {
      * The algorithm to use for the signature
      * @default SHA256
      */
-    algorithm: SignAlgorithms;
+    algorithm?: SignAlgorithms;
 
     /**
      * Output format of the signature bytes when signing with an EC key.
