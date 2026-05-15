@@ -1,12 +1,11 @@
 import { NativeModule, requireNativeModule } from 'expo';
-import { ReactNativeSiliconModuleEvents } from './types';
 import { AttestResult, GenerateKeyOpts, KeyInfo } from './core/keys/types';
 import { BridgeResult } from './types/bridge-result';
 import { SignOpts, BridgeVerifyOpts } from './core/operations/types';
 import { Capabilities } from './core/device/types';
 import { RandomBytesFormat, RandomGenFormatTypeMap } from './core/random-generator/types';
 
-declare class ReactNativeSiliconModule extends NativeModule<ReactNativeSiliconModuleEvents> {
+declare class ReactNativeSiliconModule extends NativeModule {
   getCapabilities(): Promise<BridgeResult<Capabilities>>;
   genKey(alias: string, opts: GenerateKeyOpts): Promise<BridgeResult<string>>;
   deleteKey(alias: string): Promise<BridgeResult<boolean>>;
