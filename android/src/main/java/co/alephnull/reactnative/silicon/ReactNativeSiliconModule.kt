@@ -1,5 +1,6 @@
 package co.alephnull.reactnative.silicon
 
+import co.alephnull.reactnative.silicon.device.SiliconDevice
 import co.alephnull.reactnative.silicon.keystoremanager.GenerateKeyOptions
 import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
@@ -19,6 +20,7 @@ class ReactNativeSiliconModule : Module() {
     KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
   }
 
+  private val device by lazy { SiliconDevice(appContext) }
   private val keystoreManager by lazy { SiliconKeystoreManager(appContext, keystore) }
   private val signer by lazy { SiliconSigner(appContext, keystore) }
   private val verifier by lazy { SiliconVerifier(keystore) }
@@ -33,7 +35,8 @@ class ReactNativeSiliconModule : Module() {
     Name("ReactNativeSilicon")
 
     AsyncFunction("getCapabilities") {
-
+      val result = device.getCapabilities()
+      return@AsyncFunction result.toBridgeMap()
     }
 
     // ---- Keystore Manager ----
