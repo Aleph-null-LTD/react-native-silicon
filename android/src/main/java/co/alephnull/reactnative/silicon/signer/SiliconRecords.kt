@@ -9,7 +9,7 @@ enum class SignEncoding(val value: String) : Enumerable {
     B64_URL("B64_URL")
 }
 
-enum class SignAlgorithm(val value: String) : Enumerable {
+enum class SignDigest(val value: String) : Enumerable {
     SHA256("SHA256")
 }
 
@@ -20,6 +20,6 @@ enum class SignFormat(val value: String) : Enumerable {
 
 class SignOptions : Record {
     @Field var encoding: SignEncoding = SignEncoding.B64_URL
-    @Field var algorithm: SignAlgorithm = SignAlgorithm.SHA256
+    @Field var digest: SignDigest? = null
     @Field var format: SignFormat = SignFormat.P1363
 }

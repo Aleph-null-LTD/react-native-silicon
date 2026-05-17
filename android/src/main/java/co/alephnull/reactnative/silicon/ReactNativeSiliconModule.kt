@@ -1,6 +1,8 @@
 package co.alephnull.reactnative.silicon
 
 import co.alephnull.reactnative.silicon.device.SiliconDevice
+import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
+import co.alephnull.reactnative.silicon.jose.SiliconJose
 import co.alephnull.reactnative.silicon.keystoremanager.GenerateKeyOptions
 import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
@@ -22,11 +24,13 @@ class ReactNativeSiliconModule : Module() {
     KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
   }
 
+  private val helpers by lazy { SiliconHelpers() }
   private val device by lazy { SiliconDevice(appContext) }
-  private val keystoreManager by lazy { SiliconKeystoreManager(appContext, keystore) }
+  private val keystoreManager by lazy { SiliconKeystoreManager(appContext, keystore, helpers) }
   private val signer by lazy { SiliconSigner(appContext, keystore) }
   private val verifier by lazy { SiliconVerifier(keystore) }
   private val randomGen by lazy { SiliconRandomGen() }
+  private val jose by lazy { SiliconJose(keystore, helpers) }
 
   // Each module class must implement the definition function. The definition consists of components
   // that describes the module's functionality and behavior.
@@ -69,7 +73,7 @@ class ReactNativeSiliconModule : Module() {
       return@AsyncFunction result.toBridgeMap()
     }
 
-    AsyncFunction("getPubkey") { alias: String, format: PubkeyFormat ->
+    AsyncFunction("getPubKey") { alias: String, format: PubkeyFormat ->
       val result = keystoreManager.getPubKey(alias, format)
       return@AsyncFunction result.toBridgeMap()
     }
@@ -108,5 +112,11 @@ class ReactNativeSiliconModule : Module() {
       return@AsyncFunction result.toBridgeMap()
     }
 
+    // ---- JOSE ----
+
+    AsyncFunction("getJwk") { alias: String ->
+      val result = jose.getJwk(alias)
+      return@AsyncFunction result.toBridgeMap()
+    }
   }
 }

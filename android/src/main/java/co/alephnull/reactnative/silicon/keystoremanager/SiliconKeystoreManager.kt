@@ -10,9 +10,11 @@ import android.security.keystore.KeyProperties
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import android.util.Base64
+import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
 import expo.modules.kotlin.AppContext
 import java.security.InvalidAlgorithmParameterException
 import java.security.InvalidKeyException
+import java.security.Key
 import java.security.KeyFactory
 import java.security.KeyStore
 import java.security.PrivateKey
@@ -20,14 +22,23 @@ import java.security.Signature
 import java.security.UnrecoverableKeyException
 import java.security.cert.Certificate
 import java.security.cert.X509Certificate
+import java.security.interfaces.ECKey
+import java.security.interfaces.RSAKey
 import javax.crypto.Cipher
 import javax.crypto.Mac
 import javax.crypto.SecretKey
 import javax.crypto.SecretKeyFactory
 
-class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore) {
+class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore, private val siliconHelpers: SiliconHelpers) {
 
     fun genKey(alias: String, opts: GenerateKeyOptions): SiliconResult<String> {
+        // If digests was not set, use the digest with the same size as the algorithm
+        val digests: List<KeyDigest> = opts.android.digests ?: listOf(
+            when (opts.android.algorithm) {
+                KeyAlgorithm.ES256 -> KeyDigest.SHA256
+            }
+        )
+
         // Check if the device supports StrongBox
         val canUseStrongBox = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
                 appContext.reactContext?.packageManager?.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE) == true
@@ -99,14 +110,14 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 }
 
                 // Map the digests to an array of the relevant constants
-                val digests: Array<String> = opts.android.digests.mapNotNull { d ->
+                val digestsArr: Array<String> = digests.mapNotNull { d ->
                     when (d) {
                         KeyDigest.SHA256 -> KeyProperties.DIGEST_SHA256
                         else -> null
                     }
                 }.toTypedArray()
 
-                setDigests(*digests)
+                setDigests(*digestsArr)
 
                 if (useStrongBox) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -406,9 +417,12 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 }
             }
 
-            val infoMap = mapOf(
+            val (algorithm, curve) = siliconHelpers.getKeyAlgorithm(key)
+
+            val infoMap = mutableMapOf(
                 "alias" to keyInfo.keystoreAlias,
-                "algorithm" to key.algorithm,
+                "algorithm" to algorithm,
+                "curve" to curve,
                 "keySize" to keyInfo.keySize,
                 "digests" to keyInfo.digests,
                 "securityLevel" to securityLevel,
@@ -417,6 +431,9 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 "isInvalidatedByBiometricEnrollment" to keyInfo.isInvalidatedByBiometricEnrollment,
                 "userAuthValidityDurationSecs" to keyInfo.userAuthenticationValidityDurationSeconds
             )
+            // Remove curve from the map for non-EC keys
+            if (infoMap["curve"] == null) infoMap.remove("curve")
+
             return SiliconResult.Success(infoMap)
 
         } catch (e: Exception) {

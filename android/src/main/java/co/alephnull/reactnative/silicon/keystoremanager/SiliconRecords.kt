@@ -32,7 +32,7 @@ enum class HardwarePolicy(val value: String) : Enumerable {
 
 class AndroidOptions : Record {
     @Field var algorithm: KeyAlgorithm = KeyAlgorithm.ES256
-    @Field lateinit var digests: List<KeyDigest>
+    @Field var digests: List<KeyDigest>? = null
     @Field var hardwarePolicy: HardwarePolicy = HardwarePolicy.PREFER_STRONGBOX
 }
 
