@@ -47,6 +47,13 @@ export const isPubkeyFormat = createInSetGuard(pubkeyFormatSet);
 // Android algorithms
 export const androidAlgorithms = {
     ES256: 'ES256'
+    /*
+    ES512: 'ES512',
+    ES512: 'ES512',
+    RS256: 'RS256',
+    MLDSA65: 'MLDSA65',
+    MLDSA87: 'MLDSA87'
+    */
 } as const;
 
 const androidAlgorithmSet: ReadonlySet<keyof typeof androidAlgorithms> = new Set(Object.values(androidAlgorithms));

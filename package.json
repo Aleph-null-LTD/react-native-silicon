@@ -23,7 +23,12 @@
     "react-native-silicon",
     "ReactNativeSilicon",
     "cryptography",
-    "hardware-backed"
+    "crypto",
+    "hardware-backed",
+    "hardware",
+    "jwt",
+    "dpop",
+    "jose"
   ],
   "repository": {
     "type": "git",

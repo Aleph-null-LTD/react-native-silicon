@@ -1,7 +1,7 @@
 import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
 import { hasOwn, isPlainObject } from '../../utils/validation';
-import { isSignAlgorithm, isSignEncoding, isSignFormat, isVerifyAlgorithm, signAlgorithms, signEncodings, signFormats, verifyAlgorithms } from './constants';
+import { isSignDigest, isSignEncoding, isSignFormat, isVerifyAlgorithm, signDigest, signEncodings, signFormats, verifyAlgorithms } from './constants';
 import { SignOpts, VerifyOpts } from './types';
 
 // -- Raw Sign & Verify --
@@ -24,8 +24,8 @@ export async function sign(alias: string, payload: string | Uint8Array, opts: Si
     if (!hasOwn(opts, 'encoding')) throw new TypeError("Silicon Error: 'opts' must contain the 'encoding' property");
     if (!isSignEncoding(opts.encoding)) throw new TypeError(`Silicon Error: 'opts.encoding' must be of type ${Object.values(signEncodings).join("|")}`);
     
-    if (!hasOwn(opts, 'algorithm')) throw new TypeError("Silicon Error: 'opts' must contain the 'algorithm' property");
-    if (!isSignAlgorithm(opts.algorithm)) throw new TypeError(`Silicon Error: 'opts.algorithm' must be of type ${Object.values(signAlgorithms).join("|")}`);
+    if (!hasOwn(opts, 'digest')) throw new TypeError("Silicon Error: 'opts' must contain the 'digest' property");
+    if (!isSignDigest(opts.digest)) throw new TypeError(`Silicon Error: 'opts.digest' must be of type ${Object.values(signDigest).join("|")}`);
 
     if (hasOwn(opts, 'format') && !isSignFormat(opts.format)) {
         throw new TypeError(`Silicon Error: 'opts.format' must be of type ${Object.values(signFormats).join("|")}`);

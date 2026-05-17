@@ -1,9 +1,9 @@
-import { signAlgorithms, signEncodings, signFormats, verifyAlgorithms } from "./constants";
+import { signDigest, signEncodings, signFormats, verifyAlgorithms } from "./constants";
 
 // ---- Sign ----
 
 export type SignEncodings = keyof typeof signEncodings;
-export type SignAlgorithms = keyof typeof signAlgorithms;
+export type SignDigest = keyof typeof signDigest;
 export type SignFormats = keyof typeof signFormats;
 
 export interface SignOpts {
@@ -15,9 +15,10 @@ export interface SignOpts {
     
     /**
      * The algorithm to use for the signature
-     * @default SHA256
+     * **Default**: Matches the size of the key algorithm (e.g., "SHA256" for "ES256").
+     * @note This MUST be one of the allowed digests 
      */
-    algorithm?: SignAlgorithms;
+    digest?: SignDigest;
 
     /**
      * Output format of the signature bytes when signing with an EC key.

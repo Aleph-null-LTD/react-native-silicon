@@ -96,10 +96,10 @@ export interface GenerateKeyOpts {
          * Sets the set of digests algorithms (e.g., SHA-256, SHA-384) with which the key can be used. 
          * Attempts to use the key with any other digest algorithm will be rejected.
          * 
-         * For HMAC keys, the default is the digest associated with the key algorithm (e.g., SHA-256 for key algorithm HmacSHA256). 
-         * HMAC keys cannot be authorized for more than one digest.
+         * **Default:** Matches the size of the key algorithm (e.g., "SHA256" for "ES256").
          * 
-         * @default SHA256
+         * @note For HMAC keys, the default is the digest associated with the key algorithm (e.g., SHA-256 for key algorithm HmacSHA256). 
+         * HMAC keys cannot be authorized for more than one digest.
          */
         digests?: KeyDigests[];
 
@@ -136,6 +136,12 @@ export interface KeyInfo {
      * The key algorithm
      */
     algorithm: string;
+
+    /**
+     * The curve 
+     * @note Only included if the key is an Eliptic Curve
+     */
+    curve?: string;
 
     /**
      * Size of the key in bits

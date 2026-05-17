@@ -253,7 +253,7 @@ export async function getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<s
         throw new TypeError("Silicon Error: 'format' must be of type 'PEM' | 'B64'");
     }
 
-    const result = await NativeSilicon.getPubkey(alias, format);
+    const result = await NativeSilicon.getPubKey(alias, format);
     if (!result.success) {
         switch (result.errorCode) {
             case 'KEY_NOT_FOUND':

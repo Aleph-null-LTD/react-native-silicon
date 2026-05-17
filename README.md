@@ -19,7 +19,7 @@ We hope to have a working pre-release version up and running within the next cou
 * TypeScript-First DX
 * Hardware-backed: Direct integration with StrongBox/TEE (Android) and the Secure Enclave (iOS)
 * Silent signing capabilities to avoid unnecessary biometric interruptions for background tasks
-* First-class support for DPoP and OAuth 2.1 compliance
+* First-class support for JOSE (including DPoP) and OAuth 2.1 compliance
 * Hardware attestation to verify key integrity on the backend
 * Minimalist, modern API design using the Expo Modules architecture
 

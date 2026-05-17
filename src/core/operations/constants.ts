@@ -4,7 +4,7 @@ import { createInSetGuard } from "../../utils/validation";
 
 // Encodings
 export const signEncodings = {
-    B64_URL: 'B64_URL',
+    B64URL: 'B64URL',
     B64: 'B64'
 } as const;
 
@@ -12,14 +12,14 @@ const signEncodingSet: ReadonlySet<keyof typeof signEncodings> = new Set(Object.
 
 export const isSignEncoding = createInSetGuard(signEncodingSet);
 
-// Algorithms
-export const signAlgorithms = {
+// Digest
+export const signDigest = {
     SHA256: 'SHA256'
 } as const;
 
-const signAlgorithmsSet: ReadonlySet<keyof typeof signAlgorithms> = new Set(Object.values(signAlgorithms));
+const signDigestsSet: ReadonlySet<keyof typeof signDigest> = new Set(Object.values(signDigest));
 
-export const isSignAlgorithm = createInSetGuard(signAlgorithmsSet);
+export const isSignDigest = createInSetGuard(signDigestsSet);
 
 // Format
 export const signFormats = {

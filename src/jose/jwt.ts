@@ -1,23 +1,8 @@
-import { SignAlgorithms } from "../core/operations";
-import { isSignAlgorithm } from "../core/operations/constants";
+import { SignDigest } from "../core/operations";
+import { isSignDigest, signDigest } from "../core/operations/constants";
 import { sign } from "../core/operations/operations";
 import { isPlainObject } from "../utils/validation";
-
-export interface JwtHeader {
-    alg: 'ES256' | 'RS256';
-    typ?: 'JWT';
-    [key: string]: any; // Allow custom header claims like 'kid'
-}
-
-export interface JwtPayload {
-    iss?: string; // Issuer
-    sub?: string; // Subject
-    aud?: string; // Audience
-    exp?: number; // Expiration time (Epoch seconds)
-    nbf?: number; // Not before
-    iat?: number; // Issued at
-    [key: string]: any; // Custom application claims
-}
+import { JwtHeader, JwtPayload } from "./types";
 
 /**
  * Sign a JWT using the specified key
@@ -25,22 +10,18 @@ export interface JwtPayload {
  * @param alias 
  * @param header 
  * @param payload 
- * @param opts 
+ * @param digest 
  * @returns The signed JWT
  */
-export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayload, algorithm?: SignAlgorithms): Promise<string> {
-    if (typeof alias !== 'string') throw new TypeError();
-    if (!isPlainObject(header)) throw new TypeError();
-    if (!isPlainObject(payload)) throw new TypeError();
+export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayload, digest?: SignDigest): Promise<string> {
+    if (typeof alias !== 'string') throw new TypeError("Silicon Error: 'alias' must be of type 'string'");
+    if (!isPlainObject(header)) throw new TypeError("Silicon Error: 'header' must be an object");
+    if (!isPlainObject(payload)) throw new TypeError("Silicon Error: 'payload' must be an object");
   
-    if (algorithm &&
-      (typeof algorithm !== 'string' || !isSignAlgorithm(algorithm))
+    if (digest &&
+      (typeof digest !== 'string' || !isSignDigest(digest))
     ) {
-      throw new TypeError("");
-    }
-
-    if (!algorithm) {
-      algorithm = 'SHA256';
+      throw new TypeError(`Silicon Error: 'digest' must be of type ${Object.values(signDigest).join("|")}`);
     }
   
     // Encode the Header and Payload, then concat them with a '.' seperator
@@ -53,8 +34,8 @@ export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayl
       alias, 
       signInput,
       { 
-        encoding: 'B64_URL',
-        algorithm: algorithm,
+        encoding: 'B64URL',
+        digest: digest,
         format: 'P1363'
       }
     );
