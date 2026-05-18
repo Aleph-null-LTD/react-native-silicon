@@ -42,11 +42,15 @@
   "homepage": "https://github.com/Aleph-null-Ltd/react-native-silicon#readme",
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@expo/config-plugins": "55.0.9",
+    "@types/jest": "30.0.0",
     "@types/react": "19.1.1",
     "eslint": "10.4.0",
     "expo": "55.0.20",
     "expo-module-scripts": "55.0.2",
+    "jest": "30.4.2",
     "react-native": "0.82.1",
+    "typescript": "6.0.3",
     "typescript-eslint": "8.59.3"
   },
   "peerDependencies": {

@@ -3,5 +3,4 @@ packages:
 
 storeDir: ./.pnpm-store
 autoInstallPeers: true
-nodeLinker: hoisted
 strictPeerDependencies: true
