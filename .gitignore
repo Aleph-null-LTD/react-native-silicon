@@ -59,5 +59,8 @@ yarn-error.log
 # PNPM
 .pnpm-store
 
+# TypeScript cache
+*.tsbuildinfo
+
 # Ignore
 *.ignore*
