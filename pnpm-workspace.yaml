@@ -1,5 +1,6 @@
 packages:
   - '.'
+  - './example'
 
 storeDir: ./.pnpm-store
 autoInstallPeers: true

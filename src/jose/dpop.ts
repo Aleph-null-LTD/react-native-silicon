@@ -45,6 +45,7 @@ export async function generateDpopProof(alias: string, opts: GenerateDpopProofOp
     // Strip the alg out of the JWK so we can store it in the header seperately
     const alg = jwk.alg;
     delete jwk.alg;
+    if (typeof alg !== 'string') throw new TypeError("Silicon Error: Internal Error: 'alg' was not of type 'string'. Please report this error at https://github.com/Aleph-null-LTD/react-native-silicon/issues")
     
     // Generate the iat timestamp (in seconds)
     const iat = Math.round(Date.now() / 1000);

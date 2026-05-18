@@ -22,7 +22,7 @@ export type Jwk = JwkEC | JwkRSA | Record<string, unknown>;
 
 export interface JwtHeader {
     typ?: "JWT" | "dpop+jwt" | string;
-    alg?: "ES256" | "RS256";
+    alg?: string;
     jwk?: Jwk;// JSON Web Key
     [key: string]: unknown; // Allow custom header claims like 'kid'
 }

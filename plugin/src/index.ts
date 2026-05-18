@@ -2,7 +2,6 @@ import {
   ConfigPlugin,
   createRunOncePlugin,
   withInfoPlist,
-  withAndroidManifest,
   AndroidConfig,
   withPlugins,
 } from '@expo/config-plugins';
