@@ -342,6 +342,9 @@ export async function getKeyInfo(alias: string): Promise<KeyInfo> {
         throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
 
+    // Remove the curve from the KeyInfo if it is null (i.e., not an EC key)
+    if (result.data.curve == null) delete result.data.curve;
+
     return result.data;
 }
 
