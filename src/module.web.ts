@@ -3,8 +3,14 @@ import { AttestResult, GenerateKeyOpts, KeyInfo } from './core/keys/types';
 import { SiliconError, SiliconErrorCode } from './errors';
 import { BridgeResult } from './types/bridge-result';
 import { BridgeVerifyOpts, SignOpts } from './core/operations/types';
+import { Capabilities } from './core/device';
+import { RandomBytesFormat, RandomGenFormatTypeMap } from './core/random-generator';
 
 class ReactNativeSiliconModule extends NativeModule {
+  public async getCapabilities(): Promise<BridgeResult<Capabilities>> {
+    throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
+  }
+  
   public async genKey(alias: string, opts: GenerateKeyOpts): Promise<BridgeResult<string>> {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
@@ -46,6 +52,14 @@ class ReactNativeSiliconModule extends NativeModule {
   }
 
   public async verify(payload: string | Uint8Array, signature: string, opts: BridgeVerifyOpts): Promise<BridgeResult<boolean>> {
+    throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
+  }
+
+  public async generateSecureRandomBytes<T extends RandomBytesFormat>(length: number, format: T): Promise<BridgeResult<RandomGenFormatTypeMap[T]>>  {
+    throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
+  }
+  
+  public async getJwk(alias: string): Promise<BridgeResult<Record<string, any>>>  {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
 }
