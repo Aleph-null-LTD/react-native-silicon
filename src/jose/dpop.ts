@@ -1,42 +1,9 @@
-import { SignDigest } from "../core/operations";
 import { isSignDigest, signDigest } from "../core/operations/constants";
 import { generateSecureRandomBytes } from "../core/random-generator";
 import { hasOwn } from "../utils/validation";
 import { getJwk } from "./jwk";
 import { signJwt } from "./jwt";
-
-interface GenerateDpopProofOpts {
-    /**
-     * The digest algorithm to use when signing the JWT
-     * 
-     * **Default**: Matches the size of the key algorithm (e.g., "SHA256" for "ES256").
-     * @note This MUST be one of the allowed digests 
-     */
-    digest?: SignDigest
-    
-    /**
-     * HTTP URL (e.g., "https://your.domain/some/path")
-     */
-    htu: string,
-    
-    /**
-     * HTTP method (e.g., "POST")
-     * @note Must be uppercase and will be automatically converted to uppercase if it is not
-     */
-    htm: string,
-
-    /**
-     * JWT ID: A case-sensitive unique identifier for the JWT
-     * 
-     * **Default:** A secure random generated 16 byte Base64Url encoded string
-     */
-    jti?: string,
-
-    /**
-     * Optional nonce claim
-     */
-    nonce?: string,
-}
+import { GenerateDpopProofOpts } from "./types";
 
 /**
  * Generates a RFC 9449 compliant, signed DPoP proof JWT using the key specified by 'alias'
