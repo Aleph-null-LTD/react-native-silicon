@@ -13,6 +13,7 @@ import co.alephnull.reactnative.silicon.PayloadByteArr
 import co.alephnull.reactnative.silicon.PayloadText
 import co.alephnull.reactnative.silicon.PayloadType
 import co.alephnull.reactnative.silicon.SiliconException
+import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
 import expo.modules.kotlin.AppContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -22,12 +23,10 @@ import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.Signature
 
-class SiliconSigner(private val appContext: AppContext, private val keystore: KeyStore) {
+class SiliconSigner(private val appContext: AppContext, private val keystore: KeyStore, private val helpers: SiliconHelpers) {
 
     suspend fun sign(alias: String, payload: PayloadType, opts: SignOptions): SiliconResult<String> {
-        // TODO: Set the default digest based on the key algorithm
-
-        // Grab the active UI context and cast it safely
+        // Grab the active UI context and cast it
         val activity = appContext.currentActivity as? FragmentActivity
             ?: return SiliconResult.Failure(
                 "NO_ACTIVITY",
@@ -53,7 +52,23 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             val privateKey = keystore.getKey(alias, null) as? PrivateKey
                 ?: return SiliconResult.Failure("INVALID_KEY", "Key is not a valid PrivateKey")
 
-            val algorithmResult = getSignatureAlgorithm(privateKey, opts.digest, opts.format)
+            val (keyAlgorithm, crv) = helpers.getKeyAlgorithm(privateKey)
+
+            // Set the default digest based on the key algorithm if it is not set
+            if (opts.digest == null) {
+                opts.digest = when {
+                    keyAlgorithm == "ES256" || keyAlgorithm == "RS256" -> SignDigest.SHA256
+                    // keyAlgorithm == "ES384" || keyAlgorithm == "RS384" -> SignDigest.SHA384
+                    // keyAlgorithm == "ES512" || keyAlgorithm == "RS512" -> SignDigest.SHA512
+                    else -> return SiliconResult.Failure("UNSUPPORTED_KEY_FAMILY", "Key algorithm $keyAlgorithm is not supported for this function")
+                }
+            }
+
+            val algorithmResult = getSignatureAlgorithm(
+                privateKey,
+                opts.digest ?: throw SiliconException("DIGEST_NOT_SET", "Digest was null"),
+                opts.format
+            )
             if (algorithmResult !is SiliconResult.Success) return algorithmResult
             val alg = algorithmResult.data;
 
@@ -74,7 +89,10 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 opts.format == SignFormat.P1363 &&
                 privateKey.algorithm == KeyProperties.KEY_ALGORITHM_EC
             ) {
-                signatureBytes = convertDerToP1363(signatureBytes, opts.digest)
+                signatureBytes = convertDerToP1363(
+                    signatureBytes,
+                    opts.digest ?: throw SiliconException("DIGEST_NOT_SET", "Digest was null")
+                )
             }
 
             // Encode the raw signature bytes
@@ -85,12 +103,16 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
         } catch (e: UserNotAuthenticatedException) {
             // The hardware requires user authentication.
 
-            // We must recreate the engine reference to pass into a fresh CryptoObject session
+            // Recreate the engine reference to pass into a fresh CryptoObject session
             val privateKey = keystore.getKey(alias, null) as PrivateKey
 
-            val algorithmResult = getSignatureAlgorithm(privateKey, opts.digest, opts.format)
+            val algorithmResult = getSignatureAlgorithm(
+                privateKey,
+                opts.digest ?: throw SiliconException("DIGEST_NOT_SET", "Digest was null"),
+                opts.format
+            )
             if (algorithmResult !is SiliconResult.Success) return algorithmResult
-            val alg = algorithmResult.data;
+            val alg = algorithmResult.data
 
             val freshSignatureEngine = Signature.getInstance(alg).apply {
                 initSign(privateKey)
@@ -140,7 +162,10 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                             opts.format == SignFormat.P1363 &&
                             unlockedSignature.algorithm == KeyProperties.KEY_ALGORITHM_EC
                         ) {
-                            signatureBytes = convertDerToP1363(signatureBytes, opts.digest)
+                            signatureBytes = convertDerToP1363(
+                                signatureBytes,
+                                opts.digest ?: throw SiliconException("DIGEST_NOT_SET", "Digest was null")
+                            )
                         }
 
                         val base64Signature = encodeSignature(signatureBytes, opts.encoding)
