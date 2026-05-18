@@ -6,6 +6,7 @@ import { BridgeVerifyOpts, SignOpts } from './core/operations/types';
 import { Capabilities } from './core/device';
 import { RandomBytesFormat, RandomGenFormatTypeMap } from './core/random-generator';
 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 class ReactNativeSiliconModule extends NativeModule {
   public async getCapabilities(): Promise<BridgeResult<Capabilities>> {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
@@ -59,7 +60,7 @@ class ReactNativeSiliconModule extends NativeModule {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
   
-  public async getJwk(alias: string): Promise<BridgeResult<Record<string, any>>>  {
+  public async getJwk(alias: string): Promise<BridgeResult<Record<string, unknown>>>  {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
 }

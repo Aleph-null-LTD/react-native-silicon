@@ -66,7 +66,6 @@ function objectToBase64Url(obj: object): string {
     } else {
       // Legacy Path: Fallback to the encodeURIComponent trick
 
-      // eslint-disable-next-line no-redeclare, deprecation/deprecation
       const utf8Str = unescape(encodeURIComponent(jsonStr));
     
       standardBase64 = btoa(utf8Str);

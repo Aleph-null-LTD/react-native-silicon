@@ -19,7 +19,7 @@ declare class ReactNativeSiliconModule extends NativeModule {
   sign(alias: string, payload: string | Uint8Array, opts: SignOpts): Promise<BridgeResult<string>>;
   verify(payload: string | Uint8Array, signature: string, opts: BridgeVerifyOpts): Promise<BridgeResult<boolean>>;
   generateSecureRandomBytes<T extends RandomBytesFormat>(length: number, format: T): Promise<BridgeResult<RandomGenFormatTypeMap[T]>>;
-  getJwk(alias: string): Promise<BridgeResult<Record<string, any>>>;
+  getJwk(alias: string): Promise<BridgeResult<Record<string, unknown>>>;
 }
 
 // This call loads the native module object from the JSI.

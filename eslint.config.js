@@ -31,7 +31,6 @@ export default tseslint.config(
       },
     },
     rules: {
-      // Add any specific React Native bridge rules here
       '@typescript-eslint/no-explicit-any': 'warn', // Helpful for bridging unknown native payloads
     },
   },

@@ -6,7 +6,7 @@ export interface JwkEC {
     x: string;
     y: string;
     alg: string;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export interface JwkRSA {
@@ -14,17 +14,17 @@ export interface JwkRSA {
     n: string,
     e: string
     alg: string;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
-export type Jwk = JwkEC | JwkRSA | Record<string, any>;
+export type Jwk = JwkEC | JwkRSA | Record<string, unknown>;
     
 
 export interface JwtHeader {
     typ?: "JWT" | "dpop+jwt" | string;
     alg?: "ES256" | "RS256";
     jwk?: Jwk;// JSON Web Key
-    [key: string]: any; // Allow custom header claims like 'kid'
+    [key: string]: unknown; // Allow custom header claims like 'kid'
 }
 
 export interface JwtPayload {
@@ -35,7 +35,7 @@ export interface JwtPayload {
     nbf?: number; // Not before
     iat?: number; // Issued at
     jti?: string; // JWT ID 
-    [key: string]: any; // Custom application claims
+    [key: string]: unknown; // Custom application claims
 }
 
 export interface GenerateDpopProofOpts {

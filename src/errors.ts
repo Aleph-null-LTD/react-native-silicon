@@ -51,6 +51,7 @@ export class SiliconError extends Error {
     
     // Maintain stack trace (If supported)
     if (hasOwn(Error, 'captureStackTrace')) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (Error as any).captureStackTrace(this, SiliconError);
     }
   }
