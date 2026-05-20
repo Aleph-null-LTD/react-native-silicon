@@ -19,19 +19,31 @@ export async function sign(alias: string, payload: string | Uint8Array, opts: Si
 
     if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new TypeError("Silicon Error: 'payload' must be of type 'string' | 'Uint8Array'");
 
+    let payloadStr: string | null = null;
+    let payloadByteArr: Uint8Array | null = null;
+
+    if (typeof payload == 'string') {
+        payloadStr = payload;
+    } else {
+        payloadByteArr = payload;
+    }
+
     if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be of type 'object'");
     
     if (!hasOwn(opts, 'encoding')) throw new TypeError("Silicon Error: 'opts' must contain the 'encoding' property");
     if (!isSignEncoding(opts.encoding)) throw new TypeError(`Silicon Error: 'opts.encoding' must be of type ${Object.values(signEncodings).join("|")}`);
     
-    if (!hasOwn(opts, 'digest')) throw new TypeError("Silicon Error: 'opts' must contain the 'digest' property");
-    if (!isSignDigest(opts.digest)) throw new TypeError(`Silicon Error: 'opts.digest' must be of type ${Object.values(signDigest).join("|")}`);
+    if (hasOwn(opts, 'digest') &&
+        (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
+    ) {
+        throw new TypeError(`Silicon Error: 'opts.digest' must be of type ${Object.values(signDigest).join("|")}`);
+    }
 
     if (hasOwn(opts, 'format') && !isSignFormat(opts.format)) {
         throw new TypeError(`Silicon Error: 'opts.format' must be of type ${Object.values(signFormats).join("|")}`);
     }
-    
-    const result = await NativeSilicon.sign(alias, payload, opts);
+
+    const result = await NativeSilicon.sign(alias, payloadStr, payloadByteArr, opts);
     if (!result.success) {
         switch (result.errorCode) {
             case 'KEY_NOT_FOUND':
@@ -71,6 +83,15 @@ const PEM_REGEX = /(?:-----BEGIN.*?-----|-----END.*?-----|\\s+)/g;
 export async function verify(payload: string | Uint8Array, signature: string, opts: VerifyOpts): Promise<boolean> {
     if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new TypeError("Silicon Error: 'payload' must be of type 'string' | 'Uint8Array'");
 
+    let payloadStr: string | null = null;
+    let payloadByteArr: Uint8Array | null = null;
+
+    if (typeof payload == 'string') {
+        payloadStr = payload;
+    } else {
+        payloadByteArr = payload;
+    }
+
     if (typeof signature !== 'string') throw new TypeError("Silicon Error: 'signature' must be of type 'string'");
     
     if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be of type 'object'");
@@ -106,7 +127,8 @@ export async function verify(payload: string | Uint8Array, signature: string, op
     const signatureB64 = normalizeToBase64(signature);
 
     const result = await NativeSilicon.verify(
-        payload, 
+        payloadStr, 
+        payloadByteArr,
         signatureB64,
         {
             alias: alias,

@@ -6,7 +6,7 @@ import expo.modules.kotlin.types.Enumerable
 
 enum class SignEncoding(val value: String) : Enumerable {
     B64("B64"),
-    B64_URL("B64_URL")
+    B64URL("B64URL")
 }
 
 enum class SignDigest(val value: String) : Enumerable {
@@ -19,7 +19,7 @@ enum class SignFormat(val value: String) : Enumerable {
 }
 
 class SignOptions : Record {
-    @Field var encoding: SignEncoding = SignEncoding.B64_URL
+    @Field var encoding: SignEncoding = SignEncoding.B64URL
     @Field var digest: SignDigest? = null
     @Field var format: SignFormat = SignFormat.P1363
 }

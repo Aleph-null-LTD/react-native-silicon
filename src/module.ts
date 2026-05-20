@@ -16,8 +16,8 @@ declare class ReactNativeSiliconModule extends NativeModule {
   attestKey(alias: string): Promise<BridgeResult<AttestResult>>;
   getKeyInfo(alias: string): Promise<BridgeResult<KeyInfo>>;
   validateKey(alias: string): Promise<BridgeResult<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'>>;
-  sign(alias: string, payload: string | Uint8Array, opts: SignOpts): Promise<BridgeResult<string>>;
-  verify(payload: string | Uint8Array, signature: string, opts: BridgeVerifyOpts): Promise<BridgeResult<boolean>>;
+  sign(alias: string, payloadStr: string | null, payloadByteArr: Uint8Array | null, opts: SignOpts): Promise<BridgeResult<string>>;
+  verify(payloadStr: string | null, payloadByteArr: Uint8Array | null, signature: string, opts: BridgeVerifyOpts): Promise<BridgeResult<boolean>>;
   generateSecureRandomBytes<T extends RandomBytesFormat>(length: number, format: T): Promise<BridgeResult<RandomGenFormatTypeMap[T]>>;
   getJwk(alias: string): Promise<BridgeResult<Record<string, unknown>>>;
 }

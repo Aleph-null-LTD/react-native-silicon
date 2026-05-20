@@ -4,8 +4,8 @@ import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
 
 class BridgePayloadRecord : Record {
-    @Field val text: String? = null
-    @Field val bytes: ByteArray? = null
+    @Field var text: String? = null
+    @Field var bytes: ByteArray? = null
 }
 
 sealed interface PayloadType
@@ -19,8 +19,8 @@ value class PayloadByteArr(val arr: ByteArray) : PayloadType
  */
 fun BridgePayloadRecord.toPayloadType(): PayloadType {
     return when {
-        text != null -> PayloadText(text)
-        bytes != null -> PayloadByteArr(bytes)
+        text != null -> PayloadText(text as String)
+        bytes != null -> PayloadByteArr(bytes as ByteArray)
         else -> throw IllegalArgumentException("Payload record must contain either 'text' or 'bytes'.")
     }
 }

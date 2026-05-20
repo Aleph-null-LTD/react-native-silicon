@@ -11,82 +11,86 @@ import { AttestResult, GenerateKeyOpts, KeyInfo } from "./types";
  * @param opts 
  * @returns 
  */
-export async function generateKey(alias: string, opts: GenerateKeyOpts): Promise<string> {
+export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promise<string> {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
     }
 
-    if (!isPlainObject(opts)) {
-        throw new TypeError("Silicon Error: 'opts' must be an object");
-    }
+    if (opts !== undefined) {
+        if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be an object");
 
-    if (hasOwn(opts, 'purposes')) {
-        if (!Array.isArray(opts.purposes)) {
-            throw new TypeError("Silicon Error: 'purposes' must be an array");
-        }
-
-        for (const purpose of opts.purposes) {
-            if (!isKeyPurpose(purpose)) {
-                throw new TypeError(`Silicon Error: purpose '${purpose}' is invalid, expected ${Object.values(keyPurposes).join("|")}`);
+        if (hasOwn(opts, 'purposes')) {
+            if (!Array.isArray(opts.purposes)) {
+                throw new TypeError("Silicon Error: 'purposes' must be an array");
             }
-        }
-    }
 
-    if (hasOwn(opts, 'userAuth')) {
-        if (!isPlainObject(opts.userAuth)) throw new TypeError("Silicon Error: 'opts.userAuth' must be an object");
-
-        if (hasOwn(opts.userAuth, 'require') && typeof opts.userAuth.require !== 'boolean') {
-            throw new TypeError("Silicon Error: 'opts.userAuth.require' must be of type 'boolean'");
-        }
-
-        if (hasOwn(opts.userAuth, 'timeout') && typeof opts.userAuth.timeout !== 'number') {
-            throw new TypeError("Silicon Error: 'opts.userAuth.timeout' must be of type 'number'");
-        }
-
-        if (hasOwn(opts.userAuth, 'invalidateOnEnrollment') && typeof opts.userAuth.invalidateOnEnrollment !== 'boolean') {
-            throw new TypeError("Silicon Error: 'opts.userAuth.invalidateOnEnrollment' must be of type 'boolean'");
-        }
-
-        if (hasOwn(opts.userAuth, 'policy') && 
-            (typeof opts.userAuth.policy !== 'string' || !isUserAuthPolicy(opts.userAuth.policy)) 
-        ) {
-            throw new TypeError(`Silicon Error: 'opts.userAuth.policy' (${opts.userAuth.policy}) is invalid, expected ${Object.values(userAuthPolicies).join("|")}`);
-        }
-    }
-
-    if (hasOwn(opts, 'attestChallenge') && typeof opts.attestChallenge !== 'string') {
-        throw new TypeError("Silicon Error: 'opts.attestChallenge' must be of type 'string'");
-    }
-
-    if (hasOwn(opts, 'pubkeyFormat') && 
-        (typeof opts.pubkeyFormat !== 'string' || !isPubkeyFormat(opts.pubkeyFormat))
-    ) {
-        throw new TypeError(`Silicon Error: 'opts.pubkeyFormat' (${opts.pubkeyFormat}) is invalid, expected ${Object.values(pubkeyFormats).join("|")}`);
-    }
-
-    if (hasOwn(opts, 'android')) {
-        if (!isPlainObject(opts.android)) throw new TypeError("");
-
-        if (hasOwn(opts.android, 'algorithm') && !isAndroidAlgorithm(opts.android.algorithm)) {
-            throw new TypeError(`Silicon Error: 'opts.android.algorithm' (${opts.android.algorithm}) is invalid, expected ${Object.values(androidAlgorithms).join("|")}`);
-        }
-
-        if (hasOwn(opts.android, 'digests')) {
-            if (!Array.isArray(opts.android.digests)) throw new TypeError("Silicon Error: 'opts.android.digests' must be an array");
-
-            for (const digest of opts.android.digests) {
-                if (!isKeyDigest(digest)) throw new TypeError(`Silicon Error: value (${digest}) in 'opts.android.digests' is invalid, expected ${Object.values(keyDigests).join("|")}`);
+            for (const purpose of opts.purposes) {
+                if (!isKeyPurpose(purpose)) {
+                    throw new TypeError(`Silicon Error: purpose '${purpose}' is invalid, expected ${Object.values(keyPurposes).join("|")}`);
+                }
             }
         }
 
-        if (hasOwn(opts.android, 'hardwarePolicy') &&
-            (typeof opts.android.hardwarePolicy !== 'string' || !isAndroidHardwarePolicy(opts.android.hardwarePolicy))
-        ) {
-            throw new TypeError(`Silicon Error: 'opts.android.hardwarePolicy' (${opts.android.hardwarePolicy}) is invalid, expected ${Object.values(keyDigests).join("|")}`)
-        }
-    }
+        if (hasOwn(opts, 'userAuth')) {
+            if (!isPlainObject(opts.userAuth)) throw new TypeError("Silicon Error: 'opts.userAuth' must be an object");
 
-    // TODO: IOS options validation
+            if (hasOwn(opts.userAuth, 'require') && typeof opts.userAuth.require !== 'boolean') {
+                throw new TypeError("Silicon Error: 'opts.userAuth.require' must be of type 'boolean'");
+            }
+
+            if (hasOwn(opts.userAuth, 'timeout') && typeof opts.userAuth.timeout !== 'number') {
+                throw new TypeError("Silicon Error: 'opts.userAuth.timeout' must be of type 'number'");
+            }
+
+            if (hasOwn(opts.userAuth, 'invalidateOnEnrollment') && typeof opts.userAuth.invalidateOnEnrollment !== 'boolean') {
+                throw new TypeError("Silicon Error: 'opts.userAuth.invalidateOnEnrollment' must be of type 'boolean'");
+            }
+
+            if (hasOwn(opts.userAuth, 'policy') && 
+                (typeof opts.userAuth.policy !== 'string' || !isUserAuthPolicy(opts.userAuth.policy)) 
+            ) {
+                throw new TypeError(`Silicon Error: 'opts.userAuth.policy' (${opts.userAuth.policy}) is invalid, expected ${Object.values(userAuthPolicies).join("|")}`);
+            }
+        }
+
+        if (hasOwn(opts, 'attestChallenge') && typeof opts.attestChallenge !== 'string') {
+            throw new TypeError("Silicon Error: 'opts.attestChallenge' must be of type 'string'");
+        }
+
+        if (hasOwn(opts, 'pubkeyFormat') && 
+            (typeof opts.pubkeyFormat !== 'string' || !isPubkeyFormat(opts.pubkeyFormat))
+        ) {
+            throw new TypeError(`Silicon Error: 'opts.pubkeyFormat' (${opts.pubkeyFormat}) is invalid, expected ${Object.values(pubkeyFormats).join("|")}`);
+        }
+
+        if (hasOwn(opts, 'android')) {
+            if (!isPlainObject(opts.android)) throw new TypeError("");
+
+            if (hasOwn(opts.android, 'algorithm') && !isAndroidAlgorithm(opts.android.algorithm)) {
+                throw new TypeError(`Silicon Error: 'opts.android.algorithm' (${opts.android.algorithm}) is invalid, expected ${Object.values(androidAlgorithms).join("|")}`);
+            }
+
+            if (hasOwn(opts.android, 'digests')) {
+                if (!Array.isArray(opts.android.digests)) throw new TypeError("Silicon Error: 'opts.android.digests' must be an array");
+
+                for (const digest of opts.android.digests) {
+                    if (!isKeyDigest(digest)) throw new TypeError(`Silicon Error: value (${digest}) in 'opts.android.digests' is invalid, expected ${Object.values(keyDigests).join("|")}`);
+                }
+            }
+
+            if (hasOwn(opts.android, 'hardwarePolicy') &&
+                (typeof opts.android.hardwarePolicy !== 'string' || !isAndroidHardwarePolicy(opts.android.hardwarePolicy))
+            ) {
+                throw new TypeError(`Silicon Error: 'opts.android.hardwarePolicy' (${opts.android.hardwarePolicy}) is invalid, expected ${Object.values(keyDigests).join("|")}`)
+            }
+        }
+
+        // TODO: IOS options validation
+
+    } else {
+        // Default opts to an empty object
+        opts = {};
+    }
 
     const result = await NativeSilicon.genKey(alias, opts);
     if (!result.success) {
@@ -146,7 +150,7 @@ export async function deleteKey(alias: string): Promise<boolean> {
  * @returns The number of keys that were deleted
  */
 export async function deleteAllKeys(prefix?: string): Promise<number> {
-    if (prefix && typeof prefix !== 'string') {
+    if (prefix !== undefined && typeof prefix !== 'string') {
         throw new TypeError("Silicon Error: 'prefix' must be of type string");
     }
 
@@ -194,7 +198,7 @@ export async function keyExists(alias: string): Promise<boolean> {
  * @returns An array of the key aliases
  */
 export async function listKeys(prefix?: string): Promise<string[]> {
-    if (prefix && typeof prefix !== 'string') {
+    if (prefix !== undefined && typeof prefix !== 'string') {
         throw new TypeError("Silicon Error: 'prefix' must be of type string");
     }
 

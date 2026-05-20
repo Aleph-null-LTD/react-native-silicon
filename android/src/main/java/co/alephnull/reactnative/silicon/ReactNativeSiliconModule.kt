@@ -1,5 +1,6 @@
 package co.alephnull.reactnative.silicon
 
+import android.util.Log
 import co.alephnull.reactnative.silicon.device.SiliconDevice
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
 import co.alephnull.reactnative.silicon.jose.SiliconJose
@@ -15,6 +16,7 @@ import co.alephnull.reactnative.silicon.verifier.VerifyOptions
 import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import expo.modules.kotlin.types.Either
 import java.security.KeyStore
 
 class ReactNativeSiliconModule : Module() {
@@ -95,13 +97,21 @@ class ReactNativeSiliconModule : Module() {
 
         // ---- Sign/Verify ----
 
-        AsyncFunction("sign") Coroutine { alias: String, payload: BridgePayloadRecord, opts: SignOptions ->
-            val result = signer.sign(alias, payload.toPayloadType(), opts)
+        AsyncFunction("sign") Coroutine { alias: String, payloadStr: String?, payloadByteArr: ByteArray?, opts: SignOptions ->
+            val bridgePayload = BridgePayloadRecord()
+            bridgePayload.text = payloadStr
+            bridgePayload.bytes = payloadByteArr
+
+            val result = signer.sign(alias, bridgePayload.toPayloadType(), opts)
             return@Coroutine result.toBridgeMap()
         }
 
-        AsyncFunction("verify") { payload: BridgePayloadRecord, signatureB64: String, opts: VerifyOptions ->
-            val result = verifier.verify(payload.toPayloadType(), signatureB64, opts)
+        AsyncFunction("verify") { payloadStr: String?, payloadByteArr: ByteArray?, signatureB64: String, opts: VerifyOptions ->
+            val bridgePayload = BridgePayloadRecord()
+            bridgePayload.text = payloadStr
+            bridgePayload.bytes = payloadByteArr
+
+            val result = verifier.verify(bridgePayload.toPayloadType(), signatureB64, opts)
             return@AsyncFunction result.toBridgeMap()
         }
 
