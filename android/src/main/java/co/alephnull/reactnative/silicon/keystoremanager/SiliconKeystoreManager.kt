@@ -10,6 +10,7 @@ import android.security.keystore.KeyProperties
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import android.util.Base64
+import android.util.Log
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
 import expo.modules.kotlin.AppContext
 import java.security.InvalidAlgorithmParameterException
@@ -31,7 +32,7 @@ import javax.crypto.SecretKeyFactory
 
 class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore, private val siliconHelpers: SiliconHelpers) {
 
-    fun genKey(alias: String, opts: GenerateKeyOptions): SiliconResult<String> {
+    fun genKey(alias: String, opts: GenerateKeyOptions): SiliconResult<String?> {
         // If digests was not set, use the digest with the same size as the algorithm
         val digests: List<KeyDigest> = opts.android.digests ?: listOf(
             when (opts.android.algorithm) {
@@ -74,24 +75,24 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         )
 
         // Iterate through purpose array and OR the values together
-        val purpose = 0;
+        var purpose = 0;
         for (p in opts.purposes) {
             when (p) {
-                KeyPurpose.SIGN -> purpose or KeyProperties.PURPOSE_SIGN
-                KeyPurpose.VERIFY -> purpose or KeyProperties.PURPOSE_VERIFY
-                KeyPurpose.ENCRYPT -> purpose or KeyProperties.PURPOSE_ENCRYPT
-                KeyPurpose.DECRYPT -> purpose or KeyProperties.PURPOSE_DECRYPT
+                KeyPurpose.SIGN -> purpose = purpose or KeyProperties.PURPOSE_SIGN
+                KeyPurpose.VERIFY -> purpose = purpose or KeyProperties.PURPOSE_VERIFY
+                KeyPurpose.ENCRYPT -> purpose = purpose or KeyProperties.PURPOSE_ENCRYPT
+                KeyPurpose.DECRYPT -> purpose = purpose or KeyProperties.PURPOSE_DECRYPT
                 KeyPurpose.WRAP -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    purpose or KeyProperties.PURPOSE_WRAP_KEY
+                    purpose = purpose or KeyProperties.PURPOSE_WRAP_KEY
                 } else {
                     return SiliconResult.Failure("PURPOSE_WRAP_NOT_SUPPORTED", "Purpose ")
                 }
                 KeyPurpose.AGREE -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    purpose or KeyProperties.PURPOSE_AGREE_KEY
+                    purpose = purpose or KeyProperties.PURPOSE_AGREE_KEY
                 }  else {
                     return SiliconResult.Failure("PURPOSE_AGREE_NOT_SUPPORTED", "Purpose ")
                 }
-                KeyPurpose.ATTEST -> purpose or KeyProperties.PURPOSE_ATTEST_KEY
+                KeyPurpose.ATTEST -> purpose = purpose or KeyProperties.PURPOSE_ATTEST_KEY
             }
         }
 
@@ -162,6 +163,8 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
                 build()
             }
+
+            // TODO: When key family is not asymmetric return null
 
             kpg.initialize(parameterSpec)
 
