@@ -45,7 +45,7 @@ export type GenerateDpopProofOpts = {
      * **Default**: Matches the size of the key algorithm (e.g., "SHA256" for "ES256").
      * @note This MUST be one of the allowed digests 
      */
-    digest?: SignDigest
+    digest?: SignDigest | undefined,
     
     /**
      * HTTP URL (e.g., "https://your.domain/some/path")
@@ -63,10 +63,10 @@ export type GenerateDpopProofOpts = {
      * 
      * **Default:** A secure random generated 16 byte Base64Url encoded string
      */
-    jti?: string,
+    jti?: string | undefined,
 
     /**
      * Optional nonce claim
      */
-    nonce?: string
+    nonce?: string | undefined
 };

@@ -14,7 +14,7 @@ import { SignOpts, VerifyOpts } from './types';
  * @returns 
  * @note Will automatically prompt for user authentication if enabled on the key
  */
-export async function sign(alias: string, payload: string | Uint8Array, opts: SignOpts): Promise<string> {
+export async function sign(alias: string, payload: string | Uint8Array, opts?: SignOpts): Promise<string> {
     if (typeof alias !== 'string') throw new TypeError("Silicon Error: 'alias' must be of type 'string'");
 
     if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new TypeError("Silicon Error: 'payload' must be of type 'string' | 'Uint8Array'");
@@ -28,19 +28,31 @@ export async function sign(alias: string, payload: string | Uint8Array, opts: Si
         payloadByteArr = payload;
     }
 
-    if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be of type 'object'");
-    
-    if (!hasOwn(opts, 'encoding')) throw new TypeError("Silicon Error: 'opts' must contain the 'encoding' property");
-    if (!isSignEncoding(opts.encoding)) throw new TypeError(`Silicon Error: 'opts.encoding' must be of type ${Object.values(signEncodings).join("|")}`);
-    
-    if (hasOwn(opts, 'digest') &&
-        (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
-    ) {
-        throw new TypeError(`Silicon Error: 'opts.digest' must be of type ${Object.values(signDigest).join("|")}`);
-    }
+    if (opts !== undefined) {
+        if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be of type 'object'");
+        
+        if (hasOwn(opts, 'encoding') &&
+            opts.encoding !== undefined &&
+            !isSignEncoding(opts.encoding)
+        ) {
+            throw new TypeError(`Silicon Error: 'opts.encoding' must be of type ${Object.values(signEncodings).join("|")}`);
+        }
+        
+        if (hasOwn(opts, 'digest') &&
+            opts.digest !== undefined &&
+            (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
+        ) {
+            throw new TypeError(`Silicon Error: 'opts.digest' must be of type ${Object.values(signDigest).join("|")}`);
+        }
 
-    if (hasOwn(opts, 'format') && !isSignFormat(opts.format)) {
-        throw new TypeError(`Silicon Error: 'opts.format' must be of type ${Object.values(signFormats).join("|")}`);
+        if (hasOwn(opts, 'format') &&
+            opts.format !== undefined &&
+            !isSignFormat(opts.format)
+        ) {
+            throw new TypeError(`Silicon Error: 'opts.format' must be of type ${Object.values(signFormats).join("|")}`);
+        }
+    } else {
+        opts = {};
     }
 
     const result = await NativeSilicon.sign(alias, payloadStr, payloadByteArr, opts);

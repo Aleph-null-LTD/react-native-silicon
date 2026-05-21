@@ -2,7 +2,8 @@ import { registerWebModule, NativeModule } from 'expo';
 import { AttestResult, GenerateKeyOpts, KeyInfo } from './core/keys/types';
 import { SiliconError, SiliconErrorCode } from './errors';
 import { BridgeResult } from './types/bridge-result';
-import { BridgeVerifyOpts, SignOpts } from './core/operations/types';
+import { SignOpts } from './core/operations/types';
+import { BridgeVerifyOpts } from './core/operations/brige-types';
 import { Capabilities } from './core/device';
 import { RandomBytesFormat, RandomGenFormatTypeMap } from './core/random-generator';
 

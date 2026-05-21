@@ -1,7 +1,8 @@
 import { NativeModule, requireNativeModule } from 'expo';
 import { AttestResult, GenerateKeyOpts, KeyInfo } from './core/keys/types';
 import { BridgeResult } from './types/bridge-result';
-import { SignOpts, BridgeVerifyOpts } from './core/operations/types';
+import { SignOpts } from './core/operations/types';
+import { BridgeVerifyOpts } from './core/operations/brige-types';
 import { Capabilities } from './core/device/types';
 import { RandomBytesFormat, RandomGenFormatTypeMap } from './core/random-generator/types';
 

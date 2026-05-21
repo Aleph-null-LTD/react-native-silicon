@@ -18,7 +18,7 @@ export type GenerateKeyOpts = {
      * 
      * @default ['SIGN', 'VERIFY']
      */
-    purposes?: KeyPurpose[],
+    purposes?: KeyPurpose[] | undefined,
     
     /**
      * User Authentication options for the key
@@ -30,7 +30,7 @@ export type GenerateKeyOpts = {
          * @default false
          * @note If this is false then the rest of the userAuth options will do nothing.
          */
-        require?: boolean,
+        require?: boolean | undefined,
 
         /**
          * Int value.
@@ -42,14 +42,14 @@ export type GenerateKeyOpts = {
          * 
          * @default 0
          */
-        timeout?: number,
+        timeout?: number | undefined,
 
         /**
          * Invalidates the key if new Biometrics are added to the device.
          * 
          * @default true
          */
-        invalidateOnEnrollment?: boolean,
+        invalidateOnEnrollment?: boolean | undefined,
 
         /**
          * * BIOMETRICS_ONLY - Only allows Biometric authentication 
@@ -59,8 +59,8 @@ export type GenerateKeyOpts = {
          * 
          * @default BIOMETRICS_ONLY
          */
-        policy?: UserAuthPolicies
-    },
+        policy?: UserAuthPolicies | undefined
+    } | undefined,
 
     /**
      * IMPORTANT: You cannot attest an existing key after the fact.
@@ -70,7 +70,7 @@ export type GenerateKeyOpts = {
      * If provided, you will be able to call 'attestKey'
      * to get the PEM certificate.
      */
-    attestChallenge?: string,
+    attestChallenge?: string | undefined,
 
     /**
      * Format for the returned public key.
@@ -79,7 +79,7 @@ export type GenerateKeyOpts = {
      * 
      * @default PEM
      */
-    pubkeyFormat?: PubkeyFormat,
+    pubkeyFormat?: PubkeyFormat | undefined,
 
     /**
      * Android specific options
@@ -90,7 +90,7 @@ export type GenerateKeyOpts = {
          * 
          * @default ES256
          */
-        algorithm?: AndroidAlgorithm,
+        algorithm?: AndroidAlgorithm | undefined,
         
         /**
          * Sets the set of digests algorithms (e.g., SHA-256, SHA-384) with which the key can be used. 
@@ -101,26 +101,26 @@ export type GenerateKeyOpts = {
          * @note For HMAC keys, the default is the digest associated with the key algorithm (e.g., SHA-256 for key algorithm HmacSHA256). 
          * HMAC keys cannot be authorized for more than one digest.
          */
-        digests?: KeyDigests[],
+        digests?: KeyDigests[] | undefined,
 
         /**
          * The policy to use when creating the key.
-         * * requireStrongbox - Will fail the key generation if StrongBox is not available on the device
-         * * preferStrongbox - Will attempt to store the key in StrongBox and fall back to TEE if strongbox is not available on the device
-         * * useTEE - Will not attempt to use StrongBox and will use TEE
+         * * REQUIRE_STRONBOX - Will fail the key generation if StrongBox is not available on the device
+         * * PREFER_STRONGBOX - Will attempt to store the key in StrongBox and fall back to TEE if strongbox is not available on the device
+         * * USE_TEE - Will not attempt to use StrongBox and will use TEE
          * 
-         * @default PREFER_STRONGBOX
+         * @default 'PREFER_STRONGBOX'
          */
-        hardwarePolicy?: AndroidHardwarePolicy
-    },
+        hardwarePolicy?: AndroidHardwarePolicy | undefined
+    } | undefined,
 
     /**
      * IOS specific options
      */
     ios?: {
-        algorithm?: 'ES256',
-        hardwarePolicy?: 'require' | 'prefer' | 'software'
-    },
+        algorithm?: 'ES256' | undefined,
+        hardwarePolicy?: 'require' | 'prefer' | 'software' | undefined
+    } | undefined,
 };
 
 /**

@@ -9,23 +9,23 @@ export type SignFormats = keyof typeof signFormats;
 export type SignOpts = {
     /**
      * The encoding to use for the signature.
-     * @default B64_URL
+     * @default B64URL
      */
-    encoding: SignEncodings,
+    encoding?: SignEncodings | undefined,
     
     /**
      * The algorithm to use for the signature
      * **Default**: Matches the size of the key algorithm (e.g., "SHA256" for "ES256").
      * @note This MUST be one of the allowed digests 
      */
-    digest?: SignDigest,
+    digest?: SignDigest | undefined,
 
     /**
      * Output format of the signature bytes when signing with an EC key.
      * @default 'P1363' // (Standard WebCrypto / JWT format)
      * @note Set to 'DER' if interacting with legacy Java/ASN.1 backend systems.
      */
-    format?: SignFormats
+    format?: SignFormats | undefined
 };
 
 // ---- Verify ----
@@ -58,11 +58,3 @@ export type ExternalVerifyOpts = {
 
 export type VerifyOpts = InternalVerifyOpts | ExternalVerifyOpts;
 
-/**
- * Options that will be passed to the Native bridge
- */
-export type BridgeVerifyOpts = {
-    alias: string | undefined,
-    pubkeyB64: string | undefined,
-    algorithm: VerifyAlgorithms
-}

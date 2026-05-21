@@ -18,9 +18,10 @@ export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayl
     if (!isPlainObject(header)) throw new TypeError("Silicon Error: 'header' must be an object");
     if (!isPlainObject(payload)) throw new TypeError("Silicon Error: 'payload' must be an object");
   
-    if (digest &&
+    if (digest !== undefined &&
       (typeof digest !== 'string' || !isSignDigest(digest))
     ) {
+      console.log("in here")
       throw new TypeError(`Silicon Error: 'digest' must be of type ${Object.values(signDigest).join("|")}`);
     }
   
