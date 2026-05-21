@@ -67,11 +67,15 @@ export async function sign(alias: string, payload: string | Uint8Array, opts?: S
             case 'UNSUPPORTED_KEY_FAMILY':
                 throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage, { nativeStack: result.nativeStack });
 
+            case 'INVALID_KEY':
+                throw new SiliconError(SiliconErrorCode.INVALID_KEY, result.errorMessage, { nativeStack: result.nativeStack });
+            
             case 'SIGNING_FAILED':
             case 'PROMPT_SIGN_FAILED':
                 throw new SiliconError(SiliconErrorCode.SIGNING_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
             
             default:
+                console.error(`Native Err: ${result.nativeStack}`)
                 throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
         }
     }
