@@ -31,3 +31,13 @@ sealed class SiliconResult<out T> {
         }
     }
 }
+
+/**
+ * Unwraps the Success value, or executes the block (which MUST return/throw) if it's a Failure.
+ */
+inline fun <T> SiliconResult<T>.onFailure(block: (SiliconResult.Failure) -> Nothing): T {
+    return when (this) {
+        is SiliconResult.Success -> this.data
+        is SiliconResult.Failure -> block(this)
+    }
+}
