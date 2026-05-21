@@ -1,5 +1,5 @@
 
-export interface Capabilities {
+export type Capabilities = {
     /**
      * String representing the available hardware capabilities.
      * * ANDROID_STRONGBOX - The device is an android device with StrongBox support

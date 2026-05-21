@@ -7,7 +7,7 @@ export interface JwkEC {
     y: string;
     alg: string;
     [key: string]: unknown;
-}
+};
 
 export interface JwkRSA {
     kty: "RSA",
@@ -15,7 +15,7 @@ export interface JwkRSA {
     e: string
     alg: string;
     [key: string]: unknown;
-}
+};
 
 export type Jwk = JwkEC | JwkRSA | Record<string, unknown>;
     
@@ -25,7 +25,7 @@ export interface JwtHeader {
     alg?: string;
     jwk?: Jwk;// JSON Web Key
     [key: string]: unknown; // Allow custom header claims like 'kid'
-}
+};
 
 export interface JwtPayload {
     iss?: string; // Issuer
@@ -36,9 +36,9 @@ export interface JwtPayload {
     iat?: number; // Issued at
     jti?: string; // JWT ID 
     [key: string]: unknown; // Custom application claims
-}
+};
 
-export interface GenerateDpopProofOpts {
+export type GenerateDpopProofOpts = {
     /**
      * The digest algorithm to use when signing the JWT
      * 
@@ -68,5 +68,5 @@ export interface GenerateDpopProofOpts {
     /**
      * Optional nonce claim
      */
-    nonce?: string,
-}
+    nonce?: string
+};

@@ -11,14 +11,14 @@ type AndroidHardwarePolicy = keyof typeof androidHardwarePolicies;
 /**
  * Note: We currently only support Asymmetric ES256. Other algorithms will be added soon.
  */ 
-export interface GenerateKeyOpts {
+export type GenerateKeyOpts = {
     /**
      * set of purposes (e.g., encrypt, decrypt, sign) for which the key can be used. 
      * Attempts to use the key for any other purpose will be rejected.
      * 
      * @default ['SIGN', 'VERIFY']
      */
-    purposes?: KeyPurpose[];
+    purposes?: KeyPurpose[],
     
     /**
      * User Authentication options for the key
@@ -30,7 +30,7 @@ export interface GenerateKeyOpts {
          * @default false
          * @note If this is false then the rest of the userAuth options will do nothing.
          */
-        require?: boolean;
+        require?: boolean,
 
         /**
          * Int value.
@@ -42,14 +42,14 @@ export interface GenerateKeyOpts {
          * 
          * @default 0
          */
-        timeout?: number;
+        timeout?: number,
 
         /**
          * Invalidates the key if new Biometrics are added to the device.
          * 
          * @default true
          */
-        invalidateOnEnrollment?: boolean;
+        invalidateOnEnrollment?: boolean,
 
         /**
          * * BIOMETRICS_ONLY - Only allows Biometric authentication 
@@ -59,8 +59,8 @@ export interface GenerateKeyOpts {
          * 
          * @default BIOMETRICS_ONLY
          */
-        policy?: UserAuthPolicies;
-    };
+        policy?: UserAuthPolicies
+    },
 
     /**
      * IMPORTANT: You cannot attest an existing key after the fact.
@@ -70,7 +70,7 @@ export interface GenerateKeyOpts {
      * If provided, you will be able to call 'attestKey'
      * to get the PEM certificate.
      */
-    attestChallenge?: string;
+    attestChallenge?: string,
 
     /**
      * Format for the returned public key.
@@ -79,7 +79,7 @@ export interface GenerateKeyOpts {
      * 
      * @default PEM
      */
-    pubkeyFormat?: PubkeyFormat;
+    pubkeyFormat?: PubkeyFormat,
 
     /**
      * Android specific options
@@ -90,7 +90,7 @@ export interface GenerateKeyOpts {
          * 
          * @default ES256
          */
-        algorithm?: AndroidAlgorithm;
+        algorithm?: AndroidAlgorithm,
         
         /**
          * Sets the set of digests algorithms (e.g., SHA-256, SHA-384) with which the key can be used. 
@@ -101,7 +101,7 @@ export interface GenerateKeyOpts {
          * @note For HMAC keys, the default is the digest associated with the key algorithm (e.g., SHA-256 for key algorithm HmacSHA256). 
          * HMAC keys cannot be authorized for more than one digest.
          */
-        digests?: KeyDigests[];
+        digests?: KeyDigests[],
 
         /**
          * The policy to use when creating the key.
@@ -111,86 +111,86 @@ export interface GenerateKeyOpts {
          * 
          * @default PREFER_STRONGBOX
          */
-        hardwarePolicy?: AndroidHardwarePolicy;
-    };
+        hardwarePolicy?: AndroidHardwarePolicy
+    },
 
     /**
      * IOS specific options
      */
     ios?: {
-        algorithm?: 'ES256';
-        hardwarePolicy?: 'require' | 'prefer' | 'software';
-    };
+        algorithm?: 'ES256',
+        hardwarePolicy?: 'require' | 'prefer' | 'software'
+    },
 };
 
 /**
  * KeyInfo object returned by getKeyInfo
  */
-export interface KeyInfo {
+export type KeyInfo = {
     /**
      * The alias of the key
      */
-    alias: string;
+    alias: string,
 
     /**
      * The key algorithm
      */
-    algorithm: string;
+    algorithm: string,
 
     /**
      * The curve 
      * @note Only included if the key is an Eliptic Curve
      */
-    curve?: string;
+    curve?: string,
 
     /**
      * Size of the key in bits
      */
-    keySize: number;
+    keySize: number,
 
     /**
      * The set of digest algorithms (e.g., SHA-256, SHA-384) with which the key can be used
      */
-    digests: string[];
+    digests: string[],
 
     /**
      * Security level of the key (where it is stored)
      */
-    securityLevel: 'STRONGBOX' | 'TEE' | 'SOFTWARE';
+    securityLevel: 'STRONGBOX' | 'TEE' | 'SOFTWARE',
     
     /**
      * Array of purposes for which the key can be used
      */
-    purposes: KeyPurpose[];
+    purposes: KeyPurpose[],
 
     /**
      * True if user auth is required to use the key
      */
-    isUserAuthRequired: boolean;
+    isUserAuthRequired: boolean,
 
     /**
      * True if the key will be invalidated if new biometrics
      * are added on the device
      */
-    isInvalidatedByBiometricEnrollment: boolean;
+    isInvalidatedByBiometricEnrollment: boolean,
 
     /**
      * The amount of time (in seconds) that the key can be used
      * for after the user has successfully authenticated
      */
-    userAuthValidityDurationSecs: number;
+    userAuthValidityDurationSecs: number
 }
 
-export interface AttestResult {
+export type AttestResult = {
   /**
    * ANDROID ONLY: An array of Base64-encoded X.509 certificates.
    * Index 0 is the leaf certificate containing the attestation extension.
    */
-  certificateChain?: string[];
+  certificateChain?: string[],
 
   /**
    * iOS ONLY: A Base64-encoded CBOR attestation object containing the 
    * 'x5c' certificate chain and the Apple authenticator data.
    */
-  attestationObject?: string;
+  attestationObject?: string
 }
