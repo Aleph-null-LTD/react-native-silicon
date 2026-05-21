@@ -98,6 +98,9 @@ export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promis
             case "INVALID_ALGORITHM_PARAMETER":
                 throw new SiliconError(SiliconErrorCode.INVALID_ALGORITHM_PARAMETER, result.errorMessage, { nativeStack: result.nativeStack });
 
+            case 'ALIAS_IN_USE': 
+                throw new SiliconError(SiliconErrorCode.ALIAS_IN_USE, result.errorMessage, { nativeStack: result.nativeStack });
+
             case "STRONGBOX_NOT_SUPPORTED":
                 throw new SiliconError(SiliconErrorCode.STRONGBOX_NOT_SUPPORTED, result.errorMessage, { nativeStack: result.nativeStack });
             

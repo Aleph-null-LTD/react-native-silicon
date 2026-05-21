@@ -33,6 +33,10 @@ import javax.crypto.SecretKeyFactory
 class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore, private val siliconHelpers: SiliconHelpers) {
 
     fun genKey(alias: String, opts: GenerateKeyOptions): SiliconResult<String?> {
+        if (keystore.containsAlias(alias)) {
+            return SiliconResult.Failure("ALIAS_IN_USE", "A key with alias '$alias' already exists")
+        }
+
         // If digests was not set, use the digest with the same size as the algorithm
         val digests: List<KeyDigest> = opts.android.digests ?: listOf(
             when (opts.android.algorithm) {
