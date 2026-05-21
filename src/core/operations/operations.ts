@@ -4,7 +4,7 @@ import { hasOwn, isPlainObject } from '../../utils/validation';
 import { isSignDigest, isSignEncoding, isSignFormat, isVerifyAlgorithm, signDigest, signEncodings, signFormats, verifyAlgorithms } from './constants';
 import { SignOpts, VerifyOpts } from './types';
 
-// -- Raw Sign & Verify --
+// ---- Sign & Verify ----
 
 /**
  * Signs the given payload using the key specified by 'alias'
@@ -186,7 +186,7 @@ function normalizeToBase64(input: string): string {
   return base64;
 }
 
-// -- Hardware-Backed Symmetric Encryption --
+// ---- Symmetric Encryption ----
 
 /*
 export function encrypt(alias: string, data) {
