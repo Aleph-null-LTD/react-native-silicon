@@ -6,37 +6,169 @@ type SiliconErrorOpts = {
 }
 
 export enum SiliconErrorCode {
+    /**
+     * Occurs when getCapabilities failed for an unknown reason
+     */
     GET_CAPABILITIES_FAILED = 'GET_CAPABILITIES_FAILED',
-    PLATFORM_NOT_SUPPORTED = 'PLATFORM_NOT_SUPPORTED',
-    INVALID_ALGORITHM_PARAMETER = 'INVALID_ALGORITHM_PARAMETER',
-    STRONGBOX_NOT_SUPPORTED = 'STRONGBOX_NOT_SUPPORTED',
-    PURPOSE_WRAP_NOT_SUPPORTED = 'PURPOSE_WRAP_NOT_SUPPORTED',
-    PURPOSE_AGREE_NOT_SUPPORTED = 'PURPOSE_AGREE_NOT_SUPPORTED',
-    KEY_NOT_FOUND = 'KEY_NOT_FOUND',
-    KEY_LOAD_FAILED = 'KEY_LOAD_FAILED',
-    KEY_INVALIDATED = 'KEY_INVALIDATED',
-    UNSUPPORTED_KEY_FAMILY = 'UNSUPPORTED_KEY_FAMILY',
-    SIGNING_FAILED = 'SIGNING_FAILED',
-    HARDWARE_NOT_AVAILABLE = 'HARDWARE_NOT_AVAILABLE',
-    BIOMETRICS_NOT_ENROLLED = 'BIOMETRICS_NOT_ENROLLED',
-    USER_CANCELLED = 'USER_CANCELLED',
-    INVALID_SIGNATURE = 'INVALID_SIGNATURE',
-    DELETE_FAILED = 'DELETE_FAILED',
-    BULK_DELETE_FAILED = 'BULK_DELETE_FAILED',
-    KEY_CHECK_FAILED = 'KEY_CHECK_FAILED',
-    KEY_LIST_FAILED = 'KEY_LIST_FAILED',
-    NO_ATTEST_CHALLENGE = 'NO_ATTEST_CHALLENGE',
-    ATTEST_FAILED = 'ATTEST_FAILED',
-    NO_CERT_CHAIN = 'NO_CERT_CHAIN',
-    NO_CERT = 'NO_CERT',
+
+    /**
+     * Occurs when getPubKey failed for an unknown reason
+     */
     GET_PUB_KEY_FAILED = 'GET_PUB_KEY_FAILED',
+    
+    /**
+     * Occurs when getKeyInfo failed for an unknown reason
+     */
     GET_KEY_INFO_FAILED = 'GET_KEY_INFO_FAILED',
+    
+    /**
+     * Occurs when validateKey failed for an unknown reason
+     */
     KEY_VALIDATION_FAILED = 'KEY_VALIDATION_FAILED',
+    
+    /**
+     * Occurs when verify failed for an unknown reason
+     */
     VERIFICATION_FAILED = 'VERIFICATION_FAILED',
+    
+    /**
+     * Occurs when generateSecureRandomBytes failed for an unknown reason
+     */
     RANDOM_GEN_FAILED = 'RANDOM_GEN_FAILED',
+    
+    /**
+     * Occurs when getJwk failed for an unknown reason
+     */
     GET_JWK_FAILED = 'GET_JWK_FAILED',
+
+    /**
+     * Occurs when sign failed for an unknown reason
+     * @note some abstractions that use 'sign' under the hood (e.g., signJwt) can also throw this error
+     */
+    SIGNING_FAILED = 'SIGNING_FAILED',
+
+    /**
+     * Occurs when deleteKey failed for an unknown reason
+     */
+    DELETE_FAILED = 'DELETE_FAILED',
+    
+    /**
+     * Occurs when deleteAllKeys failed for an unknown reason
+     */
+    BULK_DELETE_FAILED = 'BULK_DELETE_FAILED',
+    
+    /**
+     * Occurs when keyExists failed for an unknown reason
+     */
+    KEY_EXISTS_FAILED = 'KEY_EXISTS_FAILED',
+    
+    /**
+     * Occurs when listKeys failed for an unknown reason
+     */
+    KEY_LIST_FAILED = 'KEY_LIST_FAILED',
+    
+    /**
+     * Occurs when attestKey failed for an unknown reason
+     */
+    ATTEST_FAILED = 'ATTEST_FAILED',
+
+    PLATFORM_NOT_SUPPORTED = 'PLATFORM_NOT_SUPPORTED',
+    
+    INVALID_ALGORITHM_PARAMETER = 'INVALID_ALGORITHM_PARAMETER',
+    
+    /**
+     * Occurs if the generateKey policy was set to 'STRONGBOX_ONLY'
+     * but the device does not support StrongBox
+     */
+    STRONGBOX_NOT_SUPPORTED = 'STRONGBOX_NOT_SUPPORTED',
+    
+    /**
+     * Occurs when 'WRAP' is present in the purpose array when calling generateKey
+     * but the device does not support it
+     */
+    PURPOSE_WRAP_NOT_SUPPORTED = 'PURPOSE_WRAP_NOT_SUPPORTED',
+    
+    /**
+     * Occurs when 'AGREE' is present in the purpose array when calling generateKey
+     * but the device does not support it
+     */
+    PURPOSE_AGREE_NOT_SUPPORTED = 'PURPOSE_AGREE_NOT_SUPPORTED',
+    
+    /**
+     * Occurs when a key with the specified alias cannot be found
+     */
+    KEY_NOT_FOUND = 'KEY_NOT_FOUND',
+    
+    /**
+     * Occurs when a key with the specified alias was found,
+     * but the key could not be loaded
+     */
+    KEY_LOAD_FAILED = 'KEY_LOAD_FAILED',
+    
+    /**
+     * Occurs when an operation is attempted with a key, but the key has been invalidated 
+     * e.g., New biometrics were enrolled and the invalidateOnEnrollment was set to true when the key was generated
+     */
+    KEY_INVALIDATED = 'KEY_INVALIDATED',
+    
+    /**
+     * Occurs when an operation is attempted with a key that is incompatible
+     * with said operation
+     */
+    UNSUPPORTED_KEY_FAMILY = 'UNSUPPORTED_KEY_FAMILY',
+    
+    HARDWARE_NOT_AVAILABLE = 'HARDWARE_NOT_AVAILABLE',
+
+    BIOMETRICS_NOT_ENROLLED = 'BIOMETRICS_NOT_ENROLLED',
+    
+    INVALID_SIGNATURE = 'INVALID_SIGNATURE',
+    
+    /**
+     * Occurs when attestKey is called for a key that did not have 
+     * an attest challenge supplied when it was generated
+     */
+    NO_ATTEST_CHALLENGE = 'NO_ATTEST_CHALLENGE',
+    
+    
+    NO_CERT_CHAIN = 'NO_CERT_CHAIN',
+    
+    NO_CERT = 'NO_CERT',
+    
+    /**
+     * Occurs when the alias is already used for another key
+     */
     ALIAS_IN_USE = 'ALIAS_IN_USE',
+    
+    /**
+     * Occurs if the key cannot be used for any reason
+     */
     INVALID_KEY = 'INVALID_KEY',
+    
+    /**
+     * User authentication was cancelled by the user or system
+     */
+    AUTH_USER_CANCELED = 'AUTH_USER_CANCELED' ,
+    
+    /**
+     * User authentication was cancelled due to too many attempts 
+     * and the user is locked out temporarily
+     */
+    AUTH_LOCKED_OUT = 'AUTH_LOCKED_OUT',
+    
+    /**
+     * User authentication failed because biometrics is not enrolled on the device
+     */
+    AUTH_NOT_ENROLLED = 'AUTH_NOT_ENROLLED',
+    
+    /**
+     * User authentication failed due to a system error
+     */
+    AUTH_SYSTEM_ERROR = 'AUTH_SYSTEM_ERROR',
+    
+    /**
+     * An unknown native error was thrown
+     * @note These should be reported to the react-native-silicon team
+     */
     UNKNOWN_NATIVE_ERROR = 'UNKNOWN_NATIVE_ERROR',
 };
 
