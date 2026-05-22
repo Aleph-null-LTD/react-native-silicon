@@ -73,6 +73,18 @@ export async function sign(alias: string, payload: string | Uint8Array, opts?: S
             case 'SIGNING_FAILED':
             case 'PROMPT_SIGN_FAILED':
                 throw new SiliconError(SiliconErrorCode.SIGNING_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
+
+            case 'AUTH_LOCKED_OUT':
+                throw new SiliconError(SiliconErrorCode.AUTH_LOCKED_OUT, result.errorMessage, { nativeStack: result.nativeStack });
+
+            case 'AUTH_NOT_ENROLLED':
+                throw new SiliconError(SiliconErrorCode.AUTH_NOT_ENROLLED, result.errorMessage, { nativeStack: result.nativeStack });
+
+            case 'AUTH_SYSTEM_ERROR':
+                throw new SiliconError(SiliconErrorCode.AUTH_SYSTEM_ERROR, result.errorMessage, { nativeStack: result.nativeStack });
+
+            case 'AUTH_CANCELED':
+                throw new SiliconError(SiliconErrorCode.AUTH_CANCELED, result.errorMessage, { nativeStack: result.nativeStack });
             
             default:
                 console.error(`Native Err: ${result.nativeStack}`)

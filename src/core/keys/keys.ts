@@ -206,8 +206,8 @@ export async function keyExists(alias: string): Promise<boolean> {
 
     const result = await NativeSilicon.keyExists(alias);
     if (!result.success) {
-        if (result.errorCode == 'KEY_CHECK_FAILED') {
-            throw new SiliconError(SiliconErrorCode.KEY_CHECK_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
+        if (result.errorCode == 'KEY_EXISTS_FAILED') {
+            throw new SiliconError(SiliconErrorCode.KEY_EXISTS_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
         }
 
         throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });

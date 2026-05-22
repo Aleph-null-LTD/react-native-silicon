@@ -131,10 +131,6 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             )
 
         } catch (e: InvalidKeyException) {
-            // TODO: Remove logs
-            Log.d("RNSilicon", "Re-throw")
-            Log.e("RNSilicon", e.toString())
-            Log.e("RNSilicon", e.stackTraceToString())
             // Occurs if the key cannot be used for any reason (e.g., invalid encoding, wrong length, uninitialized, etc.)
             return SiliconResult.Failure(
                 "INVALID_KEY",
@@ -172,7 +168,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
         return if (hasTimeout) {
             promptAndSignWithTimeout(payloadBytes, privateKey, alg, activity)
         } else {
-            promptAndSignCryptoObj(payloadBytes, privateKey, alg, activity)
+            promptAndSignWithCryptoObj(payloadBytes, privateKey, alg, activity)
         }
     }
 
@@ -181,7 +177,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
      *
      * NOTE: This is used for keys that have a timeout of -1
      */
-    private suspend fun promptAndSignCryptoObj(
+    private suspend fun promptAndSignWithCryptoObj(
         payloadBytes: ByteArray,
         privateKey: PrivateKey,
         alg: String,
@@ -215,8 +211,8 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    // Handles user cancellations, lockouts, or missing hardware
-                    continuation.resume(SiliconResult.Failure("AUTH_ERROR_$errorCode", errString.toString()))
+                    // Handles user cancellations, lockouts, or hardware errors
+                    continuation.resume(handleAuthenticationError(errorCode, errString))
                 }
 
                 override fun onAuthenticationFailed() {
@@ -291,8 +287,8 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    // Handles user cancellations, lockouts, or missing hardware
-                    continuation.resume(SiliconResult.Failure("AUTH_ERROR_$errorCode", errString.toString()))
+                    // Handles user cancellations, lockouts, hardware errors
+                    continuation.resume(handleAuthenticationError(errorCode, errString))
                 }
 
                 override fun onAuthenticationFailed() {
@@ -319,6 +315,26 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
 
             // Launch the native overlay linked to the crypto session
             biometricPrompt.authenticate(promptInfo)
+        }
+    }
+
+    private fun handleAuthenticationError(errorCode: Int, errString: CharSequence): SiliconResult<Nothing> {
+        return when (errorCode) {
+            // 13 - ERROR_NEGATIVE_BUTTON
+            // 10 - ERROR_USER_CANCELED
+            // 5 - ERROR_CANCELED
+            13, 10, 5 -> SiliconResult.Failure("AUTH_CANCELED", errString.toString())
+
+            // 7 - ERROR_LOCKOUT
+            // 9 - ERROR_LOCKOUT_PERMANENT
+            7, 9 -> SiliconResult.Failure("AUTH_LOCKED_OUT", errString.toString())
+
+            // 11 - ERROR_NO_BIOMETRICS
+            // 14 - ERROR_NO_DEVICE_CREDENTIAL
+            11, 14 -> SiliconResult.Failure("AUTH_NOT_ENROLLED", errString.toString())
+
+            // All other errors are system errors
+            else -> SiliconResult.Failure("AUTH_SYSTEM_ERROR", errString.toString())
         }
     }
 
