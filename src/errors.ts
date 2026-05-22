@@ -58,16 +58,54 @@ export class SiliconError extends Error {
         }
     }
 
-    public serialize(): string {
-        const cleanObject = {
+    /**
+     * Converts the error into a POJO
+     * @note 'cause' will be recursively extracted
+     * @returns 
+     */
+    public toJSON(): Record<string, unknown> {
+        const extractCause = (cause: unknown): unknown => {
+            if (cause instanceof SiliconError) {
+                return {
+                    name: cause.name,
+                    code: cause.code,
+                    message: cause.message,
+                    stack: cause.stack,
+                    nativeStack: cause.nativeStack,
+                    cause: hasOwn(cause, 'cause') ? extractCause(cause.cause) : undefined
+                }
+
+            } else if (cause instanceof Error) {
+                const extractedErr = {
+                    name: cause.name,
+                    message: cause.message,
+                    stack: cause.stack,
+                    cause: hasOwn(cause, 'cause') ? extractCause(cause.cause) : undefined
+                }
+                return extractedErr;
+
+            } else {
+                return cause;
+
+            }
+        };
+        
+        return {
             name: this.name,
             code: this.code,
             message: this.message,
             stack: this.stack,
             nativeStack: this.nativeStack,
-            cause: this.cause
+            cause: this.cause ? extractCause(this.cause) : undefined
         }
+    }
 
-        return JSON.stringify(cleanObject, undefined, 4);
+    /**
+     * Serializes the error into a JSON string
+     * @param space maps directly to the 'space' parameter on JSON.stringify()
+     * @returns 
+     */
+    public serialize(space?: string | number | undefined): string {
+        return JSON.stringify(this.toJSON(), undefined, space);
     }
 }
