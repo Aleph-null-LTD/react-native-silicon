@@ -251,7 +251,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "KEY_CHECK_FAILED",
+                "KEY_EXISTS_FAILED",
                 e.localizedMessage ?: "Failed to verify key existence for alias: $alias",
                 e.stackTraceToString()
             )
@@ -295,13 +295,20 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             val certificate = keystore.getCertificate(alias)
                 ?: return SiliconResult.Failure("NO_CERT", "No certificate chain found for key '$alias'.")
 
-            val publicKey = when (format) {
-                PubkeyFormat.B64 -> Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
+            val b64PubKey = Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
 
-                PubkeyFormat.PEM -> buildString {
-                    append("-----BEGIN PUBLIC KEY-----\n")
-                    append(Base64.encodeToString(certificate.publicKey.encoded, Base64.DEFAULT))
-                    append("-----END PUBLIC KEY-----")
+            val publicKey = when (format) {
+                PubkeyFormat.B64 -> b64PubKey
+                PubkeyFormat.PEM -> {
+                    // Insert a newline every 64 chars
+                    val chunkedB64Pubkey = b64PubKey.chunked(64).joinToString("\n")
+
+                    // Concat the header, key, and footer
+                    buildString {
+                        append("-----BEGIN PUBLIC KEY-----\n")
+                        append(chunkedB64Pubkey + "\n")
+                        append("-----END PUBLIC KEY-----")
+                    }
                 }
             }
             return SiliconResult.Success(publicKey)
@@ -327,7 +334,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 ?: return SiliconResult.Failure("NO_CERT_CHAIN", "Key exists but has no certificate chain for alias: '$alias'")
 
             if (!isKeyAttested(certChain)) {
-                return SiliconResult.Failure("NO_ATTEST_CHALLENGE", "No key exists for alias: '$alias'")
+                return SiliconResult.Failure("NO_ATTEST_CHALLENGE", "No attest challenge exists for key with alias: '$alias'")
             }
 
             // Map the raw binary certificates to an array of PEM strings
