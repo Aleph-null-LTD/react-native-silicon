@@ -147,7 +147,7 @@ export enum SiliconErrorCode {
     /**
      * User authentication was cancelled by the user or system
      */
-    AUTH_USER_CANCELED = 'AUTH_USER_CANCELED' ,
+    AUTH_CANCELED = 'AUTH_CANCELED' ,
     
     /**
      * User authentication was cancelled due to too many attempts 
