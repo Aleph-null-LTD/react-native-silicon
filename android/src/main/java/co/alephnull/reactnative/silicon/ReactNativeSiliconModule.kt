@@ -50,8 +50,8 @@ class ReactNativeSiliconModule : Module() {
 
         // ---- Keystore Manager ----
 
-        AsyncFunction("genKey") { alias: String, opts: GenerateKeyOptions ->
-            val result = keystoreManager.genKey(alias, opts)
+        AsyncFunction("generateKey") { alias: String, opts: GenerateKeyOptions ->
+            val result = keystoreManager.generateKey(alias, opts)
             return@AsyncFunction result.toBridgeMap()
         }
 

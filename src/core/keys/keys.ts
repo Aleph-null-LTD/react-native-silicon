@@ -18,7 +18,7 @@ export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promis
 
     opts = validateGenerateKeyOpts(opts);
 
-    const result = await NativeSilicon.genKey(alias, opts);
+    const result = await NativeSilicon.generateKey(alias, opts);
     if (!result.success) {
         switch (result.errorCode) {
             case "INVALID_ALGORITHM_PARAMETER":

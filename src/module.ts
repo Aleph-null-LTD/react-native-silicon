@@ -8,7 +8,7 @@ import { RandomBytesFormat, RandomGenFormatTypeMap } from './core/random-generat
 
 declare class ReactNativeSiliconModule extends NativeModule {
   getCapabilities(): Promise<BridgeResult<Capabilities>>;
-  genKey(alias: string, opts: GenerateKeyOpts): Promise<BridgeResult<string>>;
+  generateKey(alias: string, opts: GenerateKeyOpts): Promise<BridgeResult<string>>;
   deleteKey(alias: string): Promise<BridgeResult<boolean>>;
   deleteAllKeys(prefix?: string): Promise<BridgeResult<number>>;
   keyExists(alias: string): Promise<BridgeResult<boolean>>;

@@ -32,7 +32,7 @@ import javax.crypto.SecretKeyFactory
 
 class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore, private val siliconHelpers: SiliconHelpers) {
 
-    fun genKey(alias: String, opts: GenerateKeyOptions): SiliconResult<String?> {
+    fun generateKey(alias: String, opts: GenerateKeyOptions): SiliconResult<String?> {
         if (keystore.containsAlias(alias)) {
             return SiliconResult.Failure("ALIAS_IN_USE", "A key with alias '$alias' already exists")
         }
