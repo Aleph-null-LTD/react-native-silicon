@@ -23,24 +23,22 @@ public class ReactNativeSiliconModule: Module {
         AsyncFunction("deleteKey") { (alias: String) -> [String: Any] in
             return SiliconKeystoreManager.deleteKey(alias: alias).toBridgeMap()
         }
+        
+        AsyncFunction("deleteAllKeys") { (prefix: String?) -> [String: Any] in
+            return SiliconKeystoreManager.deleteAllKeys(prefix: prefix).toBridgeMap()
+        }
+        
+        AsyncFunction("keyExists") { (alias: String) -> [String: Any] in
+            return SiliconKeystoreManager.keyExists(alias: alias).toBridgeMap()
+        }
+        
+        // ---- Random Generator ----
+        
+        AsyncFunction("generateSecureRandomBytes") { (length: Int, format: RandomBytesFormat) -> [String: Any] in
+            return SiliconRandomGen.generate(length: length, format: format).toBridgeMap()
+        }
 
         /*
-        
-
-        AsyncFunction("deleteKey") { (alias: String) in
-            val result = keystoreManager.deleteKey(alias)
-            return@AsyncFunction result.toBridgeMap()
-        }
-
-        AsyncFunction("deleteAllKeys") { (prefix: String?) in
-            val result = keystoreManager.deleteAllKeys(prefix)
-            return@AsyncFunction result.toBridgeMap()
-        }
-
-        AsyncFunction("keyExists") { (alias: String) in
-            val result = keystoreManager.keyExists(alias)
-            return@AsyncFunction result.toBridgeMap()
-        }
 
         AsyncFunction("listKeys") { (prefix: String?) in
             val result = keystoreManager.listKeys(prefix)
@@ -84,13 +82,6 @@ public class ReactNativeSiliconModule: Module {
             bridgePayload.bytes = payloadByteArr
 
             val result = verifier.verify(bridgePayload.toPayloadType(), signatureB64, opts)
-            return@AsyncFunction result.toBridgeMap()
-        }
-
-        // ---- Random Generator ----
-
-        AsyncFunction("generateSecureRandomBytes") { (length: Int, format: RandomBytesFormat) in
-            val result = randomGen.generate(length, format)
             return@AsyncFunction result.toBridgeMap()
         }
 
