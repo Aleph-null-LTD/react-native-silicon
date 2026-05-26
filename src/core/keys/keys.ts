@@ -105,12 +105,13 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
             throw new TypeError(`Silicon Error: 'opts.pubkeyFormat' (${opts.pubkeyFormat}) is invalid, expected ${Object.values(pubkeyFormats).join("|")}`);
         }
 
+        // Validate Android options
         if (hasOwn(opts, 'android') && opts.android !== undefined) {
             if (!isPlainObject(opts.android)) throw new TypeError("");
 
             if (hasOwn(opts.android, 'algorithm') && 
                 opts.android.algorithm !== undefined &&
-                !isAndroidAlgorithm(opts.android.algorithm)
+                (typeof opts.ios !== 'string' || !isAndroidAlgorithm(opts.android.algorithm))
             ) {
                 throw new TypeError(`Silicon Error: 'opts.android.algorithm' (${opts.android.algorithm}) is invalid, expected ${Object.values(androidAlgorithms).join("|")}`);
             }
@@ -131,7 +132,32 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
             }
         }
 
-        // TODO: IOS options validation
+        // Validate iOS options
+        if (hasOwn(opts, 'ios')) {
+            if (!isPlainObject(opts.ios)) throw new TypeError("Silicon Error: 'opts.ios' must be an object");
+
+            if (hasOwn(opts.ios, 'algorithm') &&
+                opts.ios !== undefined &&
+                (typeof opts.ios !== 'string' || !isIosAlgorithm(opts.ios))
+            ) {
+                throw new TypeError(`Silicon Error: 'opts.ios.algorithm' (${opts.ios.algorithm}) is invalid, expected ${Object.values(androidAlgorithms).join("|")}`);
+            }
+
+            if (hasOwn(opts.ios, 'digests') && opts.ios.digests !== undefined) {
+                if (!Array.isArray(opts.ios.digests)) throw new TypeError("Silicon Error: 'opts.ios.digests' must be an array");
+
+                for (const digest of opts.ios.digests) {
+                    if (!isKeyDigest(digest)) throw new TypeError(`Silicon Error: value (${digest}) in 'opts.ios.digests' is invalid, expected ${Object.values(keyDigests).join("|")}`);
+                }
+            }
+
+            if (hasOwn(opts.ios, 'hardwarePolicy') &&
+                opts.ios.hardwarePolicy !== undefined &&
+                (typeof opts.ios.hardwarePolicy !== 'string' || !isIosHardwarePolicy(opts.ios.hardwarePolicy))
+            ) {
+                throw new TypeError(`Silicon Error: 'opts.ios.hardwarePolicy' (${opts.ios.hardwarePolicy}) is invalid, expected ${Object.values(keyDigests).join("|")}`)
+            }
+        }
 
     } else {
         // Default opts to an empty object

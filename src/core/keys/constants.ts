@@ -70,3 +70,24 @@ export const androidHardwarePolicies = {
 const androidHardwarePolicySet: ReadonlySet<keyof typeof androidHardwarePolicies> = new Set(Object.values(androidHardwarePolicies));
 
 export const isAndroidHardwarePolicy = createInSetGuard(androidHardwarePolicySet);
+
+
+// iOS algorithms
+export const iosAlgorithms = {
+    ES256: 'ES256'
+} as const;
+
+const iosAlgorithmSet: ReadonlySet<keyof typeof iosAlgorithms> = new Set(Object.values(iosAlgorithms));
+
+export const isIosAlgorithm = createInSetGuard(iosAlgorithmSet);
+
+// iOS hardware policies
+export const iosHardwarePolicies = {
+    REQUIRE_SECURE_ENCLAVE: 'REQUIRE_SECURE_ENCLAVE',
+    PREFER_SECURE_ENCLAVE: 'PREFER_SECURE_ENCLAVE',
+    SOFTWARE_ONLY: 'SOFTWARE_ONLY'
+} as const;
+
+const iosHardwarePolicySet: ReadonlySet<keyof typeof iosHardwarePolicies> = new Set(Object.values(iosHardwarePolicies));
+
+export const isIosHardwarePolicy = createInSetGuard(iosHardwarePolicySet);
