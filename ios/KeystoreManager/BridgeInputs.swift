@@ -7,7 +7,6 @@ enum KeyPurpose: String, Enumerable {
     case DECRYPT = "DECRYPT"
     case WRAP = "WRAP"
     case AGREE = "AGREE"
-    case ATTEST = "ATTEST"
 }
 
 enum AuthPolicy: String, Enumerable {
@@ -38,10 +37,6 @@ enum KeyAlgorithm: String, Enumerable {
     case ES256 = "ES256"
 }
 
-enum KeyDigest: String, Enumerable {
-    case SHA256 = "SHA256"
-}
-
 enum HardwarePolicy: String, Enumerable {
     case REQUIRE_SECURE_ENCLAVE = "REQUIRE_SECURE_ENCLAVE"
     case PREFER_SECURE_ENCLAVE = "PREFER_SECURE_ENCLAVE"
@@ -51,9 +46,6 @@ enum HardwarePolicy: String, Enumerable {
 struct IosOptions: Record {
     @Field
     var algorithm: KeyAlgorithm = .ES256
-    
-    @Field
-    var digest: KeyDigest? = nil
     
     @Field
     var hardwarePolicy: HardwarePolicy = .PREFER_SECURE_ENCLAVE

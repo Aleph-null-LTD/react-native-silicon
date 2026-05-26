@@ -11,6 +11,10 @@ enum SiliconKeystoreManager {
             guard DCAppAttestService.shared.isSupported else {
                 return .failure(code: "ATTEST_NOT_SUPPORTED", message: "Hardware attestation is unavailable on this device", nativeStack: nil)
             }
+            
+            if (opts.ios.hardwarePolicy != .REQUIRE_SECURE_ENCLAVE) {
+                return .failure(code: "INVALID_OPTIONS", message: "Hardware attestation cannot be performed on a software key. Set the hardware policy to \(HardwarePolicy.REQUIRE_SECURE_ENCLAVE) to enable it.", nativeStack: nil)
+            }
         }
         
         let tag = alias.data(using: .utf8)!
@@ -28,182 +32,54 @@ enum SiliconKeystoreManager {
         }
         
         // Hardware Policy
+        var hardwareRequested = false
         var useHardware = false
         switch opts.ios.hardwarePolicy {
         case .REQUIRE_SECURE_ENCLAVE:
             if !SecureEnclaveSupport.isAvailable() {
-                return .failure(code: "SECURE_ENCLAVE_NOT_SUPPORTED", message: "Secure Enclave is required but unavailable", nativeStack: nil)
+                return .failure(code: "HARDWARE_NOT_AVAILABLE", message: "Secure Enclave is required but unavailable", nativeStack: nil)
             }
+            hardwareRequested = true
             useHardware = true
             
         case .PREFER_SECURE_ENCLAVE:
+            hardwareRequested = true
             useHardware = SecureEnclaveSupport.isAvailable()
             
         case .SOFTWARE_ONLY:
             useHardware = false
         }
         
-        // TODO: We only allow ATTEST/SIGN/VERIFY/AGREE purposes for Secure Enclave. if the purpose is ATTEST, we only create an ATTEST key and not a SecKey
+        // TODO: If requested key is symmetric, we use CryptoKit
+        // TODO: If the purpose is ATTEST, we only create an ATTEST key and not a SecKey
         
-        // Purpose Validation Check
-        // Secure Enclave hardware strictly blocks direct ENCRYPT/DECRYPT/WRAP pipelines
-        // SIGN/VERIFY/AGREE/ATTEST are all valid
-        if opts.purposes.contains(.ENCRYPT) || opts.purposes.contains(.DECRYPT) || opts.purposes.contains(.WRAP) {
-            return .failure(
-                code: "UNSUPPORTED_PURPOSE",
-                message: "The Apple Secure Enclave does not support direct ENCRYPT, DECRYPT, or WRAP operations. It only supports SIGN, VERIFY, and AGREE. To use WRAP, change your hardware policy to \"SOFTWARE_ONLY\".",
-                nativeStack: nil
-            )
+        if hardwareRequested {
+            // Purpose Validation Check
+            // Secure Enclave hardware strictly disallows WRAP
+            if opts.purposes.contains(.WRAP) {
+                return .failure(
+                    code: "UNSUPPORTED_PURPOSE",
+                    message: "The Apple Secure Enclave does not support direct ENCRYPT, DECRYPT, or WRAP operations. It only supports SIGN, VERIFY, and AGREE. To use them, change your hardware policy to \"SOFTWARE_ONLY\".",
+                    nativeStack: nil
+                )
+            }
+            
+            // ALL hardware backed keys must be ES256
+            // if key algorithm is not ES256 - return failure
+            if opts.ios.algorithm != KeyAlgorithm.ES256 {
+                return .failure(
+                    code: "UNSUPPORTED_KEY_FAMILY",
+                    message: "The Apple Secure Enclave does not support algorithm \"\(opts.ios.algorithm)\". Change the algorithm to \"ES256\" for hardware-backed cryptography.",
+                    nativeStack: nil
+                )
+            }
         }
         
-        // TODO: Add a guard - if key algorithm is not ES256 and useHardware is true - return failure.
-        
-        // Initialize Core Generation Parameters
-        var attributes: [String: Any] = [
-            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom, // Matches NIST P-256 / secp256r1
-            kSecAttrKeySizeInBits as String: 256,
-            kSecAttrApplicationTag as String: tag,
-            kSecAttrIsPermanent as String: true
-        ]
-        
-        // If policy permits, inject the key straight into hardware
         if useHardware {
-            attributes[kSecAttrTokenID as String] = kSecAttrTokenIDSecureEnclave
+            return try GenerateKey.generateHardwareKey(alias: alias, tag: tag, opts: opts)
+        } else {
+            return try GenerateKey.generateSoftwareKey()
         }
-        
-        // User Authentication Flags (Equivalent to setUserAuthenticationParameters)
-        var privateKeyAttrs: [String: Any] = [:]
-        
-        if opts.userAuth.require {
-            var flags: SecAccessControlCreateFlags = []
-            
-            switch opts.userAuth.policy {
-            case .BIOMETRICS_ONLY:
-                if opts.userAuth.invalidateOnEnrollment {
-                    flags.insert(.biometryCurrentSet) // Invalidates when new fingerprints/faces add
-                } else {
-                    flags.insert(.biometryAny)
-                }
-            case .BIOMETRICS_OR_CREDENTIAL:
-                flags.insert(.userPresence) // Allows device Passcode fallback
-            }
-            
-            flags.insert(.privateKeyUsage)
-            
-            var error: Unmanaged<CFError>?
-            guard let accessControl = SecAccessControlCreateWithFlags(
-                kCFAllocatorDefault,
-                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, // Cannot leave this physical device via iCloud backups
-                flags,
-                &error
-            ) else {
-                let cfErr = error?.takeRetainedValue()
-                return .failure(code: "KEY_GENERATION_FAILED", message: cfErr?.localizedDescription ?? "Unknown error", nativeStack: nil)
-            }
-            
-            privateKeyAttrs[kSecAttrAccessControl as String] = accessControl
-        }
-        
-        attributes[kSecPrivateKeyAttrs as String] = privateKeyAttrs
-        
-        // Execute Key Generation
-        var genError: Unmanaged<CFError>?
-        guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &genError) else {
-            let err = genError?.takeRetainedValue()
-            return .failure(code: "KEY_GENERATION_FAILED", message: err?.localizedDescription ?? "Unknown generation error", nativeStack: nil)
-        }
-        
-        // TODO: If SecKey generation succeeds, but attest key generation fails, we need to delete the SecKey to clean up and then return a failure
-        
-        // Create the attest key if a challenge was provided
-        // on iOS we cannot use a single key for both SIGN/VERIFY and ATTEST, so we create a 2nd key for attestation and link them using the keychain
-        // Note: This involves a network call to Apple's servers
-        if opts.attestChallenge != nil {
-            // Cleanup function that will be called if something goes wrong
-            func cleanupSecKey() {
-                // Delete the SecKey (cleanup)
-                let secKeyQuery: [String: Any] = [
-                    kSecClass as String: kSecClassKey,
-                    kSecAttrApplicationTag as String: tag
-                ]
-                let secKeyStatus = SecItemDelete(secKeyQuery as CFDictionary)
-            }
-            
-            let semaphore = DispatchGroup()
-            var nativeError: Error?
-            var generatedKeyId: String?
-            
-            semaphore.enter()
-            
-            // Generate the hardware-trapped key pair
-            DCAppAttestService.shared.generateKey { keyId, error in
-                if let error = error {
-                    nativeError = error
-                } else {
-                    generatedKeyId = keyId
-                }
-                semaphore.leave()
-            }
-            _ = semaphore.wait(timeout: .distantFuture)
-            
-            if let error = nativeError {
-                cleanupSecKey();
-                return .failure(code: "KEY_GENERATION_FAILED", message: error.localizedDescription, nativeStack: nil)
-            }
-            
-            guard let keyId = generatedKeyId else {
-                cleanupSecKey();
-                return .failure(code: "KEY_GENERATION_FAILED", message: "Failed to retrieve hardware key identifier", nativeStack: nil)
-            }
-            
-            // Persist the alias -> keyId map locally so attestKey can find it
-            KeychainHelper.save(key: "\(alias)_attest_id", value: keyId)
-
-            if let challenge = opts.attestChallenge {
-                // Persist the alias -> challenge map locally so attestKey can find it
-                KeychainHelper.save(key: "\(alias)_challenge", value: challenge)
-            } else {
-                cleanupSecKey();
-                throw SiliconException(code: "NIL_CHALLENGE", message: "'opts.attestChallenge' was nil")
-            }
-        }
-        
-        // TODO: for symmetric keys (always software based) we will skip the pubkey and return nil
-        
-        // Extract the Public Key object from the generated Private Key reference
-        guard let publicKey = SecKeyCopyPublicKey(privateKey) else {
-            return .failure(code: "PUBLIC_KEY_EXTRACTION_FAILED", message: "Failed to extract public key from generated pair.", nativeStack: nil)
-        }
-        
-        // Extract the raw bytes
-        var exportError: Unmanaged<CFError>?
-        guard let rawPublicKeyData = SecKeyCopyExternalRepresentation(publicKey, &exportError) as Data? else {
-            let err = exportError?.takeRetainedValue()
-            return .failure(code: "PUBLIC_KEY_EXPORT_FAILED", message: err?.localizedDescription ?? "Failed to export public key bytes.", nativeStack: nil)
-        }
-        
-        // CRITICAL CROSS-PLATFORM ALIGNMENT:
-        // iOS extracts raw EC points (65 bytes). Android outputs full X.509 SubjectPublicKeyInfo (SPKI) structures.
-        // We prepend the standard ASN.1 SPKI header bytes for an uncompressed P-256 key so we output identical keys.
-        let asn1Header = Data([
-            0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-            0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00
-        ])
-        var uniformPublicKeyBytes = asn1Header
-        uniformPublicKeyBytes.append(rawPublicKeyData)
-        
-        // Output String Serialization matching PubkeyFormat
-        let formattedPubKey: String
-        switch opts.pubkeyFormat {
-        case .PEM:
-            let base64Encoded = uniformPublicKeyBytes.base64EncodedString(options: .lineLength64Characters)
-            formattedPubKey = "-----BEGIN PUBLIC KEY-----\n\(base64Encoded)\n-----END PUBLIC KEY-----"
-            
-        case .B64:
-            formattedPubKey = uniformPublicKeyBytes.base64EncodedString()
-        }
-        
-        return .success(formattedPubKey)
     }
     
     static func deleteKey(alias: String) -> SiliconResult<Bool> {
@@ -548,51 +424,4 @@ enum SecureEnclaveSupport {
     }
 }
 
-struct KeychainHelper {
-    
-    @discardableResult
-    static func save(key: String, value: String) -> Bool {
-        let data = value.data(using: .utf8)!
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data
-        ]
-        
-        // Delete any existing item to avoid duplicate key errors
-        SecItemDelete(query as CFDictionary)
-        
-        let status = SecItemAdd(query as CFDictionary, nil)
-        return status == errSecSuccess
-    }
-    
-    static func read(key: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
-        var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-        
-        if status == errSecSuccess, let data = dataTypeRef as? Data {
-            return String(data: data, encoding: .utf8)
-        }
-        
-        return nil
-    }
-    
-    @discardableResult
-    static func delete(key: String) -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key
-        ]
-        
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess
-    }
-}
+
