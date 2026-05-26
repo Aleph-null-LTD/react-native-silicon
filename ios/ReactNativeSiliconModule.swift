@@ -32,7 +32,7 @@ public class ReactNativeSiliconModule: Module {
             return SiliconKeystoreManager.keyExists(alias: alias).toBridgeMap()
         }
         
-        AsyncFunction("listKeys") { (alias: prefix: String?) -> [String: Any] in
+        AsyncFunction("listKeys") { (prefix: String?) -> [String: Any] in
             return SiliconKeystoreManager.listKeys(prefix: prefix).toBridgeMap()
         }
         
