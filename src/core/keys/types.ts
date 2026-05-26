@@ -1,6 +1,5 @@
 import { androidAlgorithms, androidHardwarePolicies, iosAlgorithms, iosHardwarePolicies, keyDigests, keyPurposes, pubkeyFormats, userAuthPolicies } from "./constants";
 
-type KeyPurpose = keyof typeof keyPurposes;
 type KeyDigests = keyof typeof keyDigests;
 type UserAuthPolicies = keyof typeof userAuthPolicies;
 type PubkeyFormat = keyof typeof pubkeyFormats;
@@ -18,10 +17,16 @@ export type GenerateKeyOpts = {
     /**
      * set of purposes (e.g., encrypt, decrypt, sign) for which the key can be used. 
      * Attempts to use the key for any other purpose will be rejected.
-     * 
-     * @default ['SIGN', 'VERIFY']
+     * @note Most purposes are mutually exclusive for security reasons 
+     * e.g., a key that has the purpose "SIGN" cannot also have the "ENCRYPT" purpose etc.
+     * @default ["SIGN", "VERIFY"]
      */
-    purposes?: KeyPurpose[] | undefined,
+    purposes?: (typeof keyPurposes.SIGN | typeof keyPurposes.VERIFY)[] |
+        (typeof keyPurposes.ENCRYPT | typeof keyPurposes.DECRYPT)[] |
+        [typeof keyPurposes.AGREE] |
+        [typeof keyPurposes.WRAP] |
+        //[typeof keyPurposes.ATTEST] | // NOTE: ATTEST has been removed to keep the API symmetric between platforms
+        undefined,
     
     /**
      * User Authentication options for the key
@@ -129,17 +134,6 @@ export type GenerateKeyOpts = {
         algorithm?: IosAlgorithm | undefined,
 
         /**
-         * Sets the set of digests algorithms (e.g., SHA-256, SHA-384) with which the key can be used. 
-         * Attempts to use the key with any other digest algorithm will be rejected.
-         * 
-         * **Default:** Matches the size of the key algorithm (e.g., "SHA256" for "ES256").
-         * 
-         * @note For HMAC keys, the default is the digest associated with the key algorithm (e.g., SHA-256 for key algorithm HmacSHA256). 
-         * HMAC keys cannot be authorized for more than one digest.
-         */
-        digests?: KeyDigests[] | undefined,
-
-        /**
          * The policy to use when creating the key.
          * * REQUIRE_SECURE_ENCLAVE - Will fail the key generation if Secure Enclave is not available on the device
          * * PREFER_SECURE_ENCLAVE - Will attempt to store the key in Secure Enclave and fall back to TEE if strongbox is not available on the device
@@ -189,7 +183,7 @@ export type KeyInfo = {
     /**
      * Array of purposes for which the key can be used
      */
-    purposes: KeyPurpose[],
+    purposes: (keyof typeof keyPurposes)[],
 
     /**
      * True if user auth is required to use the key

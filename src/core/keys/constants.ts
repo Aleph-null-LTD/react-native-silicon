@@ -8,12 +8,22 @@ export const keyPurposes = {
     DECRYPT: 'DECRYPT',
     WRAP: 'WRAP',
     AGREE: 'AGREE',
-    ATTEST: 'ATTEST'
+    //ATTEST: 'ATTEST' // NOTE: ATTEST has been removed to keep the API symmetric between platforms
 } as const;
 
 const keyPurposeSet: ReadonlySet<keyof typeof keyPurposes> = new Set(Object.values(keyPurposes));
 
 export const isKeyPurpose = createInSetGuard(keyPurposeSet);
+
+export const keyPurposeFamilies = {
+    SIGN: 0, 
+    VERIFY: 0,
+    ENCRYPT: 1,
+    DECRYPT: 1,
+    WRAP: 2,
+    AGREE: 3,
+    //ATTEST: 4 // NOTE: ATTEST has been removed to keep the API symmetric between platforms
+}
 
 // Digests
 export const keyDigests = {
@@ -64,13 +74,15 @@ export const isAndroidAlgorithm = createInSetGuard(androidAlgorithmSet);
 export const androidHardwarePolicies = {
     REQUIRE_STRONGBOX: 'REQUIRE_STRONGBOX',
     PREFER_STRONGBOX: 'PREFER_STRONGBOX',
-    USE_TEE: 'USE_TEE'
+    //PREFER_STRONGBOX_ALLOW_SOFTWARE: 'PREFER_STRONGBOX_ALLOW_SOFTWARE',
+    REQUIRE_TEE: 'REQUIRE_TEE',
+    //PREFER_TEE_ALLOW_SOFTWARE: 'PREFER_TEE_ALLOW_SOFTWARE',
+    //SOFTWARE_ONLY: 'SOFTWARE_ONLY'
 } as const;
 
 const androidHardwarePolicySet: ReadonlySet<keyof typeof androidHardwarePolicies> = new Set(Object.values(androidHardwarePolicies));
 
 export const isAndroidHardwarePolicy = createInSetGuard(androidHardwarePolicySet);
-
 
 // iOS algorithms
 export const iosAlgorithms = {
@@ -84,8 +96,8 @@ export const isIosAlgorithm = createInSetGuard(iosAlgorithmSet);
 // iOS hardware policies
 export const iosHardwarePolicies = {
     REQUIRE_SECURE_ENCLAVE: 'REQUIRE_SECURE_ENCLAVE',
-    PREFER_SECURE_ENCLAVE: 'PREFER_SECURE_ENCLAVE',
-    SOFTWARE_ONLY: 'SOFTWARE_ONLY'
+    //PREFER_SECURE_ENCLAVE: 'PREFER_SECURE_ENCLAVE',
+    //SOFTWARE_ONLY: 'SOFTWARE_ONLY'
 } as const;
 
 const iosHardwarePolicySet: ReadonlySet<keyof typeof iosHardwarePolicies> = new Set(Object.values(iosHardwarePolicies));

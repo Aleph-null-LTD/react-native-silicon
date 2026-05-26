@@ -52,10 +52,16 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
                 throw new TypeError("Silicon Error: 'purposes' must be an array");
             }
 
+            let family = null;
             for (const purpose of opts.purposes) {
                 if (!isKeyPurpose(purpose)) {
                     throw new TypeError(`Silicon Error: purpose '${purpose}' is invalid, expected ${Object.values(keyPurposes).join("|")}`);
                 }
+
+                // Check if the purposes conflict
+                const currentFamily = keyPurposeFamilies[purpose];
+                if (family === null) family = currentFamily;
+                if (currentFamily !== family) throw new TypeError(`Silicon Error: mutually exclusive purposes in ${opts.purposes.join(",")}`);
             }
         }
 
