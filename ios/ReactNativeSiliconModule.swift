@@ -32,6 +32,10 @@ public class ReactNativeSiliconModule: Module {
             return SiliconKeystoreManager.keyExists(alias: alias).toBridgeMap()
         }
         
+        AsyncFunction("listKeys") { (alias: prefix: String?) -> [String: Any] in
+            return SiliconKeystoreManager.listKeys(prefix: prefix).toBridgeMap()
+        }
+        
         // ---- Random Generator ----
         
         AsyncFunction("generateSecureRandomBytes") { (length: Int, format: RandomBytesFormat) -> [String: Any] in

@@ -7,7 +7,10 @@ enum GenerateKey {
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom, // Matches NIST P-256 / secp256r1
             kSecAttrKeySizeInBits as String: 256,
             kSecAttrApplicationTag as String: tag,
-            kSecAttrIsPermanent as String: true
+            kSecAttrIsPermanent as String: true,
+            
+            // Set description so we can determine hardware VS software keys
+            kSecAttrDescription as String: "hardware"
         ]
         
         attributes[kSecAttrTokenID as String] = kSecAttrTokenIDSecureEnclave
