@@ -44,7 +44,7 @@ enum GenerateKey {
                 &error
             ) else {
                 let cfErr = error?.takeRetainedValue()
-                return .failure(code: "KEY_GENERATION_FAILED", message: cfErr?.localizedDescription ?? "Unknown error", nativeStack: nil)
+                return .failure(code: "KEY_GENERATION_FAILED", message: cfErr?.localizedDescription ?? "Unknown error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
             }
             
             privateKeyAttrs[kSecAttrAccessControl as String] = accessControl
@@ -56,8 +56,8 @@ enum GenerateKey {
         privateKeyAttrs[kSecAttrCanSign as String] = false
         publicKeyAttrs[kSecAttrCanVerify as String] = false
         
-        privateKeyAttrs[kSecAttrCanEncrypt as String] = false
-        publicKeyAttrs[kSecAttrCanDecrypt as String] = false
+        publicKeyAttrs[kSecAttrCanEncrypt as String] = false
+        privateKeyAttrs[kSecAttrCanDecrypt as String] = false
         
         privateKeyAttrs[kSecAttrCanDerive as String] = false
         
@@ -66,37 +66,25 @@ enum GenerateKey {
             switch purpose {
             case KeyPurpose.SIGN:
                 privateKeyAttrs[kSecAttrCanSign as String] = true
-            
+                
             case KeyPurpose.VERIFY:
                 publicKeyAttrs[kSecAttrCanVerify as String] = true
                 
             case KeyPurpose.ENCRYPT:
-                privateKeyAttrs[kSecAttrCanEncrypt as String] = true
-            
+                publicKeyAttrs[kSecAttrCanEncrypt as String] = true
+                
             case KeyPurpose.DECRYPT:
-                publicKeyAttrs[kSecAttrCanDecrypt as String] = true
+                privateKeyAttrs[kSecAttrCanDecrypt as String] = true
                 
             case KeyPurpose.AGREE:
                 privateKeyAttrs[kSecAttrCanDerive as String] = true
                 
             case KeyPurpose.WRAP:
                 // TODO: Implement WRAP (possibly using ECIES)
-                
-            case KeyPurpose.ATTEST:
-                // Should never get an ATTEST purpose here
-                throw SiliconException(
-                    code: "INVALID_PURPOSE",
-                    message: "Unexpected Silicon Error: purpose \(purpose) not valid for this path"
-                )
-            
-            default:
-                throw SiliconException(
-                    code: "INVALID_PURPOSE",
-                    message: "Unexpected Silicon Error: purpose \(purpose) is invalid"
-                )
+                throw SiliconException(code: "NOT_IMPLEMENTED", message: "WRAP purpose is not yet implemented for iOS")
             }
         }
-        
+            
         attributes[kSecPrivateKeyAttrs as String] = privateKeyAttrs
         attributes[kSecPublicKeyAttrs as String] = publicKeyAttrs
         
@@ -104,7 +92,7 @@ enum GenerateKey {
         var genError: Unmanaged<CFError>?
         guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &genError) else {
             let err = genError?.takeRetainedValue()
-            return .failure(code: "KEY_GENERATION_FAILED", message: err?.localizedDescription ?? "Unknown generation error", nativeStack: nil)
+            return .failure(code: "KEY_GENERATION_FAILED", message: err?.localizedDescription ?? "Unknown generation error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
         }
         
         // TODO: If SecKey generation succeeds, but attest key generation fails, we need to delete the SecKey to clean up and then return a failure
@@ -142,17 +130,17 @@ enum GenerateKey {
             
             if let error = nativeError {
                 cleanupSecKey();
-                return .failure(code: "KEY_GENERATION_FAILED", message: error.localizedDescription, nativeStack: nil)
+                return .failure(code: "KEY_GENERATION_FAILED", message: error.localizedDescription, nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
             }
             
             guard let keyId = generatedKeyId else {
                 cleanupSecKey();
-                return .failure(code: "KEY_GENERATION_FAILED", message: "Failed to retrieve hardware key identifier", nativeStack: nil)
+                return .failure(code: "KEY_GENERATION_FAILED", message: "Failed to retrieve hardware key identifier", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
             }
             
             // Persist the alias -> keyId map locally so attestKey can find it
             KeychainHelper.save(key: "\(alias)_attest_id", value: keyId)
-
+            
             if let challenge = opts.attestChallenge {
                 // Persist the alias -> challenge map locally so attestKey can find it
                 KeychainHelper.save(key: "\(alias)_challenge", value: challenge)
@@ -203,9 +191,6 @@ enum GenerateKey {
     static func generateSoftwareKey() throws -> SiliconResult<String?> {
         // TODO: Implement this
         
-        throw SiliconException(
-            code: "NOT_IMPLEMENTED",
-            message: "Software key fallback is not implemented"
-        )
+        throw SiliconException(code: "NOT_IMPLEMENTED", message: "Software key fallback is not implemented")
     }
 }
