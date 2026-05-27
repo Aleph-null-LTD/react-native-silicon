@@ -1,7 +1,7 @@
 import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
 import { hasOwn, isPlainObject } from '../../utils/validation';
-import { androidAlgorithms, isAndroidAlgorithm, isAndroidHardwarePolicy, isKeyDigest, isKeyPurpose, isPubkeyFormat, isUserAuthPolicy, keyDigests, keyPurposes, pubkeyFormats, userAuthPolicies } from './constants';
+import { androidAlgorithms, isAndroidAlgorithm, isAndroidHardwarePolicy, isIosAlgorithm, isIosHardwarePolicy, isKeyDigest, isKeyPurpose, isPubkeyFormat, isUserAuthPolicy, keyDigests, keyPurposeFamilies, keyPurposes, pubkeyFormats, userAuthPolicies } from './constants';
 import { AttestResult, GenerateKeyOpts, KeyInfo } from "./types";
 
 /**
@@ -35,6 +35,9 @@ export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promis
             
             case "PURPOSE_AGREE_NOT_SUPPORTED":
                 throw new SiliconError(SiliconErrorCode.PURPOSE_AGREE_NOT_SUPPORTED, result.errorMessage, { nativeStack: result.nativeStack });
+
+            case "KEY_GENERATION_FAILED":
+                throw new SiliconError(SiliconErrorCode.KEY_GENERATION_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
         }
 
         throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
