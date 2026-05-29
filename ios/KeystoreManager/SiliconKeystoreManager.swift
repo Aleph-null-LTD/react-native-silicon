@@ -432,6 +432,106 @@ enum SiliconKeystoreManager {
             return .failure(code: "ATTESTATION_FAILED", message: error.localizedDescription, nativeStack: nil)
         }
     }
+    
+    static func getKeyInfo(alias: String) -> SiliconResult<[String: Any?]> {
+        guard let tag = alias.data(using: .utf8) else {
+            return .failure(
+                code: "INVALID_ALIAS",
+                message: "Failed to encode alias to data",
+                nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+            )
+        }
+        
+        // Query the Keychain for the Key and its Attributes
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrApplicationTag as String: tag,
+            kSecReturnAttributes as String: true,
+            kSecReturnRef as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        
+        if status == errSecItemNotFound {
+            return .failure(
+                code: "KEY_NOT_FOUND",
+                message: "No key exists for alias: '\(alias)'",
+                nativeStack: nil
+            )
+        }
+        
+        guard status == errSecSuccess, let dict = item as? [String: Any] else {
+            return .failure(
+                code: "GET_KEY_INFO_FAILED",
+                message: "Failed to read Keychain item attributes. OSStatus: \(status)",
+                nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+            )
+        }
+        
+        // Hardware Isolation Security Level
+        // If the TokenID is SecureEnclave, it's hardware-backed. Otherwise, it's software Keychain.
+        let tokenID = dict[kSecAttrTokenID as String] as? String
+        let securityLevel = (tokenID == (kSecAttrTokenIDSecureEnclave as String)) ? "SECURE_ENCLAVE" : "SOFTWARE"
+        
+        // Extract Purposes
+        var purposes: [String] = []
+        if dict[kSecAttrCanSign as String] as? Bool == true { purposes.append("SIGN") }
+        if dict[kSecAttrCanVerify as String] as? Bool == true { purposes.append("VERIFY") }
+        if dict[kSecAttrCanEncrypt as String] as? Bool == true { purposes.append("ENCRYPT") }
+        if dict[kSecAttrCanDecrypt as String] as? Bool == true { purposes.append("DECRYPT") }
+        if dict[kSecAttrCanDerive as String] as? Bool == true { purposes.append("AGREE") }
+        if dict[kSecAttrCanWrap as String] as? Bool == true { purposes.append("WRAP") }
+        if dict[kSecAttrCanUnwrap as String] as? Bool == true { purposes.append("UNWRAP") }
+        
+        // Algorithm & Curve Extraction
+        let rawKeyType = dict[kSecAttrKeyType as String]
+        let keyType: String
+        if let typeNum = rawKeyType as? NSNumber { keyType = typeNum.stringValue }
+        else if let typeStr = rawKeyType as? String { keyType = typeStr }
+        else { keyType = "UNKNOWN" }
+        
+        let keySize = dict[kSecAttrKeySizeInBits as String] as? Int
+        var algorithm = "UNKNOWN"
+        var curve: String? = nil
+        
+        if keyType == (kSecAttrKeyTypeECSECPrimeRandom as String) || keyType == (kSecAttrKeyTypeEC as String) {
+            algorithm = "EC"
+            if keySize == 256 { curve = "P-256" }
+            else if keySize == 384 { curve = "P-384" }
+            else if keySize == 521 { curve = "P-521" }
+        } else if keyType == (kSecAttrKeyTypeRSA as String) {
+            algorithm = "RS"
+        }/* else if keyType == (kSecAttrKeyTypeSymmetric as String) { // TODO: Implement this
+            algorithm = "SYMMETRIC"
+        }*/
+        
+        // Appraise the Access Control
+        var isUserAuthRequired = false
+        let accessibleClass = dict[kSecAttrAccessible as String] as? String
+        
+        // If an Access Control object exists, it almost certainly involves biometrics or passcode
+        if dict[kSecAttrAccessControl as String] != nil {
+            isUserAuthRequired = true
+        }
+        
+        var infoMap: [String: Any?] = [
+            "alias": alias,
+            "algorithm": algorithm,
+            "keySize": keySize,
+            "securityLevel": securityLevel,
+            "purposes": purposes,
+            "isUserAuthRequired": isUserAuthRequired,
+            "accessibleClass": accessibleClass // iOS specific fallback
+        ]
+        
+        if let safeCurve = curve {
+            infoMap["curve"] = safeCurve
+        }
+        
+        return .success(infoMap)
+    }
 }
 
 // Internal hardware capability check utility
