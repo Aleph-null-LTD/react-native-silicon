@@ -5,7 +5,7 @@
   "type": "module",
   "main": "build/index.js",
   "types": "build/index.d.ts",
-  "packageManager": "pnpm@10.25.0",
+  "packageManager": "pnpm@11.3.0",
   "scripts": {
     "build": "expo-module build",
     "build:plugin": "tsc --build plugin/tsconfig.json",
