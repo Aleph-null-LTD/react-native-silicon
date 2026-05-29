@@ -47,7 +47,8 @@ export const isUserAuthPolicy = createInSetGuard(userAuthPolicySet);
 // Pubkey formats
 export const pubkeyFormats = {
     PEM: 'PEM',
-    B64: 'B64'
+    B64: 'B64',
+    B64URL: 'B64URL'
 } as const;
 
 const pubkeyFormatSet: ReadonlySet<keyof typeof pubkeyFormats> = new Set(Object.values(pubkeyFormats));

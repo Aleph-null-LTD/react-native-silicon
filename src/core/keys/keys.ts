@@ -303,20 +303,20 @@ export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 
 }
 
 /**
- * Gets the pubkey from an asymmetric keypair.
+ * Gets the X.509 SPKI pubkey from an asymmetric keypair.
  * @param alias 
  * @param format 
  * @returns 
  */
-export async function getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<string> {
+export async function getPubKey(alias: string, format: 'PEM' | 'B64' | 'B64URL'): Promise<string> {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
     }
 
     if (typeof format !== 'string' || 
-        (format !== 'PEM' && format !== 'B64')
+        (format !== 'PEM' && format !== 'B64' && format !== 'B64URL')
     ) {
-        throw new TypeError("Silicon Error: 'format' must be of type 'PEM' | 'B64'");
+        throw new TypeError("Silicon Error: 'format' must be of type 'PEM' | 'B64' | 'B64URL'");
     }
 
     const result = await NativeSilicon.getPubKey(alias, format);
