@@ -7,6 +7,11 @@ type SiliconErrorOpts = {
 
 export enum SiliconErrorCode {
     /**
+     * Occurs when generateKey failed for an unknown reason
+     */
+    KEY_GENERATION_FAILED = 'KEY_GENERATION_FAILED',
+    
+    /**
      * Occurs when getCapabilities failed for an unknown reason
      */
     GET_CAPABILITIES_FAILED = 'GET_CAPABILITIES_FAILED',

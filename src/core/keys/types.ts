@@ -139,7 +139,7 @@ export type GenerateKeyOpts = {
          * * PREFER_SECURE_ENCLAVE - Will attempt to store the key in Secure Enclave and fall back to TEE if strongbox is not available on the device
          * * SOFTWARE_ONLY - Will not attempt to use StrongBox and will use TEE
          * 
-         * @default 'PREFER_SECURE_ENCLAVE'
+         * @default 'REQUIRE_SECURE_ENCLAVE'
          */
         hardwarePolicy?: IosHardwarePolicy | undefined
     } | undefined,

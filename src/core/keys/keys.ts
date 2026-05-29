@@ -308,15 +308,15 @@ export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 
  * @param format 
  * @returns 
  */
-export async function getPubKey(alias: string, format: 'PEM' | 'B64' | 'B64URL'): Promise<string> {
+export async function getPubKey(alias: string, format: keyof typeof pubkeyFormats): Promise<string> {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
     }
 
     if (typeof format !== 'string' || 
-        (format !== 'PEM' && format !== 'B64' && format !== 'B64URL')
+        !isPubkeyFormat(format)
     ) {
-        throw new TypeError("Silicon Error: 'format' must be of type 'PEM' | 'B64' | 'B64URL'");
+        throw new TypeError(`Silicon Error: 'format' must be of type ${Object.values(pubkeyFormats).join("|")}`);
     }
 
     const result = await NativeSilicon.getPubKey(alias, format);
@@ -348,14 +348,21 @@ export async function getPubKey(alias: string, format: 'PEM' | 'B64' | 'B64URL')
  * key was generated (see the generateKey options)
  * 
  * @param alias
+ * @param pubKeyFormat The format to use for the returned signingPubKey on iOS
  * @returns The certificate chain - An array of PEM strings
  */
-export async function attestKey(alias: string): Promise<AttestResult> {
+export async function attestKey(alias: string, pubKeyFormat: keyof typeof pubkeyFormats): Promise<AttestResult> {
     if (!alias || typeof alias !== 'string') {
         throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
     }
 
-    const result = await NativeSilicon.attestKey(alias)
+    if (typeof pubKeyFormat !== 'string' || 
+        !isPubkeyFormat(pubKeyFormat)
+    ) {
+        throw new TypeError(`Silicon Error: 'format' must be of type ${Object.values(pubkeyFormats).join("|")}`);
+    }
+
+    const result = await NativeSilicon.attestKey(alias, pubKeyFormat)
     if (!result.success) {
         switch (result.errorCode) {
             case 'KEY_NOT_FOUND':
