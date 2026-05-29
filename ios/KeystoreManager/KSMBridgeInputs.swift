@@ -49,7 +49,7 @@ struct IosOptions: Record {
     var algorithm: KeyAlgorithm = .ES256
     
     @Field
-    var hardwarePolicy: HardwarePolicy = .PREFER_SECURE_ENCLAVE
+    var hardwarePolicy: HardwarePolicy = .REQUIRE_SECURE_ENCLAVE
 }
 
 struct GenerateKeyOptions: Record {

@@ -2,6 +2,7 @@ import Foundation
 import Security
 import LocalAuthentication
 import DeviceCheck
+import CryptoKit
 
 enum SiliconKeystoreManager {
     
@@ -305,232 +306,39 @@ enum SiliconKeystoreManager {
     }
     
     static func getPubKey(alias: String, format: PubKeyFormat) -> SiliconResult<String> {
-        guard let tag = alias.data(using: .utf8) else {
-            return .failure(
-                code: "INVALID_ALIAS",
-                message: "Failed to encode alias to data",
-                nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+        do {
+            let pubkey = try getPubKeyData(alias: alias)
+            
+            let formattedPubKey = try pubKeyToX509(
+                format: format,
+                rawPublicKeyData: pubkey.rawData,
+                // Read the key size and type from the Keychain attributes dictionary
+                rawKeyType: pubkey.dict[kSecAttrKeyType as String],
+                keySize: pubkey.dict[kSecAttrKeySizeInBits as String] as? Int
             )
-        }
-        
-        // Query the Keychain for ANY key matching this alias
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: tag,
-            kSecReturnRef as String: true,
-            kSecReturnAttributes as String: true, // Gets Metadata for the key
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        
-        if status == errSecItemNotFound {
-            return .failure(
-                code: "KEY_NOT_FOUND",
-                message: "No key exists for alias: '\(alias)'",
-                nativeStack: nil
-            )
-        }
-        
-        guard status == errSecSuccess else {
-            return .failure(
-                code: "GET_PUB_KEY_FAILED",
-                message: "Keychain lookup failed with OSStatus: \(status)",
-                nativeStack: Thread.callStackSymbols.joined(separator: "\n")
-            )
-        }
-        
-        guard let dict = item as? [String: Any],
-              let rawRef = dict[kSecValueRef as String] else {
-            return .failure(
-                code: "GET_PUB_KEY_FAILED",
-                message: "Failed to cast Keychain item to SecKey.",
-                nativeStack: Thread.callStackSymbols.joined(separator: "\n")
-            )
-        }
-        
-        // Exact match for Kotlin's symmetric key rejection
-        let keyClass = dict[kSecAttrKeyClass as String] as? String
-        if keyClass == (kSecAttrKeyClassSymmetric as String) {
-            return .failure(
-                code: "UNSUPPORTED_KEY_FAMILY",
-                message: "The key stored under alias '\(alias)' is a symmetric key. Public key extraction is only supported for asymmetric keypairs (RSA/EC).",
-                nativeStack: nil
-            )
-        }
-        
-        // Swift cannot dynamically type-check C-pointers, but the Keychain API
-        // guarantees this is a SecKey because we explicitly queried for kSecClassKey
-        let keyRef = rawRef as! SecKey
-        
-        // Extract the Public Key from the reference
-        let publicKey: SecKey
-        if keyClass == (kSecAttrKeyClassPublic as String) {
-            publicKey = keyRef
-        } else {
-            // If the keychain handed us the Private Key, mathematically extract the Public half
-            guard let extractedPub = SecKeyCopyPublicKey(keyRef) else {
-                return .failure(
-                    code: "PUBLIC_KEY_EXTRACTION_FAILED",
-                    message: "Failed to extract public key from the private key pair.",
-                    nativeStack: Thread.callStackSymbols.joined(separator: "\n")
-                )
-            }
-            publicKey = extractedPub
-        }
-        
-        // Export the raw EC Points
-        var exportError: Unmanaged<CFError>?
-        guard let rawPublicKeyData = SecKeyCopyExternalRepresentation(publicKey, &exportError) as Data? else {
-            let err = exportError?.takeRetainedValue()
-            return .failure(
-                code: "PUBLIC_KEY_EXPORT_FAILED",
-                message: err?.localizedDescription ?? "Failed to export public key bytes.",
-                nativeStack: Thread.callStackSymbols.joined(separator: "\n")
-            )
-        }
-        
-        // Read the key size and type from the Keychain attributes dictionary
-        let keySize = dict[kSecAttrKeySizeInBits as String] as? Int
-        let rawKeyType = dict[kSecAttrKeyType as String]
-        
-        let keyType: String
-        if let typeNum = rawKeyType as? NSNumber {
-            // If it's a number, convert it to a string
-            keyType = typeNum.stringValue
-        } else if let typeStr = rawKeyType as? String {
-            // If it's already a string, keep it
-            keyType = typeStr
-        } else {
-            return .failure(
-                code: "GET_PUB_KEY_FAILED",
-                message: "iOS: Keychain returned an unrecognizable type format for kSecAttrKeyType.",
-                nativeStack: nil
-            )
-        }
-        
-        
-        var uniformPublicKeyBytes = Data()
+            return .success(formattedPubKey)
 
-        // Apply the X.509 SPKI Header to guarantee 1:1 cross-platform byte alignment
-        if keyType == (kSecAttrKeyTypeECSECPrimeRandom as String) {
-            // Verify the EC key size to apply the correct curve OID header
-            guard let size = keySize else {
-                return .failure(
-                    code: "UNKNOWN_KEY_SIZE",
-                    message: "Failed to determine EC key size from Keychain attributes.",
-                    nativeStack: nil
-                )
-            }
-            
-            switch size {
-            case 256:
-                // NIST P-256 (secp256r1) - Supported by Secure Enclave
-                let p256Header = Data([
-                    0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-                    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00
-                ])
-                uniformPublicKeyBytes.append(p256Header)
-                
-            case 384:
-                // NIST P-384 (secp384r1) - Software Only
-                let p384Header = Data([
-                    0x30, 0x76, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-                    0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00
-                ])
-                uniformPublicKeyBytes.append(p384Header)
-                
-            case 521: // Note: It is 521, not 512
-                // NIST P-521 (secp521r1) - Software Only
-                let p521Header = Data([
-                    0x30, 0x81, 0x9b, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-                    0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x23, 0x03, 0x81, 0x86, 0x00
-                ])
-                uniformPublicKeyBytes.append(p521Header)
-                
+        } catch let error as GetPubKeyDataError {
+            var code: String
+            switch error {
+            case .invalidAlias:
+                code = "INVALID_ALIAS"
+            case .keyNotFound:
+                code = "KEY_NOT_FOUND"
+            case .unsupportedKeyFamily:
+                code = "UNSUPPORTED_KEY_FAMILY"
             default:
-                return .failure(
-                    code: "UNSUPPORTED_EC_CURVE",
-                    message: "EC key size \(size) is not supported. Supported sizes are 256, 384, and 521.",
-                    nativeStack: nil
-                )
+                code = "GET_PUB_KEY_FAILED"
             }
-            
-            // Append the raw uncompressed EC points extracted from iOS
-            uniformPublicKeyBytes.append(rawPublicKeyData)
-            
-        } else if keyType == (kSecAttrKeyTypeRSA as String) {
-            // We must verify the size to append the mathematically correct ASN.1 SPKI header
-            guard let size = keySize else {
-                return .failure(
-                    code: "UNKNOWN_KEY_SIZE",
-                    message: "Failed to determine RSA key size from Keychain attributes.",
-                    nativeStack: nil
-                )
-            }
-            
-            switch size {
-            case 2048:
-                let rsa2048Header = Data([
-                    0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
-                    0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00
-                ])
-                uniformPublicKeyBytes.append(rsa2048Header)
-                
-            case 3072:
-                let rsa3072Header = Data([
-                    0x30, 0x82, 0x01, 0xa2, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
-                    0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x8f, 0x00
-                ])
-                uniformPublicKeyBytes.append(rsa3072Header)
-                
-            case 4096:
-                let rsa4096Header = Data([
-                    0x30, 0x82, 0x02, 0x22, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
-                    0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x02, 0x0f, 0x00
-                ])
-                uniformPublicKeyBytes.append(rsa4096Header)
-                
-            default:
-                // Reject non-standard sizes to prevent memory/parsing corruption
-                return .failure(
-                    code: "UNSUPPORTED_RSA_SIZE",
-                    message: "RSA key size \(size) is not supported for X.509 SPKI export. Supported sizes are 2048, 3072, and 4096.",
-                    nativeStack: nil
-                )
-            }
-            
-            // Append the raw PKCS#1 bytes extracted from iOS to the selected SPKI header
-            uniformPublicKeyBytes.append(rawPublicKeyData)
-            
-        } else {
+            return .failure(code: code, message: error.localizedDescription, nativeStack: nil)
+
+        } catch {
             return .failure(
-                code: "UNSUPPORTED_KEY_TYPE",
-                message: "Key algorithm not supported for SPKI export.",
-                nativeStack: nil
+                code: "GET_PUB_KEY_FAILED",
+                message: error.localizedDescription,
+                nativeStack: Thread.callStackSymbols.joined(separator: "\n")
             )
         }
-        
-        // Format
-        let formattedPubKey: String
-        
-        switch format {
-        case .PEM:
-            let base64Encoded = uniformPublicKeyBytes.base64EncodedString(options: .lineLength64Characters)
-            formattedPubKey = "-----BEGIN PUBLIC KEY-----\n\(base64Encoded)\n-----END PUBLIC KEY-----"
-            
-        case .B64:
-            formattedPubKey = uniformPublicKeyBytes.base64EncodedString()
-            
-        case .B64URL:
-            formattedPubKey = uniformPublicKeyBytes.base64EncodedString()
-                .replacingOccurrences(of: "+", with: "-")
-                .replacingOccurrences(of: "/", with: "_")
-                .trimmingCharacters(in: CharacterSet(charactersIn: "="))
-        }
-        
-        return .success(formattedPubKey)
     }
     
     static func validateKey(alias: String) throws -> SiliconResult<String> {
@@ -540,12 +348,30 @@ enum SiliconKeystoreManager {
         )
     }
     
-    /*
-    static func attestKey(alias: String) -> SiliconResult<[String: Any]> {
+    static func attestKey(alias: String, pubKeyFormat: PubKeyFormat) -> SiliconResult<[String: Any]> {
+        // TODO: Implement guards to check that key is 1. in the secure enclave, and 2. able to be attested (a challenge was provided when it was generated)
         
-        // Retrieve the SecKey Public Key bytes
-        guard let secKeyBytes = getSecKeyPublicBytes(alias: alias) else {
-            return .failure(code: "KEY_NOT_FOUND", message: "Signing key not found.", nativeStack: nil)
+        let pubKey: (rawData: Data, dict: [String : Any])
+        do {
+            pubKey = try getPubKeyData(alias: alias)
+
+        } catch let error as GetPubKeyDataError {
+            var code: String
+            switch error {
+            case .invalidAlias:
+                code = "INVALID_ALIAS"
+            case .keyNotFound:
+                code = "KEY_NOT_FOUND"
+            case .unsupportedKeyFamily:
+                code = "UNSUPPORTED_KEY_FAMILY"
+            default:
+                code = "ATTESTATION_FAILED"
+            }
+            return .failure(code: code, message: error.localizedDescription, nativeStack: nil)
+            
+        } catch {
+            return .failure(code: "ATTESTATION_FAILED", message: error.localizedDescription, nativeStack: nil)
+            
         }
         
         // Retrieve the linked App Attest keyId
@@ -561,7 +387,7 @@ enum SiliconKeystoreManager {
         // BINDING: Hash the Stored Challenge + SecKey Public Key
         let challengeData = storedChallenge.data(using: .utf8)!
         var combinedData = challengeData
-        combinedData.append(secKeyBytes)
+        combinedData.append(pubKey.rawData)
         
         let clientDataHash = Data(SHA256.hash(data: combinedData))
         
@@ -586,130 +412,26 @@ enum SiliconKeystoreManager {
             return .failure(code: "ATTESTATION_FAILED", message: "Failed to compile Apple certificate.", nativeStack: nil)
         }
         
-        return .success([
-            "platform": "IOS",
-            "signingPubKey": secKeyBytes.base64EncodedString(), // TODO: Maybe we need to allow multiple encodings (PEM, B64, B64URL)
-            "attestationStatement": validBlob
-        ])
-    }
-    */
-    
-    // ---- OLD ATTEST FUNCTIONS -----
-    /*
-    static func attestKey(alias: String, challenge: String) -> SiliconResult<String> {
-        // 1. Fetch the hardware keyId reference we saved during step 1
-        guard let keyId = KeychainHelper.read(key: alias) else {
-            return .failure(code: "KEY_NOT_FOUND", message: "No attested key container found for alias '\(alias)'.", nativeStack: nil)
-        }
+        var formattedPubKey: String
         
-        let service = DCAppAttestService.shared
-        let semaphore = DispatchGroup()
-        var nativeError: Error?
-        var attestationBlob: String?
-        
-        // 2. iOS requires the server challenge to be securely hashed via SHA-256
-        let challengeData = challenge.data(using: .utf8)!
-        let clientDataHash = Data(SHA256.hash(data: challengeData))
-        
-        semaphore.enter()
-        // 3. Attest the key itself against Apple's certificate authority
-        service.attestKey(keyId, clientDataHash: clientDataHash) { attestationObject, error in
-            if let error = error {
-                nativeError = error
-            } else if let attestationObject = attestationObject {
-                // This binary object IS the complete WebAuthn/Apple X.509 certificate chain
-                attestationBlob = attestationObject.base64EncodedString()
-            }
-            semaphore.leave()
-        }
-        _ = semaphore.wait(timeout: .distantFuture)
-        
-        if let error = nativeError {
-            return .failure(code: "ATTESTATION_FAILED", message: error.localizedDescription, nativeStack: nil)
-        }
-        
-        guard let base64CertChain = attestationBlob else {
-            return .failure(code: "UNKNOWN_ERROR", message: "Failed to extract certificate chain bytes.", nativeStack: nil)
-        }
-        
-        // Return the raw certificate chain back to the JS layer!
-        return .success(base64CertChain)
-    }
-    
-    static func attestKey(alias: String, challenge: String) -> SiliconResult<[String: Any]> {
-            // 1. Retrieve the standard SecKey Public Key bytes
-            guard let secKeyBytes = getSecKeyPublicBytes(alias: alias) else {
-                return .failure(code: "KEY_NOT_FOUND", message: "Signing key not found.", nativeStack: nil)
-            }
+        // Format the pubkey
+        do {
+            formattedPubKey = try pubKeyToX509(
+                format: pubKeyFormat,
+                rawPublicKeyData: pubKey.rawData,
+                rawKeyType: pubKey.dict[kSecAttrKeyType as String],
+                keySize: pubKey.dict[kSecAttrKeySizeInBits as String] as? Int
+            )
             
-            // 2. Retrieve the linked App Attest keyId
-            guard let attestKeyId = KeychainHelper.read(key: "\(alias)_attest_id") else {
-                return .failure(code: "ATTEST_ID_NOT_FOUND", message: "No App Attest key linked to this alias.", nativeStack: nil)
-            }
-            
-            // 3. THE MAGIC BINDING: Hash the Server Challenge + The SecKey Public Key
-            let challengeData = challenge.data(using: .utf8)!
-            var combinedData = challengeData
-            combinedData.append(secKeyBytes)
-            
-            let clientDataHash = Data(SHA256.hash(data: combinedData))
-            
-            // 4. Request the Apple Certificate
-            let semaphore = DispatchGroup()
-            var attestationBlob: String?
-            
-            semaphore.enter()
-            DCAppAttestService.shared.attestKey(attestKeyId, clientDataHash: clientDataHash) { attStmt, error in
-                attestationBlob = attStmt?.base64EncodedString()
-                semaphore.leave()
-            }
-            _ = semaphore.wait(timeout: .distantFuture)
-            
-            guard let validBlob = attestationBlob else {
-                return .failure(code: "ATTESTATION_FAILED", message: "Failed to get certificate from Apple.", nativeStack: nil)
-            }
-            
-            // Return exactly what the JS layer needs to route to the backend
             return .success([
-                "platform": "ios",
-                "signingPublicKey": secKeyBytes.base64EncodedString(),
+                "platform": "IOS",
+                "signingPubKey": formattedPubKey, // TODO: allow multiple encodings (PEM, B64, B64URL)
                 "attestationStatement": validBlob
             ])
+        } catch {
+            return .failure(code: "ATTESTATION_FAILED", message: error.localizedDescription, nativeStack: nil)
         }
-     */
-    
-    /*
-    static func getPubKey(alias: String) -> String {
-        //Extract Raw Public Bits and Format Uniformly
-        guard let rawPublicKeyData = SecKeyCopyExternalRepresentation(publicKey, nil) as Data? else {
-            return .failure(code: "PUBLIC_KEY_EXTRACTION_FAILED", message: "Could not copy bits out of memory container", nativeStack: nil)
-        }
-        
-        // CRITICAL CROSS-PLATFORM ALIGNMENT:
-        // iOS extracts raw EC points (65 bytes). Android outputs full X.509 SubjectPublicKeyInfo (SPKI) structures.
-        // We prepend the standard ASN.1 SPKI header bytes for an uncompressed P-256 key so we output identical keys.
-        let asn1Header = Data([
-            0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-            0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00
-        ])
-        var uniformPublicKeyBytes = asn1Header
-        uniformPublicKeyBytes.append(rawPublicKeyData)
-        
-        // Output String Serialization matching PubkeyFormat
-        let outputString: String
-        switch opts.pubkeyFormat {
-        case .PEM:
-            let base64Encoded = uniformPublicKeyBytes.base64EncodedString(options: .lineLength64Characters)
-            outputString = "-----BEGIN PUBLIC KEY-----\n\(base64Encoded)\n-----END PUBLIC KEY-----"
-        case .B64:
-            outputString = uniformPublicKeyBytes.base64EncodedString()
-        }
-        
-        return .success(outputString)
     }
-     */
-    
-    // TODO: When deleting a key, if the key has an attestChallenge, we need to delete from the keychain too
 }
 
 // Internal hardware capability check utility
