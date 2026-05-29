@@ -36,6 +36,10 @@ public class ReactNativeSiliconModule: Module {
             return SiliconKeystoreManager.listKeys(prefix: prefix).toBridgeMap()
         }
         
+        AsyncFunction("getPubKey") { (alias: String, format: PubKeyFormat) -> [String: Any] in
+            return SiliconKeystoreManager.getPubKey(alias: alias, format: format).toBridgeMap()
+        }
+        
         // ---- Random Generator ----
         
         AsyncFunction("generateSecureRandomBytes") { (length: Int, format: RandomBytesFormat) -> [String: Any] in

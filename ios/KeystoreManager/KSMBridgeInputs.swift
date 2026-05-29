@@ -31,6 +31,7 @@ struct UserAuthOptions: Record {
 enum PubKeyFormat: String, Enumerable {
     case PEM = "PEM"
     case B64 = "B64"
+    case B64URL = "B64URL"
 }
 
 enum KeyAlgorithm: String, Enumerable {
