@@ -186,6 +186,8 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
                 // Disable line breaks for raw Base64
                 PubkeyFormat.B64 -> Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
+
+                PubkeyFormat.B64URL -> Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP or Base64.URL_SAFE or Base64.NO_PADDING)
             }
 
             return SiliconResult.Success(pubkey);
@@ -295,11 +297,13 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             val certificate = keystore.getCertificate(alias)
                 ?: return SiliconResult.Failure("NO_CERT", "No certificate chain found for key '$alias'.")
 
-            val b64PubKey = Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
-
             val publicKey = when (format) {
-                PubkeyFormat.B64 -> b64PubKey
+                PubkeyFormat.B64 -> Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
+
+                PubkeyFormat.B64URL -> Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP or Base64.URL_SAFE or Base64.NO_PADDING)
+
                 PubkeyFormat.PEM -> {
+                    val b64PubKey = Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
                     // Insert a newline every 64 chars
                     val chunkedB64Pubkey = b64PubKey.chunked(64).joinToString("\n")
 
@@ -342,8 +346,8 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
             return SiliconResult.Success(
                 mapOf(
-                    "certificateChain" to pemChain
-                    // attestationObject is omitted here (IOS only)
+                    "platform" to "ANDROID",
+                    "certChain" to pemChain
                 )
             )
 

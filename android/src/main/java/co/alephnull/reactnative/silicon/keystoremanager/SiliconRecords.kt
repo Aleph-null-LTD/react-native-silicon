@@ -50,7 +50,8 @@ class UserAuthOptions : Record {
 
 enum class PubkeyFormat(val value: String) : Enumerable {
     PEM("PEM"),
-    B64("B64")
+    B64("B64"),
+    B64URL("B64URL")
 }
 
 class GenerateKeyOptions : Record {
