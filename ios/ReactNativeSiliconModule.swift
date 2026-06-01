@@ -54,6 +54,12 @@ public class ReactNativeSiliconModule: Module {
             return SiliconRandomGen.generate(length: length, format: format).toBridgeMap()
         }
 
+        // ---- JOSE ----
+        
+        AsyncFunction("getJwk") { (alias: String) -> [String: Any] in
+            return SiliconJose.getJwk(alias: alias).toBridgeMap()
+        }
+        
         /*
 
         AsyncFunction("listKeys") { (prefix: String?) in
@@ -98,13 +104,6 @@ public class ReactNativeSiliconModule: Module {
             bridgePayload.bytes = payloadByteArr
 
             val result = verifier.verify(bridgePayload.toPayloadType(), signatureB64, opts)
-            return@AsyncFunction result.toBridgeMap()
-        }
-
-        // ---- JOSE ----
-
-        AsyncFunction("getJwk") { alias: String ->
-            val result = jose.getJwk(alias)
             return@AsyncFunction result.toBridgeMap()
         }
         */
