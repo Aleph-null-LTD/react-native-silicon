@@ -35,7 +35,7 @@ enum PubKeyFormat: String, Enumerable {
 }
 
 enum KeyAlgorithm: String, Enumerable {
-    case ES256 = "ES256"
+    case EC_P256 = "EC_P256"
 }
 
 enum HardwarePolicy: String, Enumerable {
@@ -46,7 +46,7 @@ enum HardwarePolicy: String, Enumerable {
 
 struct IosOptions: Record {
     @Field
-    var algorithm: KeyAlgorithm = .ES256
+    var algorithm: KeyAlgorithm = .EC_P256
     
     @Field
     var hardwarePolicy: HardwarePolicy = .REQUIRE_SECURE_ENCLAVE

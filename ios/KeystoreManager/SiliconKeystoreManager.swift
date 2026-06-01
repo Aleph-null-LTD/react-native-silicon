@@ -65,9 +65,9 @@ enum SiliconKeystoreManager {
                 )
             }
             
-            // ALL hardware backed keys must be ES256
+            // ALL hardware backed keys must be EC_P256
             // if key algorithm is not ES256 - return failure
-            if opts.ios.algorithm != KeyAlgorithm.ES256 {
+            if opts.ios.algorithm != KeyAlgorithm.EC_P256 {
                 return .failure(
                     code: "UNSUPPORTED_KEY_FAMILY",
                     message: "The Apple Secure Enclave does not support algorithm \"\(opts.ios.algorithm)\". Change the algorithm to \"ES256\" for hardware-backed cryptography.",
@@ -75,11 +75,36 @@ enum SiliconKeystoreManager {
                 )
             }
         }
+
+        // Store metadata
+        let isMetadataSaved = KeyMetadata.store(alias: alias, opts: opts, isHardwareBacked: useHardware)
+        if !isMetadataSaved {
+            return SiliconResult.failure(code: "GENERATE_KEY_FAILED", message: "iOS: Failed to save metadata to keychain", nativeStack: nil)
+        }
         
-        if useHardware {
-            return try GenerateKey.generateHardwareKey(alias: alias, tag: tag, opts: opts)
-        } else {
-            return try GenerateKey.generateSoftwareKey(alias: alias, tag: tag, opts: opts)
+        do {
+            var ret: SiliconResult<String?>
+            if useHardware {
+                ret = try GenerateKey.generateHardwareKey(alias: alias, tag: tag, opts: opts)
+            } else {
+                ret = try GenerateKey.generateSoftwareKey(alias: alias, tag: tag, opts: opts)
+            }
+            
+            switch ret {
+            case .failure:
+                // Cleanup metadata
+                _ = KeyMetadata.delete(alias: alias)
+            case .success:
+                // Do Nothing
+            }
+            return ret
+            
+        } catch {
+            // Cleanup metadata
+            _ = KeyMetadata.delete(alias: alias)
+            
+            // Re-throw
+            throw error
         }
     }
     
@@ -122,14 +147,16 @@ enum SiliconKeystoreManager {
                              (statusChallenge == errSecSuccess || statusChallenge == errSecItemNotFound)
         }
         
+        let metadataClean = KeyMetadata.delete(alias: alias)
+        
         let primaryKeyClean = (secKeyStatus == errSecSuccess || secKeyStatus == errSecItemNotFound)
         
-        if primaryKeyClean && attestKeyClean {
+        if primaryKeyClean && attestKeyClean && metadataClean {
             return .success(true)
         } else {
             return .failure(
                 code: "DELETE_FAILED",
-                message: "Failed to fully clear keychain. Primary Key Status: \(secKeyStatus), Attest Token Status: \(attestKeyStatus)",
+                message: "Failed to fully clear keychain. Primary Key Status: \(secKeyStatus), Attest Token Status: \(attestKeyStatus), Metadata Status: \(metadataClean)",
                 nativeStack: nil
             )
         }
@@ -195,7 +222,7 @@ enum SiliconKeystoreManager {
                 continue
             }
             
-            // Funnel through our comprehensive deletion function
+            // Funnel through deletion function
             let result = deleteKey(alias: alias)
             
             if case .success = result {
@@ -434,6 +461,8 @@ enum SiliconKeystoreManager {
     }
     
     static func getKeyInfo(alias: String) -> SiliconResult<[String: Any?]> {
+        // TODO: Check the metadata on the keychain, if it exists we can use the data from there
+        
         guard let tag = alias.data(using: .utf8) else {
             return .failure(
                 code: "INVALID_ALIAS",
@@ -523,7 +552,7 @@ enum SiliconKeystoreManager {
             "securityLevel": securityLevel,
             "purposes": purposes,
             "isUserAuthRequired": isUserAuthRequired,
-            "accessibleClass": accessibleClass // iOS specific fallback
+            "accessibleClass": accessibleClass
         ]
         
         if let safeCurve = curve {

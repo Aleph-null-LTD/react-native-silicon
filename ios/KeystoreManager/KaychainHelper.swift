@@ -1,11 +1,13 @@
 struct KeychainHelper {
+    private static let prefix = "__rn_silicon_internal__"
+    
     @discardableResult
     static func save(key: String, value: String) -> Bool {
         let data = value.data(using: .utf8)!
         
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
+            kSecAttrAccount as String: "\(prefix)\(key)",
             kSecValueData as String: data
         ]
         
@@ -19,7 +21,7 @@ struct KeychainHelper {
     static func read(key: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
+            kSecAttrAccount as String: "\(prefix)\(key)",
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -38,7 +40,7 @@ struct KeychainHelper {
     static func delete(key: String) -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key
+            kSecAttrAccount as String: "\(prefix)\(key)"
         ]
         
         let status = SecItemDelete(query as CFDictionary)

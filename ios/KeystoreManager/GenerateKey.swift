@@ -92,7 +92,7 @@ enum GenerateKey {
                 
             case KeyPurpose.WRAP:
                 // TODO: Implement WRAP (possibly using ECIES)
-                throw SiliconException(code: "NOT_IMPLEMENTED", message: "WRAP purpose is not yet implemented for iOS")
+                throw SiliconException(code: "NOT_IMPLEMENTED", message: "The WRAP purpose is not yet implemented for iOS")
             }
         }
         
