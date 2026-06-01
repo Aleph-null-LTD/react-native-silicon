@@ -11,14 +11,14 @@ struct SiliconSigner {
         // Get the key metadata
         guard let metadata = KeyMetadata.get(alias: alias) else {
             throw SiliconException(
-                code: "NULL_METADATA",
+                code: "BAD_METADATA",
                 message: "iOS: Key metadata was null"
             )
         }
         
         guard let userAuth = metadata["userAuth"] as? [String: Any] else {
             throw SiliconException(
-                code: "NULL_METADATA",
+                code: "BAD_METADATA",
                 message: "iOS: Key metadata.userAuth had an unexpected type: got \(String(describing: type(of: metadata["userAuth"]))) expected [String: Any]"
             )
         }
@@ -26,23 +26,42 @@ struct SiliconSigner {
         // Get the timeout and cast it to Double (required for touchIDAuthenticationAllowableReuseDuration)
         guard let timeoutInt = userAuth["timeout"] as? Int else {
             throw SiliconException(
-                code: "NULL_METADATA",
+                code: "BAD_METADATA",
                 message: "iOS: Key metadata.userAuth.timeout had an unexpected type: got \(String(describing: type(of: userAuth["timeout"]))) expected Int"
             )
         }
         let timeoutSecs = Double(timeoutInt)
         
-        // Setup the Face ID / Touch ID Context
-        // This tells Apple: "If this key needs biometrics, use this exact text on the system prompt."
-        let context = LAContext()
-        context.localizedReason = "Authenticate to continue"
-        
-        // Apply the timeout
-        if timeoutSecs > 0 {
-            // Apple strictly caps the maximum timeout at 5 minutes (300 seconds)
-            // The min() function ensures we don't accidentally exceed Apple's hard limit
-            context.touchIDAuthenticationAllowableReuseDuration = min(timeoutSecs, LATouchIDAuthenticationMaximumAllowableReuseDuration)
+        // Get the timeout and cast it to Double (required for touchIDAuthenticationAllowableReuseDuration)
+        guard let timeoutInt = userAuth["timeout"] as? Int else {
+            throw SiliconException(
+                code: "BAD_METADATA",
+                message: "iOS: Key metadata.userAuth.timeout had an unexpected type: got \(String(describing: type(of: userAuth["timeout"]))) expected Int"
+            )
         }
+        
+        // Get the timeout and cast it to Double (required for touchIDAuthenticationAllowableReuseDuration)
+        guard let authPolicy = userAuth["policy"] as? String else {
+            throw SiliconException(
+                code: "BAD_METADATA",
+                message: "iOS: Key metadata.userAuth.policy had an unexpected type: got \(String(describing: type(of: userAuth["timeout"]))) expected String"
+            )
+        }
+        
+        var allowsPasscode: Bool
+        if (authPolicy == AuthPolicy.BIOMETRICS_ONLY.rawValue) {
+            allowsPasscode = false
+        } else if (authPolicy == AuthPolicy.BIOMETRICS_OR_CREDENTIAL.rawValue) {
+            allowsPasscode = true
+        } else {
+            throw SiliconException(
+                code: "BAD_METADATA",
+                message: "iOS: Key metadata.userAuth.policy had an unexpected value: got \(authPolicy)"
+            )
+        }
+        
+        // Setup the Face ID / Touch ID Context
+        let context = AuthContext.get(forTimeout: timeoutSecs, allowsPasscode: allowsPasscode)
         
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
@@ -92,6 +111,7 @@ struct SiliconSigner {
         let algorithm: SecKeyAlgorithm
         let isEC: Bool
         
+        // TODO: Implement other digests
         if keyType == (kSecAttrKeyTypeECSECPrimeRandom as String) || keyType == (kSecAttrKeyTypeEC as String) {
             algorithm = .ecdsaSignatureMessageX962SHA256
             isEC = true
