@@ -20,6 +20,7 @@ enum PubKeyFormatError: Error {
 }
 
 func pubKeyToX509(format: PubKeyFormat, rawPublicKeyData: Data, rawKeyType: Any?, keySize: Int?) throws -> String {
+    // Safely coerce the key type
     let keyType: String
     if let typeNum = rawKeyType as? NSNumber {
         // If it's a number, convert it to a string

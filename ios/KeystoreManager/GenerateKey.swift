@@ -71,6 +71,10 @@ enum GenerateKey {
         
         //privateKeyAttrs[kSecAttrCanDerive as String] = false
         
+        // Secure Enclave is hardcoded to ["SIGN", "AGREE"]
+        privateKeyAttrs[kSecAttrCanSign as String] = true
+        privateKeyAttrs[kSecAttrCanDerive as String] = true
+        
         // Set the defined purposes to true
         for purpose in opts.purposes {
             switch purpose {

@@ -94,10 +94,11 @@ enum SiliconKeystoreManager {
             case .failure:
                 // Cleanup metadata
                 _ = KeyMetadata.delete(alias: alias)
+                return ret
             case .success:
                 // Do Nothing
+                return ret
             }
-            return ret
             
         } catch {
             // Cleanup metadata
@@ -151,7 +152,7 @@ enum SiliconKeystoreManager {
         
         let primaryKeyClean = (secKeyStatus == errSecSuccess || secKeyStatus == errSecItemNotFound)
         
-        if primaryKeyClean && attestKeyClean && metadataClean {
+        if primaryKeyClean && attestKeyClean {
             return .success(true)
         } else {
             return .failure(

@@ -4,9 +4,22 @@ struct KeyMetadata {
     private static var cache: [String: [String: Any]] = [:]
     
     static func store(alias: String, opts: GenerateKeyOptions, isHardwareBacked: Bool) -> Bool {
+        // Extract the raw purpose values
+        var purposeArr: [String] = []
+        for p in opts.purposes {
+            purposeArr.append(p.rawValue)
+        }
+        
+        // Construct the metadata dict
         let metadata: [String: Any] = [
-            "purposes": opts.purposes,
-            "isHardwareBacked": isHardwareBacked
+            "purposes": purposeArr,
+            "isHardwareBacked": isHardwareBacked,
+            "userAuth": [
+                "require": opts.userAuth.require,
+                "timeout": opts.userAuth.timeout,
+                "invalidateOnEnrollment": opts.userAuth.invalidateOnEnrollment,
+                "policy": opts.userAuth.policy.rawValue
+            ]
         ]
         
         // Store the metadata as JSON in the keychain
