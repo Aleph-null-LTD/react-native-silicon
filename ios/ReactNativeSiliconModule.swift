@@ -64,6 +64,16 @@ public class ReactNativeSiliconModule: Module {
             return try await SiliconSigner.sign(alias: alias, payload: payload, opts: opts).toBridgeMap()
         }
         
+        AsyncFunction("verify") { (payloadStr: String?, payloadByteArr: Data?, signature: String, opts: VerifyOptions) -> [String: Any] in
+            // Convert the payload to PayloadType
+            let bridgePayload = BridgePayloadRecord()
+            bridgePayload.text = payloadStr
+            bridgePayload.bytes = payloadByteArr
+            let payload = try bridgePayload.toPayloadType()
+            
+            return try SiliconVerifier.verify(payload: payload, signatureB64: signature, opts: opts).toBridgeMap()
+        }
+        
         // ---- Random Generator ----
         
         AsyncFunction("generateSecureRandomBytes") { (length: Int, format: RandomBytesFormat) -> [String: Any] in
@@ -75,53 +85,5 @@ public class ReactNativeSiliconModule: Module {
         AsyncFunction("getJwk") { (alias: String) -> [String: Any] in
             return SiliconJose.getJwk(alias: alias).toBridgeMap()
         }
-        
-        /*
-
-        AsyncFunction("listKeys") { (prefix: String?) in
-            val result = keystoreManager.listKeys(prefix)
-            return@AsyncFunction result.toBridgeMap()
-        }
-
-        AsyncFunction("getPubKey") { (alias: String, format: PubkeyFormat) in
-            val result = keystoreManager.getPubKey(alias, format)
-            return@AsyncFunction result.toBridgeMap()
-        }
-
-        AsyncFunction("attestKey") { (alias: String) in
-            val result = keystoreManager.attestKey(alias)
-            return@AsyncFunction result.toBridgeMap()
-        }
-
-        AsyncFunction("getKeyInfo") { (alias: String) in
-            val result = keystoreManager.getKeyInfo(alias)
-            return@AsyncFunction result.toBridgeMap()
-        }
-
-        AsyncFunction("validateKey") { (alias: String) in
-            val result = keystoreManager.validateKey(alias)
-            return@AsyncFunction result.toBridgeMap()
-        }
-
-        // ---- Sign/Verify ----
-
-        AsyncFunction("sign") Coroutine { alias: String, payloadStr: String?, payloadByteArr: ByteArray?, opts: SignOptions ->
-            val bridgePayload = BridgePayloadRecord()
-            bridgePayload.text = payloadStr
-            bridgePayload.bytes = payloadByteArr
-
-            val result = signer.sign(alias, bridgePayload.toPayloadType(), opts)
-            return@Coroutine result.toBridgeMap()
-        }
-
-        AsyncFunction("verify") { payloadStr: String?, payloadByteArr: ByteArray?, signatureB64: String, opts: VerifyOptions ->
-            val bridgePayload = BridgePayloadRecord()
-            bridgePayload.text = payloadStr
-            bridgePayload.bytes = payloadByteArr
-
-            val result = verifier.verify(bridgePayload.toPayloadType(), signatureB64, opts)
-            return@AsyncFunction result.toBridgeMap()
-        }
-        */
     }
 }

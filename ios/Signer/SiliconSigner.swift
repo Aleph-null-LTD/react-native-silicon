@@ -16,6 +16,21 @@ struct SiliconSigner {
             )
         }
         
+        guard let purposes = metadata["purposes"] as? [String] else {
+            throw SiliconException(
+                code: "BAD_METADATA",
+                message: "iOS: Key metadata.purposes had an unexpected type: got \(String(describing: type(of: metadata["userAuth"]))) expected [String]"
+            )
+        }
+        
+        if !purposes.contains(KeyPurpose.SIGN.rawValue) {
+            return .failure(
+                code: "DISALLOWED_PURPOSE",
+                message: "iOS: Key does not have the SIGN purpose",
+                nativeStack: nil
+            )
+        }
+        
         guard let userAuth = metadata["userAuth"] as? [String: Any] else {
             throw SiliconException(
                 code: "BAD_METADATA",
@@ -32,15 +47,6 @@ struct SiliconSigner {
         }
         let timeoutSecs = Double(timeoutInt)
         
-        // Get the timeout and cast it to Double (required for touchIDAuthenticationAllowableReuseDuration)
-        guard let timeoutInt = userAuth["timeout"] as? Int else {
-            throw SiliconException(
-                code: "BAD_METADATA",
-                message: "iOS: Key metadata.userAuth.timeout had an unexpected type: got \(String(describing: type(of: userAuth["timeout"]))) expected Int"
-            )
-        }
-        
-        // Get the timeout and cast it to Double (required for touchIDAuthenticationAllowableReuseDuration)
         guard let authPolicy = userAuth["policy"] as? String else {
             throw SiliconException(
                 code: "BAD_METADATA",
@@ -60,7 +66,7 @@ struct SiliconSigner {
             )
         }
         
-        // Setup the Face ID / Touch ID Context
+        // Get the Context
         let context = AuthContext.get(forTimeout: timeoutSecs, allowsPasscode: allowsPasscode)
         
         let query: [String: Any] = [
@@ -68,7 +74,7 @@ struct SiliconSigner {
             kSecAttrApplicationTag as String: tag,
             kSecReturnRef as String: true,
             kSecReturnAttributes as String: true,
-            kSecUseAuthenticationContext as String: context, // Bind the UI context
+            kSecUseAuthenticationContext as String: context, // Bind the context
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
         
