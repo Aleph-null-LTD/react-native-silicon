@@ -40,7 +40,17 @@ enum GenerateKey {
                 }
             case .BIOMETRICS_OR_CREDENTIAL:
                 // Allow device Passcode fallback
-                flags.insert(.userPresence)
+                if opts.userAuth.invalidateOnEnrollment {
+                    // Invalidate when new biometrics are added
+                    flags.insert(.biometryCurrentSet)
+                    flags.insert(.devicePasscode)
+                    flags.insert(.or)
+                } else {
+                    // Do not invalidate when new biometrics are added
+                    flags.insert(.biometryAny)
+                    flags.insert(.devicePasscode)
+                    flags.insert(.or)
+                }
             }
             
             // TODO: Implement auth timeouts here
