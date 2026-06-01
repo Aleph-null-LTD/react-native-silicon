@@ -120,7 +120,7 @@ enum SiliconKeystoreManager {
         let secKeyStatus = SecItemDelete(secKeyQuery as CFDictionary)
         
         // Safely handle the optional App Attest Token
-        var attestKeyStatus: OSStatus = errSecSuccess
+        let attestKeyStatus: OSStatus = errSecSuccess
         
         // Check if it exists before trying to delete, or just check its deletion status
         // Safely handle the optional App Attest Token AND the Challenge
@@ -369,11 +369,59 @@ enum SiliconKeystoreManager {
         }
     }
     
-    static func validateKey(alias: String) throws -> SiliconResult<String> {
-        throw SiliconException(
-            code: "NOT_IMPLEMENTED",
-            message: "validateKey not implemented"
-        )
+    static func validateKey(alias: String) -> SiliconResult<String> {
+        guard let tag = alias.data(using: .utf8) else {
+            return .failure(
+                code: "KEY_VALIDATION_FAILED",
+                message: "Invalid alias format",
+                nativeStack: nil
+            )
+        }
+        
+        // By strictly forbidding the UI, we force the Secure Enclave to evaluate
+        // the key's internal state without throwing a Face ID prompt on the screen.
+        let context = LAContext()
+        context.interactionNotAllowed = true
+        
+        // Query the Keychain
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassKey, // Adjust to kSecClassGenericPassword if we store symmetric keys differently
+            kSecAttrApplicationTag as String: tag,
+            kSecReturnRef as String: true,
+            kSecUseAuthenticationContext as String: context
+        ]
+        
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        
+        // Map Apple's C-Engine OSStatus codes to SiliconResult
+        switch status {
+        case errSecSuccess:
+            // Key exists, is perfectly healthy, and doesn't even require biometrics to read.
+            return .success("VALID")
+            
+        case errSecInteractionNotAllowed:
+            // Key exists and is 100% cryptographically healthy.
+            // Apple throws this specific error because the key strictly requires biometrics
+            // to be accessed, but we explicitly set interactionNotAllowed = true.
+            return .success("VALID")
+            
+        case errSecItemNotFound:
+            // The key doesn't exist in the Keychain.
+            return .success("MISSING")
+            
+        case errSecAuthFailed, errSecDecode:
+            // The key exists, but because the user enrolled new biometrics, it has been invalidated
+            return .success("INVALIDATED")
+            
+        default:
+            // A low-level system error, OS corruption, or unexpected OSStatus code.
+            return .failure(
+                code: "KEY_VALIDATION_FAILED",
+                message: "Unrecognized OSStatus: \(status)",
+                nativeStack: nil
+            )
+        }
     }
     
     static func attestKey(alias: String, pubKeyFormat: PubKeyFormat) -> SiliconResult<[String: Any]> {

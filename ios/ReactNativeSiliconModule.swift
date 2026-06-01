@@ -48,6 +48,10 @@ public class ReactNativeSiliconModule: Module {
             return SiliconKeystoreManager.getKeyInfo(alias: alias).toBridgeMap()
         }
         
+        AsyncFunction("validateKey") { (alias: String) -> [String: Any] in
+            return SiliconKeystoreManager.validateKey(alias: alias).toBridgeMap()
+        }
+        
         // ---- Sign/Verify ----
         
         AsyncFunction("sign") { (alias: String, payloadStr: String?, payloadByteArr: Data?, opts: SignOptions) -> [String: Any] in

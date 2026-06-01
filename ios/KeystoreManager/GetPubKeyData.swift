@@ -28,7 +28,7 @@ func getPubKeyData(alias: String) throws -> (rawData: Data, dict: [String: Any])
         kSecClass as String: kSecClassKey,
         kSecAttrApplicationTag as String: tag,
         kSecReturnRef as String: true,
-        kSecReturnAttributes as String: true, // Gets Metadata for the key
+        kSecReturnAttributes as String: true, // Gets Metadata dict for the key
         kSecMatchLimit as String: kSecMatchLimitOne
     ]
     
