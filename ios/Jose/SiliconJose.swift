@@ -113,14 +113,6 @@ struct SiliconJose {
 
     // MARK: - Helpers
 
-    /// Converts raw data to a URL-Safe Base64 String without padding
-    private static func base64URLEncode(_ data: Data) -> String {
-        return data.base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "="))
-    }
-
     /// ASN.1 byte scanner to extract `n` and `e` from an RSA Public Key DER structure.
     private static func extractRSADerComponents(der: Data) -> (n: Data, e: Data)? {
         var index = 0
