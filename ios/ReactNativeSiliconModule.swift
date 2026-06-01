@@ -48,6 +48,18 @@ public class ReactNativeSiliconModule: Module {
             return SiliconKeystoreManager.getKeyInfo(alias: alias).toBridgeMap()
         }
         
+        // ---- Sign/Verify ----
+        
+        AsyncFunction("sign") { (alias: String, payloadStr: String?, payloadByteArr: Data?, opts: SignOptions) -> [String: Any] in
+            // Convert the payload to PayloadType
+            let bridgePayload = BridgePayloadRecord()
+            bridgePayload.text = payloadStr
+            bridgePayload.bytes = payloadByteArr
+            let payload = try bridgePayload.toPayloadType()
+            
+            return try await SiliconSigner.sign(alias: alias, payload: payload, opts: opts).toBridgeMap()
+        }
+        
         // ---- Random Generator ----
         
         AsyncFunction("generateSecureRandomBytes") { (length: Int, format: RandomBytesFormat) -> [String: Any] in
