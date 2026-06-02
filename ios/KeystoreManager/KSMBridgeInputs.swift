@@ -1,6 +1,7 @@
 import ExpoModulesCore
 
-enum KeyPurpose: String, Enumerable {
+// Set to Codable for KeyMetadata
+enum KeyPurpose: String, Enumerable, Codable {
     case SIGN = "SIGN"
     case VERIFY = "VERIFY"
     case ENCRYPT = "ENCRYPT"
@@ -9,7 +10,8 @@ enum KeyPurpose: String, Enumerable {
     case AGREE = "AGREE"
 }
 
-enum AuthPolicy: String, Enumerable {
+// Set to Codable for KeyMetadata
+enum AuthPolicy: String, Enumerable, Codable {
     case BIOMETRICS_ONLY = "BIOMETRICS_ONLY"
     case BIOMETRICS_OR_CREDENTIAL = "BIOMETRICS_OR_CREDENTIAL"
 }
@@ -49,13 +51,15 @@ enum HardwarePolicy: String, Enumerable {
     case SOFTWARE_ONLY = "SOFTWARE_ONLY"
 }
 
-enum KeyDigests: String, Enumerable {
+// Set to Codable for KeyMetadata
+enum KeyDigests: String, Enumerable, Codable {
     case SHA256 = "SHA256"
     case SHA384 = "SHA384"
     case SHA512 = "SHA512"
 }
 
-enum SignaturePaddingAlgorithm: String, Enumerable {
+// Set to Codable for KeyMetadata
+enum SignaturePaddingAlgorithm: String, Enumerable, Codable {
     case PKCS1 = "PKCS1"
     case PSS = "PSS"
 }

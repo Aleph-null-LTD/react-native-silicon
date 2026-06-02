@@ -99,32 +99,17 @@ struct SiliconVerifier {
         }
         
         // Get the key metadata
-        guard let metadata = KeyMetadataStore.get(alias: alias) else {
-            return .failure(code: "VERIFY_FAILED", message: "Key metadata could not be found", nativeStack: nil)
+        guard let metadata = try? KeyMetadataStore.get(alias: alias) else {
+            return .failure(code: "VERIFY_FAILED", message: "Error getting key metadata", nativeStack: nil)
         }
         
         // Ensure the key has the VERIFY purpose
-        guard let purposes = metadata["purposes"] as? [String] else {
-            return .failure(code: "VERIFY_FAILED", message: "Key purposes were invalid", nativeStack: nil)
-        }
-        if !purposes.contains(KeyPurpose.VERIFY.rawValue) {
+        if !metadata.purposes.contains(KeyPurpose.VERIFY) {
             return .failure(code: "INVALID_PURPOSE", message: "Key does not have the VERIFY purpose", nativeStack: nil)
         }
         
-        guard let allowedDigests = metadata["digests"] as? [String] else {
-            return .failure(code: "VERIFY_FAILED", message: "Key purposes were invalid", nativeStack: nil)
-        }
-        
-        // Get the signature padding algorithm if it exists
-        var sigPaddingAlg: SignaturePaddingAlgorithm?
-        if let sigPadAlgStr = metadata["signaturePaddingAlgorithm"] as? String {
-            guard let safeSigPaddingAlg = SignaturePaddingAlgorithm(rawValue: sigPadAlgStr) else {
-                throw SiliconException(
-                    code: "BAD_METADATA",
-                    message: "signaturePaddingAlgorithm could not be converted into enum"
-                )
-            }
-            sigPaddingAlg = safeSigPaddingAlg
+        guard let allowedDigests = metadata.digests else {
+            return .failure(code: "VERIFY_FAILED", message: "Key metadata does not have a digests array", nativeStack: nil)
         }
         
         // Query keychain for the key
@@ -181,23 +166,23 @@ struct SiliconVerifier {
         if let safeAlgorithm = opts.algorithm {
             // Algorithm was explicitly provided
             
-            let digest: String
+            let digest: KeyDigests
             
             if keyType == (kSecAttrKeyTypeECSECPrimeRandom as String) || keyType == (kSecAttrKeyTypeEC as String) {
                 // Ensure it is compatible with the key family
                 switch safeAlgorithm {
                 case .ES256:
-                    digest = "SHA256"
+                    digest = .SHA256
                 case .ES384:
-                    digest = "SHA384"
+                    digest = .SHA384
                 case .ES512:
-                    digest = "SHA512"
+                    digest = .SHA512
                 default:
                     return .failure(code: "INVALID_ALGORITHM_PARAMETER", message: "Cannot use \(safeAlgorithm) with a non-EC key", nativeStack: nil)
                 }
                 
             } else if keyType == (kSecAttrKeyTypeRSA as String) {
-                guard let safeSigPaddingAlg = sigPaddingAlg else {
+                guard let safeSigPaddingAlg = metadata.signaturePaddingAlgorithm else {
                     throw SiliconException(
                         code: "BAD_METADATA",
                         message: "Metadata did not contain signaturePaddingAlgorithm when attempting verify with RSA key"
@@ -213,7 +198,7 @@ struct SiliconVerifier {
                             nativeStack: nil
                         )
                     }
-                    digest = "SHA256"
+                    digest = .SHA256
                 case .RS384:
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
@@ -222,7 +207,7 @@ struct SiliconVerifier {
                             nativeStack: nil
                         )
                     }
-                    digest = "SHA384"
+                    digest = .SHA384
                 case .RS512:
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
@@ -231,7 +216,7 @@ struct SiliconVerifier {
                             nativeStack: nil
                         )
                     }
-                    digest = "SHA512"
+                    digest = .SHA512
                 case .PS256:
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
@@ -240,7 +225,7 @@ struct SiliconVerifier {
                             nativeStack: nil
                         )
                     }
-                    digest = "SHA256"
+                    digest = .SHA256
                 case .PS384:
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
@@ -249,7 +234,7 @@ struct SiliconVerifier {
                             nativeStack: nil
                         )
                     }
-                    digest = "SHA384"
+                    digest = .SHA384
                 case .PS512:
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
@@ -258,7 +243,7 @@ struct SiliconVerifier {
                             nativeStack: nil
                         )
                     }
-                    digest = "SHA512"
+                    digest = .SHA512
                 default:
                     return .failure(code: "INVALID_ALGORITHM_PARAMETER", message: "Cannot use \(safeAlgorithm) with a non-RSA key", nativeStack: nil)
                 }
@@ -286,27 +271,27 @@ struct SiliconVerifier {
             // Algorithm was not provided, so determine the default algorithm based on the key size and family
             
             let attemptAlgorithm: VerifyAlgorithms
-            let digest: String
+            let digest: KeyDigests
             
             if keyType == (kSecAttrKeyTypeECSECPrimeRandom as String) || keyType == (kSecAttrKeyTypeEC as String) {
                 // Key is EC
                 switch keySize {
                 case 256:
                     attemptAlgorithm = .ES256
-                    digest = "SHA256"
+                    digest = .SHA256
                 case 384:
                     attemptAlgorithm = .ES384
-                    digest = "SHA384"
+                    digest = .SHA384
                 case 521:
                     attemptAlgorithm = .ES512
-                    digest = "SHA512"
+                    digest = .SHA512
                 default:
                     return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Verify does not support key size (\(keySize))", nativeStack: nil)
                 }
                 
             } else if keyType == (kSecAttrKeyTypeRSA as String) {
                 // Key is RSA
-                guard let safeSigPaddingAlg = sigPaddingAlg else {
+                guard let safeSigPaddingAlg = metadata.signaturePaddingAlgorithm else {
                     throw SiliconException(
                         code: "BAD_METADATA",
                         message: "Metadata did not contain signaturePaddingAlgorithm when attempting verify with RSA key"
@@ -321,7 +306,7 @@ struct SiliconVerifier {
                     case .PSS:
                         attemptAlgorithm = .PS256
                     }
-                    digest = "SHA256"
+                    digest = .SHA256
                 case 3072:
                     switch safeSigPaddingAlg {
                     case .PKCS1:
@@ -329,7 +314,7 @@ struct SiliconVerifier {
                     case .PSS:
                         attemptAlgorithm = .PS384
                     }
-                    digest = "SHA384"
+                    digest = .SHA384
                 case 4096:
                     switch safeSigPaddingAlg {
                     case .PKCS1:
@@ -337,7 +322,7 @@ struct SiliconVerifier {
                     case .PSS:
                         attemptAlgorithm = .PS512
                     }
-                    digest = "SHA512"
+                    digest = .SHA512
                 default:
                     return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Verify does not support key size (\(keySize))", nativeStack: nil)
                 }

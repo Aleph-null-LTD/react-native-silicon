@@ -75,10 +75,38 @@ enum SiliconKeystoreManager {
                 )
             }
         }
+        
+        // SIGN/VERIFY default values,
+        if opts.purposes.contains(.SIGN) || opts.purposes.contains(.VERIFY) {
+            // if the signature padding alg was not provided, and the key is RSA, Set to the default (PSS)
+            if opts.ios.signaturePaddingAlgorithm == nil {
+                switch opts.ios.algorithm {
+                case .RSA_2048, .RSA_3072, .RSA_4096:
+                    opts.ios.signaturePaddingAlgorithm = .PSS
+                
+                default:
+                    // Do nothing
+                    break
+                }
+            }
+            
+            // If digests were not provided, determine the default based on the algorithm
+            if opts.ios.digests == nil || opts.ios.digests?.count ?? 0 < 1{
+                switch opts.ios.algorithm {
+                case .EC_P256, .RSA_2048:
+                    opts.ios.digests = [.SHA256]
+                case .EC_P384, .RSA_3072:
+                    opts.ios.digests = [.SHA384]
+                case .EC_P521, .RSA_4096:
+                    opts.ios.digests = [.SHA512]
+                }
+            }
+        }
 
         // Store metadata
-        let isMetadataSaved = KeyMetadata.store(alias: alias, opts: opts, isHardwareBacked: useHardware)
-        if !isMetadataSaved {
+        do {
+            try KeyMetadataStore.store(alias: alias, opts: opts, isHardwareBacked: useHardware)
+        } catch {
             return SiliconResult.failure(code: "GENERATE_KEY_FAILED", message: "iOS: Failed to save metadata to keychain", nativeStack: nil)
         }
         
@@ -93,16 +121,15 @@ enum SiliconKeystoreManager {
             switch ret {
             case .failure:
                 // Cleanup metadata
-                _ = KeyMetadata.delete(alias: alias)
+                _ = KeyMetadataStore.delete(alias: alias)
                 return ret
             case .success:
-                // Do Nothing
                 return ret
             }
             
         } catch {
             // Cleanup metadata
-            _ = KeyMetadata.delete(alias: alias)
+            _ = KeyMetadataStore.delete(alias: alias)
             
             // Re-throw
             throw error
@@ -129,7 +156,7 @@ enum SiliconKeystoreManager {
 
         var attestKeyClean = true
 
-        if KeychainHelper.read(key: attestKeyAlias) != nil {
+        if KeychainHelper.readStr(key: attestKeyAlias) != nil {
             // Wipe the ID
             let attestQuery: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
@@ -148,7 +175,7 @@ enum SiliconKeystoreManager {
                              (statusChallenge == errSecSuccess || statusChallenge == errSecItemNotFound)
         }
         
-        let metadataClean = KeyMetadata.delete(alias: alias)
+        let metadataClean = KeyMetadataStore.delete(alias: alias)
         
         let primaryKeyClean = (secKeyStatus == errSecSuccess || secKeyStatus == errSecItemNotFound)
         
@@ -451,12 +478,12 @@ enum SiliconKeystoreManager {
         }
         
         // Retrieve the linked App Attest keyId
-        guard let attestKeyId = KeychainHelper.read(key: "\(alias)_attest_id") else {
+        guard let attestKeyId = KeychainHelper.readStr(key: "\(alias)_attest_id") else {
             return .failure(code: "ATTEST_ID_NOT_FOUND", message: "No App Attest key linked to this alias.", nativeStack: nil)
         }
         
         // Retrieve the stored Challenge
-        guard let storedChallenge = KeychainHelper.read(key: "\(alias)_challenge") else {
+        guard let storedChallenge = KeychainHelper.readStr(key: "\(alias)_challenge") else {
             return .failure(code: "CHALLENGE_NOT_FOUND", message: "No attestation challenge was provided during key generation.", nativeStack: nil)
         }
         
@@ -606,6 +633,20 @@ enum SiliconKeystoreManager {
         
         if let safeCurve = curve {
             infoMap["curve"] = safeCurve
+        }
+        
+        do {
+            let metadata = try KeyMetadataStore.get(alias: alias)
+            
+            infoMap["userAuthValidityDurationSecs"] = metadata.userAuthTimeout
+            infoMap["policy"] = metadata.userAuthPolicy
+            
+        } catch {
+            return .failure(
+                code: "GET_KEY_INFO_FAILED",
+                message: "Failed to read key metadata",
+                nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+            )
         }
         
         return .success(infoMap)

@@ -1,70 +1,103 @@
+struct KeyMetadata: Codable {
+    let purposes: [KeyPurpose]
+    let digests: [KeyDigests]?
+    let signaturePaddingAlgorithm: SignaturePaddingAlgorithm?
+    let isHardwareBacked: Bool
+    let userAuthRequire: Bool
+    let userAuthTimeout: Int
+    let userAuthInvalidateOnEnrollment: Bool
+    let userAuthPolicy: AuthPolicy
+}
 
-struct KeyMetadata {
+struct KeyMetadataStore {
     // Caching layer for faster retrieval
-    private static var cache: [String: [String: Any]] = [:]
+    private static var cache: [String: KeyMetadata] = [:]
     
-    static func store(alias: String, opts: GenerateKeyOptions, isHardwareBacked: Bool) -> Bool {
-        // Extract the raw purpose values
-        var purposeArr: [String] = []
-        for p in opts.purposes {
-            purposeArr.append(p.rawValue)
-        }
+    // Mutex used for protecting the cache from race conditions
+    private static let mutex = NSLock()
+    
+    static func store(alias: String, opts: GenerateKeyOptions, isHardwareBacked: Bool) throws -> Void {
+        mutex.lock()
+        defer { mutex.unlock() }
         
-        // Construct the metadata dict
-        let metadata: [String: Any] = [
-            "purposes": purposeArr,
-            "isHardwareBacked": isHardwareBacked,
-            "userAuth": [
-                "require": opts.userAuth.require,
-                "timeout": opts.userAuth.timeout,
-                "invalidateOnEnrollment": opts.userAuth.invalidateOnEnrollment,
-                "policy": opts.userAuth.policy.rawValue
-            ]
-        ]
-        
-        // Store the metadata as JSON in the keychain
-        if let jsonData = try? JSONSerialization.data(withJSONObject: metadata),
-            let jsonString = String(data: jsonData, encoding: .utf8) {
+        do {
+            let metadata = KeyMetadata(
+                purposes: opts.purposes,
+                digests: opts.ios.digests,
+                signaturePaddingAlgorithm: opts.ios.signaturePaddingAlgorithm,
+                isHardwareBacked: isHardwareBacked,
+                userAuthRequire: opts.userAuth.require,
+                userAuthTimeout: opts.userAuth.timeout,
+                userAuthInvalidateOnEnrollment: opts.userAuth.invalidateOnEnrollment,
+                userAuthPolicy: opts.userAuth.policy
+            )
             
-            let isPurposeSuccess = KeychainHelper.save(key: "\(alias)_metadata", value: jsonString)
-            if !isPurposeSuccess {
-                return false
+            let jsonData = try JSONEncoder().encode(metadata)
+            
+            // Store the metadata as JSON in the keychain
+            let isSaveSuccessful = KeychainHelper.saveData(key: "\(alias)_metadata", data: jsonData)
+            if !isSaveSuccessful {
+                throw SiliconException(code: "KEY_METADATA_ERR", message: "Failed to save key metadate to keychain")
             }
             
             // Store it in the cache
             cache[alias] = metadata
+            
+        } catch let error as SiliconException {
+            throw error
+            
+        } catch {
+            throw SiliconException(
+                code: "KEY_METADATA_ERR",
+                message: "Failed to encode metadata JSON",
+                cause: error
+            )
+            
         }
-        
-        return true
     }
     
     static func delete(alias: String) -> Bool {
+        mutex.lock()
+        defer { mutex.unlock() }
+        
         // If it has been cached, delete it
-        if let i = cache.index(forKey: alias) {
-            cache.remove(at: i)
-        }
+        cache[alias] = nil
         
         // Delete it from the keychain
         let isDeleted = KeychainHelper.delete(key: "\(alias)_metadata")
         return isDeleted
     }
     
-    static func get(alias: String) -> [String: Any]? {
+    static func get(alias: String) throws -> KeyMetadata {
+        mutex.lock()
+        defer { mutex.unlock() }
+        
         // If cached, return it straight away
         if let cached = cache[alias] {
             return cached
         }
         
         // If not cached, read it from keychain and parse the JSON
-        if let jsonString = KeychainHelper.read(key: "\(alias)_metadata"),
-           let jsonData = jsonString.data(using: .utf8),
-           let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+        guard let jsonData = KeychainHelper.readData(key: "\(alias)_metadata") else {
+            throw SiliconException(
+                code: "KEY_METADATA_ERR",
+                message: "Failed to read key metadata from keychain"
+            )
+        }
+        
+        do {
+            let parsed = try JSONDecoder().decode(KeyMetadata.self, from: jsonData)
             
             // Store it in the cache
             cache[alias] = parsed
             return parsed
+        } catch {
+            throw SiliconException(
+                code: "KEY_METADATA_ERR",
+                message: "Failed to decode metadata JSON",
+                cause: error
+            )
         }
-        
-        return nil
+            
     }
 }

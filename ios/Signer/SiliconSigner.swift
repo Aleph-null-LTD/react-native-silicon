@@ -9,21 +9,14 @@ struct SiliconSigner {
         }
         
         // Get the key metadata
-        guard let metadata = KeyMetadata.get(alias: alias) else {
+        guard let metadata = try? KeyMetadataStore.get(alias: alias) else {
             throw SiliconException(
-                code: "BAD_METADATA",
-                message: "iOS: Key metadata was null"
+                code: "SIGN_FAILED",
+                message: "iOS: Failed to read key metadata"
             )
         }
         
-        guard let purposes = metadata["purposes"] as? [String] else {
-            throw SiliconException(
-                code: "BAD_METADATA",
-                message: "iOS: Key metadata.purposes had an unexpected type: got \(String(describing: type(of: metadata["userAuth"]))) expected [String]"
-            )
-        }
-        
-        if !purposes.contains(KeyPurpose.SIGN.rawValue) {
+        if !metadata.purposes.contains(KeyPurpose.SIGN) {
             return .failure(
                 code: "DISALLOWED_PURPOSE",
                 message: "iOS: Key does not have the SIGN purpose",
@@ -31,39 +24,13 @@ struct SiliconSigner {
             )
         }
         
-        guard let userAuth = metadata["userAuth"] as? [String: Any] else {
-            throw SiliconException(
-                code: "BAD_METADATA",
-                message: "iOS: Key metadata.userAuth had an unexpected type: got \(String(describing: type(of: metadata["userAuth"]))) expected [String: Any]"
-            )
-        }
-        
-        // Get the timeout and cast it to Double (required for touchIDAuthenticationAllowableReuseDuration)
-        guard let timeoutInt = userAuth["timeout"] as? Int else {
-            throw SiliconException(
-                code: "BAD_METADATA",
-                message: "iOS: Key metadata.userAuth.timeout had an unexpected type: got \(String(describing: type(of: userAuth["timeout"]))) expected Int"
-            )
-        }
-        let timeoutSecs = Double(timeoutInt)
-        
-        guard let authPolicy = userAuth["policy"] as? String else {
-            throw SiliconException(
-                code: "BAD_METADATA",
-                message: "iOS: Key metadata.userAuth.policy had an unexpected type: got \(String(describing: type(of: userAuth["timeout"]))) expected String"
-            )
-        }
+        // Get the timeout and cast it to Double
+        let timeoutSecs = Double(metadata.userAuthTimeout)
         
         var allowsPasscode: Bool
-        if (authPolicy == AuthPolicy.BIOMETRICS_ONLY.rawValue) {
-            allowsPasscode = false
-        } else if (authPolicy == AuthPolicy.BIOMETRICS_OR_CREDENTIAL.rawValue) {
-            allowsPasscode = true
-        } else {
-            throw SiliconException(
-                code: "BAD_METADATA",
-                message: "iOS: Key metadata.userAuth.policy had an unexpected value: got \(authPolicy)"
-            )
+        switch metadata.userAuthPolicy {
+        case .BIOMETRICS_ONLY: allowsPasscode = false
+        case .BIOMETRICS_OR_CREDENTIAL: allowsPasscode = true
         }
         
         // Get the Context
@@ -121,9 +88,11 @@ struct SiliconSigner {
         if keyType == (kSecAttrKeyTypeECSECPrimeRandom as String) || keyType == (kSecAttrKeyTypeEC as String) {
             algorithm = .ecdsaSignatureMessageX962SHA256
             isEC = true
+            
         } else if keyType == (kSecAttrKeyTypeRSA as String) {
             algorithm = .rsaSignatureMessagePKCS1v15SHA256
             isEC = false
+            
         } else {
             return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Unsupported key type.", nativeStack: nil)
         }
