@@ -172,10 +172,10 @@ enum GenerateKey {
             }
             
             // Persist the alias -> keyId map locally so attestKey can find it
-            KeychainHelper.save(key: "\(alias)_attest_id", value: keyId)
+            KeychainHelper.saveStr(key: "\(alias)_attest_id", value: keyId)
             
             // Persist the alias -> challenge map locally so attestKey can find it
-            KeychainHelper.save(key: "\(alias)_challenge", value: challenge)
+            KeychainHelper.saveStr(key: "\(alias)_challenge", value: challenge)
         }
         
         // TODO: for symmetric keys we will skip the pubkey formatting and return nil
