@@ -36,6 +36,11 @@ enum PubKeyFormat: String, Enumerable {
 
 enum KeyAlgorithm: String, Enumerable {
     case EC_P256 = "EC_P256"
+    case EC_P384 = "EC_P384"
+    case EC_P521 = "EC_P521"
+    case RSA_2048 = "RSA_2048"
+    case RSA_3072 = "RSA_3072"
+    case RSA_4096 = "RSA_4096"
 }
 
 enum HardwarePolicy: String, Enumerable {
@@ -44,9 +49,26 @@ enum HardwarePolicy: String, Enumerable {
     case SOFTWARE_ONLY = "SOFTWARE_ONLY"
 }
 
+enum KeyDigests: String, Enumerable {
+    case SHA256 = "SHA256"
+    case SHA384 = "SHA384"
+    case SHA512 = "SHA512"
+}
+
+enum SignaturePaddingAlgorithm: String, Enumerable {
+    case PKCS1 = "PKCS1"
+    case PSS = "PSS"
+}
+
 struct IosOptions: Record {
     @Field
     var algorithm: KeyAlgorithm = .EC_P256
+    
+    @Field
+    var digests: [KeyDigests]? = nil
+    
+    @Field
+    var signaturePaddingAlgorithm: SignaturePaddingAlgorithm? = nil
     
     @Field
     var hardwarePolicy: HardwarePolicy = .REQUIRE_SECURE_ENCLAVE

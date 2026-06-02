@@ -10,6 +10,8 @@ public class ReactNativeSiliconModule: Module {
         // The module will be accessible from `requireNativeModule('ReactNativeSilicon')` in JavaScript.
         Name("ReactNativeSilicon")
 
+        // ---- Device ----
+        
         AsyncFunction("getCapabilities") { () -> [String: Any] in
             return SiliconDevice.getCapabilities().toBridgeMap()
         }
