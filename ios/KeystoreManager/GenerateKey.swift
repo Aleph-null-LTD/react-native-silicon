@@ -1,8 +1,7 @@
 import DeviceCheck
 
-// TODO: Anywhere where a failure is returned after the key has been generated, we need to cleanup and delete the key and any related attest stuff in the Keychain
-
 enum GenerateKey {
+    // MARK: - Hardware Keys
     static func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) throws -> SiliconResult<String?> {
         // Initialize Core Generation Parameters
         var attributes: [String: Any] = [
@@ -21,8 +20,6 @@ enum GenerateKey {
             // Set label so we can determine hardware/software keys
             //kSecAttrLabel as String: "hardware" // NOTE: Removed due to error
         ]
-        
-        var publicKeyAttrs: [String: Any] = [:]
         
         // -- User Authentication --
         
@@ -52,8 +49,6 @@ enum GenerateKey {
                     flags.insert(.or)
                 }
             }
-            
-            // TODO: Implement auth timeouts here
         }
         
         var error: Unmanaged<CFError>?
@@ -69,52 +64,11 @@ enum GenerateKey {
         
         privateKeyAttrs[kSecAttrAccessControl as String] = accessControl
         
-        // -- Purposes --
-        
-        // Default all purposes to false
-        // TODO: When writing software backup, do these default to true or false?
-        //privateKeyAttrs[kSecAttrCanSign as String] = false
-        //publicKeyAttrs[kSecAttrCanVerify as String] = false
-        
-        //publicKeyAttrs[kSecAttrCanEncrypt as String] = false
-        //privateKeyAttrs[kSecAttrCanDecrypt as String] = false
-        
-        //privateKeyAttrs[kSecAttrCanDerive as String] = false
-        
         // Secure Enclave is hardcoded to ["SIGN", "AGREE"]
         privateKeyAttrs[kSecAttrCanSign as String] = true
         privateKeyAttrs[kSecAttrCanDerive as String] = true
         
-        // Set the defined purposes to true
-        for purpose in opts.purposes {
-            switch purpose {
-            case KeyPurpose.SIGN:
-                privateKeyAttrs[kSecAttrCanSign as String] = true
-                
-            case KeyPurpose.VERIFY:
-                publicKeyAttrs[kSecAttrCanVerify as String] = true
-                
-            case KeyPurpose.ENCRYPT:
-                // TODO: ENCRYPT/DECRYPT needs to use ECIES
-                publicKeyAttrs[kSecAttrCanEncrypt as String] = true
-                
-            case KeyPurpose.DECRYPT:
-                privateKeyAttrs[kSecAttrCanDecrypt as String] = true
-                
-            case KeyPurpose.AGREE:
-                privateKeyAttrs[kSecAttrCanDerive as String] = true
-                
-            case KeyPurpose.WRAP:
-                // TODO: Implement WRAP (possibly using ECIES)
-                throw SiliconException(code: "NOT_IMPLEMENTED", message: "The WRAP purpose is not yet implemented for iOS")
-            }
-        }
-        
         attributes[kSecPrivateKeyAttrs as String] = privateKeyAttrs
-        
-        if !publicKeyAttrs.isEmpty {
-            //attributes[kSecPublicKeyAttrs as String] = publicKeyAttrs
-        }
         
         // Execute Key Generation
         var genError: Unmanaged<CFError>?
@@ -122,8 +76,6 @@ enum GenerateKey {
             let err = genError?.takeRetainedValue()
             return .failure(code: "KEY_GENERATION_FAILED", message: err?.localizedDescription ?? "Unknown generation error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
         }
-        
-        // TODO: If SecKey generation succeeds, but attest key generation fails, we need to delete the SecKey to clean up and then return a failure
         
         // Create the attest key if a challenge was provided
         // on iOS we cannot use a single key for both SIGN/VERIFY and ATTEST, so we create a 2nd key for attestation and link them using the keychain
@@ -172,10 +124,175 @@ enum GenerateKey {
             }
             
             // Persist the alias -> keyId map locally so attestKey can find it
-            KeychainHelper.saveStr(key: "\(alias)_attest_id", value: keyId)
+            let isAttestIdStored = KeychainHelper.saveStr(key: "\(alias)_attest_id", value: keyId)
+            if !isAttestIdStored {
+                cleanupSecKey()
+                return .failure(
+                    code: "KEY_GENERATION_FAILED",
+                    message: "Failed to store key identifier in keychain",
+                    nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+                )
+            }
             
             // Persist the alias -> challenge map locally so attestKey can find it
-            KeychainHelper.saveStr(key: "\(alias)_challenge", value: challenge)
+            let isAttestChallengeStored = KeychainHelper.saveStr(key: "\(alias)_challenge", value: challenge)
+            if !isAttestChallengeStored {
+                _ = KeychainHelper.delete(key: "\(alias)_attest_id")
+                cleanupSecKey()
+                return .failure(
+                    code: "KEY_GENERATION_FAILED",
+                    message: "Failed to store key identifier in keychain",
+                    nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+                )
+            }
+        }
+        
+        return formatPubkey(privateKey: privateKey, opts: opts)
+    }
+    
+    // MARK: - Software Keys
+    static func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) throws -> SiliconResult<String?> {
+        var keyType: String
+        var keySize: Int
+        
+        switch opts.ios.algorithm {
+        case .EC_P256:
+            keyType = kSecAttrKeyTypeECSECPrimeRandom as String
+            keySize = 256
+        case .EC_P384:
+            keyType = kSecAttrKeyTypeECSECPrimeRandom as String
+            keySize = 384
+        case .EC_P521:
+            keyType = kSecAttrKeyTypeECSECPrimeRandom as String
+            keySize = 521
+        case .RSA_2048:
+            keyType = kSecAttrKeyTypeRSA as String
+            keySize = 2048
+        case .RSA_3072:
+            keyType = kSecAttrKeyTypeRSA as String
+            keySize = 3072
+        case .RSA_4096:
+            keyType = kSecAttrKeyTypeRSA as String
+            keySize = 4096
+        }
+        
+        // Initialize Core Generation Parameters
+        var attributes: [String: Any] = [
+            kSecAttrKeyType as String: keyType,
+            kSecAttrKeySizeInBits as String: keySize
+        ]
+        
+        var privateKeyAttrs: [String: Any] = [
+            kSecAttrApplicationTag as String: tag,
+            kSecAttrIsPermanent as String: true,
+            
+            // Block icloud backups for this key
+            //kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            
+            // Set label so we can determine hardware/software keys
+            //kSecAttrLabel as String: "software" // NOTE: Removed due to error
+        ]
+        
+        var publicKeyAttrs: [String: Any] = [:]
+        
+        // -- User Authentication --
+        
+        
+        
+        if opts.userAuth.require {
+            var flags: SecAccessControlCreateFlags = []
+            
+            switch opts.userAuth.policy {
+            case .BIOMETRICS_ONLY:
+                if opts.userAuth.invalidateOnEnrollment {
+                    // Invalidate when new biometrics are added
+                    flags.insert(.biometryCurrentSet)
+                } else {
+                    // Do not invalidate when new biometrics are added
+                    flags.insert(.biometryAny)
+                }
+            case .BIOMETRICS_OR_CREDENTIAL:
+                // Allow device Passcode fallback
+                if opts.userAuth.invalidateOnEnrollment {
+                    // Invalidate when new biometrics are added
+                    flags.insert(.biometryCurrentSet)
+                    flags.insert(.devicePasscode)
+                    flags.insert(.or)
+                } else {
+                    // Do not invalidate when new biometrics are added
+                    flags.insert(.biometryAny)
+                    flags.insert(.devicePasscode)
+                    flags.insert(.or)
+                }
+            }
+            
+            var error: Unmanaged<CFError>?
+            guard let accessControl = SecAccessControlCreateWithFlags(
+                kCFAllocatorDefault,
+                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, // Cannot leave this physical device via iCloud backups
+                flags,
+                &error
+            ) else {
+                let cfErr = error?.takeRetainedValue()
+                return .failure(code: "KEY_GENERATION_FAILED", message: cfErr?.localizedDescription ?? "Unknown error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
+            }
+            
+            privateKeyAttrs[kSecAttrAccessControl as String] = accessControl
+            
+        } else {
+            privateKeyAttrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        }
+        
+        // -- Purposes --
+        
+        // Default all purposes to false
+        privateKeyAttrs[kSecAttrCanSign as String] = false
+        privateKeyAttrs[kSecAttrCanVerify as String] = false
+        publicKeyAttrs[kSecAttrCanSign as String] = false
+        publicKeyAttrs[kSecAttrCanVerify as String] = false
+        
+        privateKeyAttrs[kSecAttrCanEncrypt as String] = false
+        privateKeyAttrs[kSecAttrCanDecrypt as String] = false
+        publicKeyAttrs[kSecAttrCanEncrypt as String] = false
+        publicKeyAttrs[kSecAttrCanDecrypt as String] = false
+        
+        privateKeyAttrs[kSecAttrCanDerive as String] = false
+        publicKeyAttrs[kSecAttrCanDerive as String] = false
+        
+        privateKeyAttrs[kSecAttrCanUnwrap as String] = false
+        privateKeyAttrs[kSecAttrCanWrap as String] = false
+        publicKeyAttrs[kSecAttrCanUnwrap as String] = false
+        publicKeyAttrs[kSecAttrCanWrap as String] = false
+        
+        
+        // Set the defined purposes to true
+        for purpose in opts.purposes {
+            switch purpose {
+            case KeyPurpose.SIGN:
+                privateKeyAttrs[kSecAttrCanSign as String] = true
+            case KeyPurpose.VERIFY:
+                publicKeyAttrs[kSecAttrCanVerify as String] = true
+            case KeyPurpose.ENCRYPT:
+                publicKeyAttrs[kSecAttrCanEncrypt as String] = true
+            case KeyPurpose.DECRYPT:
+                privateKeyAttrs[kSecAttrCanDecrypt as String] = true
+            case KeyPurpose.AGREE:
+                privateKeyAttrs[kSecAttrCanDerive as String] = true
+                publicKeyAttrs[kSecAttrCanDerive as String] = true
+            case KeyPurpose.WRAP:
+                throw SiliconException(code: "NOT_IMPLEMENTED", message: "The WRAP purpose is not yet implemented for iOS")
+                // publicKeyAttrs[kSecAttrCanWrap as String] = true
+            }
+        }
+        
+        attributes[kSecPrivateKeyAttrs as String] = privateKeyAttrs
+        attributes[kSecPublicKeyAttrs as String] = publicKeyAttrs
+        
+        // Execute Key Generation
+        var genError: Unmanaged<CFError>?
+        guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &genError) else {
+            let err = genError?.takeRetainedValue()
+            return .failure(code: "KEY_GENERATION_FAILED", message: err?.localizedDescription ?? "Unknown generation error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
         }
         
         // TODO: for symmetric keys we will skip the pubkey formatting and return nil
@@ -183,14 +300,7 @@ enum GenerateKey {
         return formatPubkey(privateKey: privateKey, opts: opts)
     }
     
-    static func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) throws -> SiliconResult<String?> {
-        // TODO: Implement this
-        
-        throw SiliconException(code: "NOT_IMPLEMENTED", message: "Software key fallback is not implemented")
-        
-        
-    }
-    
+    // MARK: - Helpers
     private static func formatPubkey(privateKey: SecKey, opts: GenerateKeyOptions) -> SiliconResult<String?> {
         // Extract the attributes from the SecKey
         guard let attributes = SecKeyCopyAttributes(privateKey) as? [String: Any] else {

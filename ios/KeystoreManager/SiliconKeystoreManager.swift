@@ -60,23 +60,22 @@ enum SiliconKeystoreManager {
             if opts.purposes.contains(.WRAP) {
                 return .failure(
                     code: "UNSUPPORTED_PURPOSE",
-                    message: "The Apple Secure Enclave does not support direct ENCRYPT, DECRYPT, or WRAP operations. It only supports SIGN, VERIFY, and AGREE. To use them, change your hardware policy to \"SOFTWARE_ONLY\".",
+                    message: "iOS: Secure Enclave does not support WRAP operations. To use it, change your hardware policy to \(HardwarePolicy.SOFTWARE_ONLY.rawValue).",
                     nativeStack: nil
                 )
             }
             
-            // ALL hardware backed keys must be EC_P256
-            // if key algorithm is not ES256 - return failure
+            // ALL Secure Enclave keys must be EC_P256
             if opts.ios.algorithm != KeyAlgorithm.EC_P256 {
                 return .failure(
                     code: "UNSUPPORTED_KEY_FAMILY",
-                    message: "The Apple Secure Enclave does not support algorithm \"\(opts.ios.algorithm)\". Change the algorithm to \"ES256\" for hardware-backed cryptography.",
+                    message: "iOS: Secure Enclave does not support algorithm \"\(opts.ios.algorithm)\". Change the algorithm to \(KeyAlgorithm.EC_P256.rawValue) for hardware-backed cryptography, or change your hardware policy to \(HardwarePolicy.SOFTWARE_ONLY.rawValue).",
                     nativeStack: nil
                 )
             }
         }
         
-        // SIGN/VERIFY default values,
+        // SIGN/VERIFY specific
         if opts.purposes.contains(.SIGN) || opts.purposes.contains(.VERIFY) {
             // if the signature padding alg was not provided, and the key is RSA, Set to the default (PSS)
             if opts.ios.signaturePaddingAlgorithm == nil {
@@ -100,6 +99,55 @@ enum SiliconKeystoreManager {
                 case .EC_P521, .RSA_4096:
                     opts.ios.digests = [.SHA512]
                 }
+            }
+            
+            guard let allowedDigests = opts.ios.digests else {
+                throw SiliconException(
+                    code: "INVALID_DIGESTS",
+                    message: "Silicon Error: iOS: opts.ios.digests was nil after default value was set"
+                )
+            }
+            
+            var isEC = false
+            
+            switch opts.ios.algorithm {
+            case .EC_P256:
+                if !allowedDigests.contains(KeyDigests.SHA256) {
+                    return .failure(
+                        code: "INVALID_PARAMETER",
+                        message: "iOS: EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA256.rawValue) for \(KeyAlgorithm.EC_P256.rawValue) keys",
+                        nativeStack: nil
+                    )
+                }
+                isEC = true
+            case .EC_P384:
+                if !allowedDigests.contains(KeyDigests.SHA256) {
+                    return .failure(
+                        code: "INVALID_PARAMETER",
+                        message: "iOS: EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA384.rawValue) for \(KeyAlgorithm.EC_P384.rawValue) keys",
+                        nativeStack: nil
+                    )
+                }
+                isEC = true
+            case .EC_P521:
+                if !allowedDigests.contains(KeyDigests.SHA256) {
+                    return .failure(
+                        code: "INVALID_PARAMETER",
+                        message: "iOS: EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA512.rawValue) for \(KeyAlgorithm.EC_P521.rawValue) keys",
+                        nativeStack: nil
+                    )
+                }
+                isEC = true
+            default:
+                break
+            }
+            
+            if isEC && allowedDigests.count > 1 {
+                return .failure(
+                    code: "INVALID_PARAMETER",
+                    message: "iOS: EC keys cannot be used for signing with multiple digests. Use the digest that matches the key size.",
+                    nativeStack: nil
+                )
             }
         }
 
