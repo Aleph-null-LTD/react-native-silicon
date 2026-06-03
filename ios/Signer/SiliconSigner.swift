@@ -282,15 +282,21 @@ struct SiliconSigner {
             return .failure(code: "SIGNING_FAILED", message: err?.localizedDescription ?? "Unknown signing error", nativeStack: nil)
         }
         
-        // Transcode DER to P1363 (Flat Array) for EC Keys
+        
         var finalSignature = signatureData
-        if opts.format == .P1363 && isEC {
-            do {
-                // e.g., 256 bits / 8 = 32 bytes per coordinate
-                let targetCoordSize = (keySize + 7) / 8
-                finalSignature = try transcodeDerToP1363(derSignature: signatureData, targetSize: targetCoordSize)
-            } catch {
-                return .failure(code: "TRANSCODING_FAILED", message: "Failed to align signature coordinates.", nativeStack: nil)
+        
+        if isEC {
+            if opts.format == .P1363 {
+                // Transcode DER to P1363
+                do {
+                    // e.g., 256 bits / 8 = 32 bytes per coordinate
+                    let targetCoordSize = (keySize + 7) / 8
+                    finalSignature = try transcodeDerToP1363(derSignature: signatureData, targetSize: targetCoordSize)
+                } catch {
+                    return .failure(code: "TRANSCODING_FAILED", message: "Failed to align signature coordinates.", nativeStack: nil)
+                }
+            } else if opts.format == .DER {
+                // Do nothing (signature is already DER)
             }
         }
         
