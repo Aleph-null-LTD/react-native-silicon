@@ -69,7 +69,7 @@ enum SiliconKeystoreManager {
             if opts.ios.algorithm != KeyAlgorithm.EC_P256 {
                 return .failure(
                     code: "UNSUPPORTED_KEY_FAMILY",
-                    message: "iOS: Secure Enclave does not support algorithm \"\(opts.ios.algorithm)\". Change the algorithm to \(KeyAlgorithm.EC_P256.rawValue) for hardware-backed cryptography, or change your hardware policy to \(HardwarePolicy.SOFTWARE_ONLY.rawValue).",
+                    message: "iOS: Secure Enclave does not support algorithm \(opts.ios.algorithm). Change the algorithm to \(KeyAlgorithm.EC_P256.rawValue) for hardware-backed cryptography, or change your hardware policy to \(HardwarePolicy.SOFTWARE_ONLY.rawValue).",
                     nativeStack: nil
                 )
             }
@@ -121,7 +121,7 @@ enum SiliconKeystoreManager {
                 }
                 isEC = true
             case .EC_P384:
-                if !allowedDigests.contains(KeyDigests.SHA256) {
+                if !allowedDigests.contains(KeyDigests.SHA384) {
                     return .failure(
                         code: "INVALID_PARAMETER",
                         message: "iOS: EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA384.rawValue) for \(KeyAlgorithm.EC_P384.rawValue) keys",
@@ -130,7 +130,7 @@ enum SiliconKeystoreManager {
                 }
                 isEC = true
             case .EC_P521:
-                if !allowedDigests.contains(KeyDigests.SHA256) {
+                if !allowedDigests.contains(KeyDigests.SHA512) {
                     return .failure(
                         code: "INVALID_PARAMETER",
                         message: "iOS: EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA512.rawValue) for \(KeyAlgorithm.EC_P521.rawValue) keys",
@@ -643,7 +643,7 @@ enum SiliconKeystoreManager {
             else if keySize == 384 { curve = "P-384" }
             else if keySize == 521 { curve = "P-521" }
         } else if keyType == (kSecAttrKeyTypeRSA as String) {
-            algorithm = "RS"
+            algorithm = "RSA"
         }/* else if keyType == (kSecAttrKeyTypeSymmetric as String) { // TODO: Implement this
             algorithm = "SYMMETRIC"
         }*/
