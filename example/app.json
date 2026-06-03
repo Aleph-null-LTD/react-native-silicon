@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "co.alephnull.reactnative.silicon.example"
+      "bundleIdentifier": "co.alephnull.reactnative.silicon.example",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Allow $(PRODUCT_NAME) to use Face ID to securely generate and access cryptographic keys."
+      }
     },
     "android": {
       "adaptiveIcon": {
