@@ -46,24 +46,24 @@ struct SiliconVerifier {
         }
         
         guard let signatureData = Data(base64Encoded: signatureB64) else {
-            return .failure(code: "INVALID_SIG_B64", message: "Could not decode signature", nativeStack: nil)
-        }
-        
-        // Ensure DER Formatting
-        let derSignature: Data
-        do {
-            derSignature = try ensureDerSignature(signatureData: signatureData)
-        } catch {
-            return .failure(code: "MALFORMED_SIGNATURE", message: error.localizedDescription, nativeStack: nil)
+            return .failure(code: "INVALID_SIGNATURE", message: "Could not decode signature", nativeStack: nil)
         }
         
         // Determine the SecKey algorithm
         var secKeyAlg: SecKeyAlgorithm
+        var isEC = false
+        
         switch algorithm {
         // Elliptic Curve DSA (ECDSA)
-        case .ES256: secKeyAlg = SecKeyAlgorithm.ecdsaSignatureMessageX962SHA256
-        case .ES384: secKeyAlg = SecKeyAlgorithm.ecdsaSignatureMessageX962SHA384
-        case .ES512: secKeyAlg = SecKeyAlgorithm.ecdsaSignatureMessageX962SHA512
+        case .ES256:
+            secKeyAlg = SecKeyAlgorithm.ecdsaSignatureMessageX962SHA256
+            isEC = true
+        case .ES384:
+            secKeyAlg = SecKeyAlgorithm.ecdsaSignatureMessageX962SHA384
+            isEC = true
+        case .ES512:
+            secKeyAlg = SecKeyAlgorithm.ecdsaSignatureMessageX962SHA512
+            isEC = true
         
         // RSA PKCS#1 v1.5
         case .RS256: secKeyAlg = SecKeyAlgorithm.rsaSignatureMessagePKCS1v15SHA256
@@ -76,13 +76,26 @@ struct SiliconVerifier {
         case .PS512: secKeyAlg = SecKeyAlgorithm.rsaSignatureMessagePSSSHA512
         }
         
+        var finalSignature: Data
+        
+        // Ensure DER formatting for EC keys
+        if isEC {
+            do {
+                finalSignature = try ensureDerSignature(signatureData: signatureData, algorithm: algorithm)
+            } catch {
+                return .failure(code: "MALFORMED_SIGNATURE", message: error.localizedDescription, nativeStack: nil)
+            }
+        } else {
+            finalSignature = signatureData
+        }
+        
         // Hardware/OS Verification
         var verifyError: Unmanaged<CFError>?
         let isValid = SecKeyVerifySignature(
             publicKey,
             secKeyAlg,
             payloadData as CFData,
-            derSignature as CFData,
+            finalSignature as CFData,
             &verifyError
         )
         
@@ -215,7 +228,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
                             code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(safeSigPaddingAlg.rawValue) padding with key (\(alias)). Please use \(SignaturePaddingAlgorithm.PKCS1.rawValue)",
+                            message: "Cannot use \(SignaturePaddingAlgorithm.PKCS1.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
                             nativeStack: nil
                         )
                     }
@@ -224,7 +237,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
                             code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(safeSigPaddingAlg.rawValue) padding with key (\(alias)). Please use \(SignaturePaddingAlgorithm.PKCS1.rawValue)",
+                            message: "Cannot use \(SignaturePaddingAlgorithm.PKCS1.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
                             nativeStack: nil
                         )
                     }
@@ -233,7 +246,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
                             code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(safeSigPaddingAlg.rawValue) padding with key (\(alias)). Please use \(SignaturePaddingAlgorithm.PKCS1.rawValue)",
+                            message: "Cannot use \(SignaturePaddingAlgorithm.PKCS1.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
                             nativeStack: nil
                         )
                     }
@@ -242,7 +255,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
                             code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(safeSigPaddingAlg.rawValue) padding with key (\(alias)). Please use \(SignaturePaddingAlgorithm.PSS.rawValue)",
+                            message: "Cannot use \(SignaturePaddingAlgorithm.PSS.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
                             nativeStack: nil
                         )
                     }
@@ -251,7 +264,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
                             code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(safeSigPaddingAlg.rawValue) padding with key (\(alias)). Please use \(SignaturePaddingAlgorithm.PSS.rawValue)",
+                            message: "Cannot use \(SignaturePaddingAlgorithm.PSS.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
                             nativeStack: nil
                         )
                     }
@@ -260,7 +273,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
                             code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(safeSigPaddingAlg.rawValue) padding with key (\(alias)). Please use \(SignaturePaddingAlgorithm.PSS.rawValue)",
+                            message: "Cannot use \(SignaturePaddingAlgorithm.PSS.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
                             nativeStack: nil
                         )
                     }
@@ -429,10 +442,25 @@ struct SiliconVerifier {
     // MARK: - ASN.1 DER Transcoder
     
     // Evaluates EC signatures and converts raw IEEE P1363 arrays into standard ASN.1 DER sequences.
-    private static func ensureDerSignature(signatureData: Data) throws -> Data {
-        let isRawP1363 = signatureData.count == 64 // Assuming ES256 P1363 flat array
+    private static func ensureDerSignature(signatureData: Data, algorithm: VerifyAlgorithms) throws -> Data {
+        var expectedP1363DataCount: Int
+        
+        switch algorithm {
+        case .ES256: expectedP1363DataCount = 64 // 256 / 8 * 2 = 64 Bytes
+        case .ES384: expectedP1363DataCount = 96 // 384 / 8 * 2 = 96 Bytes
+        case .ES512: expectedP1363DataCount = 132 // 521 / 8 = 65.125, round up to 66 * 2 = 132 Bytes
+        default:
+            throw SiliconException(
+                code: "INTERNAL_ERROR",
+                message: "Silicon Error: iOS: verify: unexpected algorithm (\(algorithm.rawValue)) when attempting to ensure ASN.1 DER signature"
+            )
+        }
+        
+        // If the signature matches the exact data count, it is P1363, else DER
+        let isRawP1363 = signatureData.count == expectedP1363DataCount
         
         if !isRawP1363 {
+            // Signature should already be DER
             guard signatureData.first == 0x30 else {
                 throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "Signature did not start with DER Sequence tag (0x30)"])
             }
