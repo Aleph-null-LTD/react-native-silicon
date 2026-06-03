@@ -27,12 +27,24 @@ export const keyPurposeFamilies = {
 
 // Digests
 export const keyDigests = {
-    SHA256: 'SHA256'
+    SHA256: 'SHA256',
+    SHA384: 'SHA384',
+    SHA512: 'SHA512'
 } as const;
 
 const keyDigestSet: ReadonlySet<keyof typeof keyDigests> = new Set(Object.values(keyDigests));
 
 export const isKeyDigest = createInSetGuard(keyDigestSet);
+
+// RSA Paddings
+export const signaturePaddingAlgorithms = {
+    PKCS1: 'PKCS1',
+    PSS: 'PSS'
+} as const;
+
+const signaturePaddingAlgorithmsSet: ReadonlySet<keyof typeof signaturePaddingAlgorithms> = new Set(Object.values(signaturePaddingAlgorithms));
+
+export const isSignaturePaddingAlgorithm = createInSetGuard(signaturePaddingAlgorithmsSet);
 
 // User Auth Policies
 export const userAuthPolicies = {
@@ -57,11 +69,13 @@ export const isPubkeyFormat = createInSetGuard(pubkeyFormatSet);
 
 // Android algorithms
 export const androidAlgorithms = {
-    ES256: 'ES256'
+    EC_P256: 'EC_P256'
     /*
-    ES512: 'ES512',
-    ES512: 'ES512',
-    RS256: 'RS256',
+    EC_P384: 'EC_P384',
+    EC_P521: 'EC_P521',
+    RSA_2048: 'RSA_2048', 
+    RSA_3072: 'RSA_3072',
+    RSA_4096: 'RSA_4096',
     MLDSA65: 'MLDSA65',
     MLDSA87: 'MLDSA87'
     */
@@ -87,7 +101,12 @@ export const isAndroidHardwarePolicy = createInSetGuard(androidHardwarePolicySet
 
 // iOS algorithms
 export const iosAlgorithms = {
-    ES256: 'ES256'
+    EC_P256: 'EC_P256',
+    EC_P384: 'EC_P384',
+    EC_P521: 'EC_P521',
+    RSA_2048: 'RSA_2048', 
+    RSA_3072: 'RSA_3072',
+    RSA_4096: 'RSA_4096'
 } as const;
 
 const iosAlgorithmSet: ReadonlySet<keyof typeof iosAlgorithms> = new Set(Object.values(iosAlgorithms));
@@ -97,8 +116,8 @@ export const isIosAlgorithm = createInSetGuard(iosAlgorithmSet);
 // iOS hardware policies
 export const iosHardwarePolicies = {
     REQUIRE_SECURE_ENCLAVE: 'REQUIRE_SECURE_ENCLAVE',
-    //PREFER_SECURE_ENCLAVE: 'PREFER_SECURE_ENCLAVE',
-    //SOFTWARE_ONLY: 'SOFTWARE_ONLY'
+    PREFER_SECURE_ENCLAVE: 'PREFER_SECURE_ENCLAVE',
+    SOFTWARE_ONLY: 'SOFTWARE_ONLY'
 } as const;
 
 const iosHardwarePolicySet: ReadonlySet<keyof typeof iosHardwarePolicies> = new Set(Object.values(iosHardwarePolicies));

@@ -41,12 +41,14 @@ export type InternalVerifyOpts = {
     /**
      * The algorithm to use for the verification
      */
-    algorithm: VerifyAlgorithms
+    algorithm?: VerifyAlgorithms
 };
 
 export type ExternalVerifyOpts = {
     /**
-     * The pubkey to verify the signature against
+     * The X.509 pubkey to verify the signature against
+     * 
+     * PEM, Base64, and Base64Url public keys are all accepted
      */
     pubkey: string,
 

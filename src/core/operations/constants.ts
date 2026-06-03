@@ -14,7 +14,9 @@ export const isSignEncoding = createInSetGuard(signEncodingSet);
 
 // Digest
 export const signDigest = {
-    SHA256: 'SHA256'
+    SHA256: 'SHA256',
+    SHA384: 'SHA384',
+    SHA512: 'SHA512'
 } as const;
 
 const signDigestsSet: ReadonlySet<keyof typeof signDigest> = new Set(Object.values(signDigest));
@@ -35,7 +37,15 @@ export const isSignFormat = createInSetGuard(signFormatsSet);
 
 // Algorithms
 export const verifyAlgorithms = {
-    ES256: 'ES256'
+    ES256: 'ES256',
+    ES384: 'ES384',
+    ES512: 'ES512',
+    RS256: 'RS256',
+    RS384: 'RS384',
+    RS512: 'RS512',
+    PS256: 'PS256',
+    PS384: 'PS384',
+    PS512: 'PS512'
 } as const;
 
 const verifyAlgorithmsSet: ReadonlySet<keyof typeof verifyAlgorithms> = new Set(Object.values(verifyAlgorithms));

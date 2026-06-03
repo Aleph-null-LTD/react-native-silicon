@@ -78,11 +78,14 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
                 throw new TypeError("Silicon Error: 'opts.userAuth.require' must be of type 'boolean'");
             }
 
-            if (hasOwn(opts.userAuth, 'timeout') &&
-                opts.userAuth.timeout !== undefined && 
-                typeof opts.userAuth.timeout !== 'number'
-            ) {
-                throw new TypeError("Silicon Error: 'opts.userAuth.timeout' must be of type 'number'");
+            if (hasOwn(opts.userAuth, 'timeout')) {
+                if (opts.userAuth.timeout !== undefined) {
+                    if (typeof opts.userAuth.timeout !== 'number') throw new TypeError("Silicon Error: 'opts.userAuth.timeout' must be of type 'number'");
+                    
+                    if (opts.userAuth.timeout < 0 || opts.userAuth.timeout > 6000) {
+                        throw new TypeError("Silicon Error: 'opts.userAuth.timeout' must be >=0 AND <=6000");
+                    }
+                }
             }
 
             if (hasOwn(opts.userAuth, 'invalidateOnEnrollment') && 
@@ -128,9 +131,18 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
             if (hasOwn(opts.android, 'digests') && opts.android.digests !== undefined) {
                 if (!Array.isArray(opts.android.digests)) throw new TypeError("Silicon Error: 'opts.android.digests' must be an array");
 
+                if (opts.android.digests.length < 1) throw new TypeError("Silicon Error: 'opts.android.digests' must have at least one element");
+
                 for (const digest of opts.android.digests) {
                     if (!isKeyDigest(digest)) throw new TypeError(`Silicon Error: value (${digest}) in 'opts.android.digests' is invalid, expected ${Object.values(keyDigests).join("|")}`);
                 }
+            }
+
+            if (hasOwn(opts.android, 'signaturePaddingAlgorithm') && 
+                opts.android.signaturePaddingAlgorithm !== undefined &&
+                !isSignaturePaddingAlgorithm(opts.android.signaturePaddingAlgorithm)
+            ) {
+                throw new TypeError(`Silicon Error: value (${opts.android.signaturePaddingAlgorithm}) in 'opts.android.signaturePaddingAlgorithm' is invalid, expected ${Object.values(signaturePaddingAlgorithms).join("|")}`);
             }
 
             if (hasOwn(opts.android, 'hardwarePolicy') &&
@@ -146,8 +158,8 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
             if (!isPlainObject(opts.ios)) throw new TypeError("Silicon Error: 'opts.ios' must be an object");
 
             if (hasOwn(opts.ios, 'algorithm') &&
-                opts.ios !== undefined &&
-                (typeof opts.ios !== 'string' || !isIosAlgorithm(opts.ios))
+                opts.ios.algorithm !== undefined &&
+                (typeof opts.ios.algorithm !== 'string' || !isIosAlgorithm(opts.ios.algorithm))
             ) {
                 throw new TypeError(`Silicon Error: 'opts.ios.algorithm' (${opts.ios.algorithm}) is invalid, expected ${Object.values(androidAlgorithms).join("|")}`);
             }
@@ -155,9 +167,18 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
             if (hasOwn(opts.ios, 'digests') && opts.ios.digests !== undefined) {
                 if (!Array.isArray(opts.ios.digests)) throw new TypeError("Silicon Error: 'opts.ios.digests' must be an array");
 
+                if (opts.ios.digests.length < 1) throw new TypeError("Silicon Error: 'opts.ios.digests' must have at least one element");
+
                 for (const digest of opts.ios.digests) {
                     if (!isKeyDigest(digest)) throw new TypeError(`Silicon Error: value (${digest}) in 'opts.ios.digests' is invalid, expected ${Object.values(keyDigests).join("|")}`);
                 }
+            }
+
+            if (hasOwn(opts.ios, 'signaturePaddingAlgorithm') && 
+                opts.ios.signaturePaddingAlgorithm !== undefined &&
+                !isSignaturePaddingAlgorithm(opts.ios.signaturePaddingAlgorithm)
+            ) {
+                throw new TypeError(`Silicon Error: value (${opts.ios.signaturePaddingAlgorithm}) in 'opts.ios.signaturePaddingAlgorithm' is invalid, expected ${Object.values(signaturePaddingAlgorithms).join("|")}`);
             }
 
             if (hasOwn(opts.ios, 'hardwarePolicy') &&

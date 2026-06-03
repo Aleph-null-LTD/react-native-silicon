@@ -124,10 +124,6 @@ export async function verify(payload: string | Uint8Array, signature: string, op
     
     if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be of type 'object'");
 
-    if (!hasOwn(opts, 'algorithm')) throw new TypeError("Silicon Error: 'opts' must contain the 'algorithm' property");
-    if (typeof opts.algorithm !== 'string') throw new TypeError("Silicon Error: 'opts.algorithm' must be of type 'string'");
-    if (!isVerifyAlgorithm(opts.algorithm)) throw new TypeError(`Silicon Error: 'opts.algorithm' must be of type ${Object.values(verifyAlgorithms).join("|")}`);
-
     // TODO: Ensure that either pubkey or alias is present, but not both
     let pubkey;
     if (hasOwn(opts, 'pubkey')) {
@@ -150,6 +146,12 @@ export async function verify(payload: string | Uint8Array, signature: string, op
     // Ensure that only either alias or pubkey is present
     if (alias && pubkey) throw TypeError("Silicon Error: 'opts.alias' and 'opts.pubkey' are mutually exclusive");
     if (!alias && !pubkey) throw TypeError("Silicon Error: either 'opts.alias' or 'opts.pubkey' must be supplied");
+
+    if (pubkey && !hasOwn(opts, 'algorithm')) throw new TypeError("Silicon Error: 'opts' must contain the 'algorithm' property");
+    if (pubkey || (alias && hasOwn(opts, 'algorithm') && opts.algorithm !== undefined)) {
+        if (typeof opts.algorithm !== 'string') throw new TypeError("Silicon Error: 'opts.algorithm' must be of type 'string'");
+        if (!isVerifyAlgorithm(opts.algorithm)) throw new TypeError(`Silicon Error: 'opts.algorithm' must be of type ${Object.values(verifyAlgorithms).join("|")}`);
+    }
 
     // Normalize all signatures to standard Base64 with padding
     const signatureB64 = normalizeToBase64(signature);
