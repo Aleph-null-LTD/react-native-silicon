@@ -630,8 +630,10 @@ enum SiliconKeystoreManager {
         let tokenID = privateDict[kSecAttrTokenID as String] as? String
         let securityLevel = (tokenID == (kSecAttrTokenIDSecureEnclave as String)) ? "SECURE_ENCLAVE" : "SOFTWARE"
         
-        // Extract Purposes
         var purposes: [String] = []
+        // NOTE: Removed the block below - it is replaced by KeyMetadata
+        /*
+        // Extract Purposes
         
         // Check Private Key purposes
         if privateDict[kSecAttrCanSign as String] as? Bool == true { purposes.append("SIGN") }
@@ -645,6 +647,7 @@ enum SiliconKeystoreManager {
             if pubDict[kSecAttrCanEncrypt as String] as? Bool == true { purposes.append("ENCRYPT") }
             if pubDict[kSecAttrCanWrap as String] as? Bool == true { purposes.append("WRAP") }
         }
+        */
         
         // Algorithm & Curve Extraction
         let rawKeyType = privateDict[kSecAttrKeyType as String]
@@ -697,14 +700,11 @@ enum SiliconKeystoreManager {
             infoMap["userAuthValidityDurationSecs"] = metadata.userAuthTimeout
             infoMap["policy"] = metadata.userAuthPolicy
             
-            // Overwrite the purposes for Secure Enclave keys (because purposes are always ["SIGN", "AGREE"])
-            if metadata.isHardwareBacked {
-                purposes = []
-                for purpose in metadata.purposes {
-                    purposes.append(purpose.rawValue)
-                }
-                infoMap["purposes"] = purposes
+            purposes = []
+            for purpose in metadata.purposes {
+                purposes.append(purpose.rawValue)
             }
+            infoMap["purposes"] = purposes
             
         } catch {
             return .failure(
