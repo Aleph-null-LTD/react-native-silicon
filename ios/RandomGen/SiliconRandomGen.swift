@@ -9,7 +9,7 @@ enum SiliconRandomGen {
         
         guard status == errSecSuccess else {
             return .failure(
-                code: "RANDOM_GEN_FAILED",
+                code: .RANDOM_GEN_FAILED,
                 message: "Failed to generate secure random bytes. OSStatus: \(status)",
                 nativeStack: nil
             )

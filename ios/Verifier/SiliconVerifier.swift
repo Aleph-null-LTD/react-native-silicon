@@ -2,13 +2,13 @@ import Foundation
 import Security
 
 struct SiliconVerifier {
-    static func verify(payload: PayloadType, signatureB64: String, opts: VerifyOptions) throws -> SiliconResult<Bool> {
+    static func verify(payload: PayloadType, signatureB64: String, opts: VerifyOptions) -> SiliconResult<Bool> {
         let publicKey: SecKey
         var algorithm: VerifyAlgorithms
         
         // Resolve the Public Key
         if let alias = opts.alias, !alias.isEmpty { // Internal key was requested
-            let internalKeyResult = try extractInternalKey(alias: alias, opts: opts)
+            let internalKeyResult = extractInternalKey(alias: alias, opts: opts)
             
             switch internalKeyResult {
             case .success(let internalKey):
@@ -19,7 +19,7 @@ struct SiliconVerifier {
             }
             
         } else if let pubkeyB64 = opts.pubkey, !pubkeyB64.isEmpty { // External key was supplied
-            let externalKeyResult = try extractExternalKey(pubkeyB64: pubkeyB64, opts: opts)
+            let externalKeyResult = extractExternalKey(pubkeyB64: pubkeyB64, opts: opts)
             
             switch externalKeyResult {
             case .success(let externalKey):
@@ -30,14 +30,14 @@ struct SiliconVerifier {
             }
             
         } else {
-            return .failure(code: "INVALID_PARAMS", message: "Either 'alias' or 'pubkey' must be supplied", nativeStack: nil)
+            return .failure(code: .INVALID_ARGUMENT, message: "Either 'alias' or 'pubkey' must be supplied.", nativeStack: nil)
         }
         
         let payloadData: Data
         switch payload {
         case .text(let str):
             guard let rawBytes = str.data(using: .utf8) else {
-                return .failure(code: "VERIFY_FAILED", message: "Failed to convert payload to raw bytes", nativeStack: nil)
+                return .failure(code: .MALFORMED_DATA, message: "Failed to convert payload to raw bytes.", nativeStack: nil)
             }
             payloadData = rawBytes
             
@@ -46,7 +46,7 @@ struct SiliconVerifier {
         }
         
         guard let signatureData = Data(base64Encoded: signatureB64) else {
-            return .failure(code: "INVALID_SIGNATURE", message: "Could not decode signature", nativeStack: nil)
+            return .failure(code: .MALFORMED_DATA, message: "Failed to decode signature from Base64.", nativeStack: nil)
         }
         
         // Determine the SecKey algorithm
@@ -80,11 +80,15 @@ struct SiliconVerifier {
         
         // Ensure DER formatting for EC keys
         if isEC {
-            do {
-                finalSignature = try ensureDerSignature(signatureData: signatureData, algorithm: algorithm)
-            } catch {
-                return .failure(code: "MALFORMED_SIGNATURE", message: error.localizedDescription, nativeStack: nil)
+            let derResult = ensureDerSignature(signatureData: signatureData, algorithm: algorithm)
+            
+            switch derResult {
+            case .failure(let code, let message, let nativeStack):
+                return .failure(code: code, message: message, nativeStack: nativeStack)
+            case .success(let derData):
+                finalSignature = derData
             }
+            
         } else {
             finalSignature = signatureData
         }
@@ -103,26 +107,38 @@ struct SiliconVerifier {
     }
     
     // MARK: - Internal Keys
-    private static func extractInternalKey(alias: String, opts: VerifyOptions) throws -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
+    private static func extractInternalKey(alias: String, opts: VerifyOptions) -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
         var algorithm: VerifyAlgorithms
         
         // Fetch from local Keychain
         guard let tag = alias.data(using: .utf8) else {
-            return .failure(code: "INVALID_ALIAS", message: "Alias could not be encoded", nativeStack: nil)
+            return .failure(code: .INVALID_ARGUMENT, message: "Alias could not be converted to raw data.", nativeStack: nil)
         }
         
         // Get the key metadata
+        /*
         guard let metadata = try? KeyMetadataStore.get(alias: alias) else {
-            return .failure(code: "VERIFY_FAILED", message: "Error getting key metadata", nativeStack: nil)
+            return .failure(code: .VERIFY_FAILED, message: "Failed to retrieve key metadata.", nativeStack: nil)
+        }
+        */
+        
+        var metadata: KeyMetadata
+        let metadataResult = Result { try KeyMetadataStore.get(alias: alias) }
+        
+        switch metadataResult {
+        case .success(let md):
+            metadata = md
+        case .failure(let error):
+            return .failure(code: .VERIFY_FAILED, message: "\(error.localizedDescription)", nativeStack: nil)
         }
         
         // Ensure the key has the VERIFY purpose
         if !metadata.purposes.contains(KeyPurpose.VERIFY) {
-            return .failure(code: "INVALID_PURPOSE", message: "Key does not have the VERIFY purpose", nativeStack: nil)
+            return .failure(code: .KEY_POLICY_VIOLATION, message: "Key does not have the VERIFY purpose.", nativeStack: nil)
         }
         
         guard let allowedDigests = metadata.digests else {
-            return .failure(code: "VERIFY_FAILED", message: "Key metadata does not have a digests array", nativeStack: nil)
+            return .failure(code: .INTERNAL_ERROR, message: "Key metadata does not have a any allowed digests.", nativeStack: nil)
         }
         
         // Query keychain for the key
@@ -137,27 +153,27 @@ struct SiliconVerifier {
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         
         guard status == errSecSuccess else {
-            return .failure(code: "KEY_NOT_FOUND", message: "Local key alias '\(alias)' missing", nativeStack: nil)
+            return .failure(code: .KEY_NOT_FOUND, message: "No key with alias '\(alias)'.", nativeStack: nil)
         }
         
         guard let dict = item as? [String: Any] else {
-            return .failure(code: "VERIFY_FAILED", message: "Failed to read public key attributes", nativeStack: nil)
+            return .failure(code: .VERIFY_FAILED, message: "Failed to read public key attributes.", nativeStack: nil)
         }
         
         // Extract the SecKey ref
         guard let rawRef = dict[kSecValueRef as String] else {
-            return .failure(code: "KEY_FETCH_FAILED", message: "Could not locate SecKey reference in dictionary", nativeStack: nil)
+            return .failure(code: .VERIFY_FAILED, message: "Could not locate SecKey reference in dictionary.", nativeStack: nil)
         }
         let keyRef = rawRef as! SecKey
         
         // Extract the public key from the SecKey reference
         guard let publicKey = SecKeyCopyPublicKey(keyRef) else {
-            return .failure(code: "NO_CERT", message: "Could not extract public key from Keychain", nativeStack: nil)
+            return .failure(code: .VERIFY_FAILED, message: "Could not extract public key from Keychain.", nativeStack: nil)
         }
         
         // Get the key size in bits
         guard let keySize = dict[kSecAttrKeySizeInBits as String] as? Int else {
-            return .failure(code: "VERIFY_FAILED", message: "Failed to read public key size", nativeStack: nil)
+            return .failure(code: .VERIFY_FAILED, message: "Failed to read public key size.", nativeStack: nil)
         }
         
         // Get the key type and safely coerce it
@@ -170,10 +186,7 @@ struct SiliconVerifier {
             // If it's already a string, keep it
             keyType = typeStr
         } else {
-            throw SiliconException(
-                code: "KEY_TYPE_COERCE_ERROR",
-                message: "iOS: rawKeyType was an unexpected type: got '\(String(describing: type(of: keyType)))' expected 'String | Int'"
-            )
+            return .failure(code: .VERIFY_FAILED, message: "rawKeyType was an unexpected type: got \(String(describing: type(of: keyType))) expected String | Int", nativeStack: nil)
         }
         
         if let safeAlgorithm = opts.algorithm {
@@ -187,8 +200,8 @@ struct SiliconVerifier {
                 case .ES256:
                     if keySize != 256 {
                         return .failure(
-                            code: "INVALID_PARAMETER",
-                            message: "iOS: key (\(alias)) is an EC key and must use the algorithm that matches it's size (\(VerifyAlgorithms.ES256.rawValue))",
+                            code: .INCOMPATIBLE,
+                            message: "key (\(alias)) is an EC key and must use the algorithm that matches it's size (\(VerifyAlgorithms.ES256.rawValue)).",
                             nativeStack: nil
                         )
                     }
@@ -196,8 +209,8 @@ struct SiliconVerifier {
                 case .ES384:
                     if keySize != 384 {
                         return .failure(
-                            code: "INVALID_PARAMETER",
-                            message: "iOS: key (\(alias)) is an EC key and must use the algorithm that matches it's size (\(VerifyAlgorithms.ES384.rawValue))",
+                            code: .INCOMPATIBLE,
+                            message: "key (\(alias)) is an EC key and must use the algorithm that matches it's size (\(VerifyAlgorithms.ES384.rawValue)).",
                             nativeStack: nil
                         )
                     }
@@ -205,21 +218,22 @@ struct SiliconVerifier {
                 case .ES512:
                     if keySize != 512 {
                         return .failure(
-                            code: "INVALID_PARAMETER",
-                            message: "iOS: key (\(alias)) is an EC key and must use the algorithm that matches it's size (\(VerifyAlgorithms.ES512.rawValue))",
+                            code: .INCOMPATIBLE,
+                            message: "key (\(alias)) is an EC key and must use the algorithm that matches it's size (\(VerifyAlgorithms.ES512.rawValue)).",
                             nativeStack: nil
                         )
                     }
                     digest = .SHA512
                 default:
-                    return .failure(code: "INVALID_PARAMETER", message: "Cannot use \(safeAlgorithm) with a non-EC key", nativeStack: nil)
+                    return .failure(code: .INCOMPATIBLE, message: "Cannot use \(safeAlgorithm) with a non-EC key.", nativeStack: nil)
                 }
                 
             } else if keyType == (kSecAttrKeyTypeRSA as String) {
                 guard let safeSigPaddingAlg = metadata.signaturePaddingAlgorithm else {
-                    throw SiliconException(
-                        code: "BAD_METADATA",
-                        message: "Metadata did not contain signaturePaddingAlgorithm when attempting verify with RSA key"
+                    return .failure(
+                        code: .INTERNAL_ERROR,
+                        message: "Metadata did not contain signaturePaddingAlgorithm when attempting verify with RSA key.",
+                        nativeStack: nil
                     )
                 }
                 
@@ -227,8 +241,8 @@ struct SiliconVerifier {
                 case .RS256:
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
-                            code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(SignaturePaddingAlgorithm.PKCS1.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
+                            code: .KEY_POLICY_VIOLATION,
+                            message: "Cannot use \(VerifyAlgorithms.RS256.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.PS256.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -236,8 +250,8 @@ struct SiliconVerifier {
                 case .RS384:
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
-                            code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(SignaturePaddingAlgorithm.PKCS1.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
+                            code: .KEY_POLICY_VIOLATION,
+                            message: "Cannot use \(VerifyAlgorithms.RS384.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.PS384.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -245,8 +259,8 @@ struct SiliconVerifier {
                 case .RS512:
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
-                            code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(SignaturePaddingAlgorithm.PKCS1.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
+                            code: .KEY_POLICY_VIOLATION,
+                            message: "Cannot use \(VerifyAlgorithms.RS512.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.ES512.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -254,8 +268,8 @@ struct SiliconVerifier {
                 case .PS256:
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
-                            code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(SignaturePaddingAlgorithm.PSS.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
+                            code: .KEY_POLICY_VIOLATION,
+                            message: "Cannot use \(VerifyAlgorithms.PS256.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.RS256.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -263,8 +277,8 @@ struct SiliconVerifier {
                 case .PS384:
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
-                            code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(SignaturePaddingAlgorithm.PSS.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
+                            code: .KEY_POLICY_VIOLATION,
+                            message: "Cannot use \(VerifyAlgorithms.PS384.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.RS384.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -272,20 +286,20 @@ struct SiliconVerifier {
                 case .PS512:
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
-                            code: "INVALID_ALGORITHM_PARAMETER",
-                            message: "Cannot use \(SignaturePaddingAlgorithm.PSS.rawValue) padding with key (\(alias)). Please use \(safeSigPaddingAlg.rawValue)",
+                            code: .KEY_POLICY_VIOLATION,
+                            message: "Cannot use \(VerifyAlgorithms.PS512.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.RS512.rawValue).",
                             nativeStack: nil
                         )
                     }
                     digest = .SHA512
                 default:
-                    return .failure(code: "INVALID_ALGORITHM_PARAMETER", message: "Cannot use \(safeAlgorithm) with a non-RSA key", nativeStack: nil)
+                    return .failure(code: .INCOMPATIBLE, message: "Cannot use \(safeAlgorithm.rawValue) with a non-RSA key.", nativeStack: nil)
                 }
                 
             } else {
                 return .failure(
-                    code: "UNSUPPORTED_KEY_FAMILY",
-                    message: "Key (\(alias)) cannot be used for verify",
+                    code: .INCOMPATIBLE,
+                    message: "Key (\(alias)) is not an EC or RSA key and cannot be used for verify.",
                     nativeStack: nil
                 )
             }
@@ -293,7 +307,7 @@ struct SiliconVerifier {
             // Ensure the digest is in the list of allowed digests
             if (!allowedDigests.contains(digest)) {
                 return .failure(
-                    code: "DISALLOWED_DIGEST",
+                    code: .KEY_POLICY_VIOLATION,
                     message: "Key with alias \(alias) does not allow the \(digest) digest. Allowed digests: \(allowedDigests)",
                     nativeStack: nil
                 )
@@ -320,15 +334,16 @@ struct SiliconVerifier {
                     attemptAlgorithm = .ES512
                     digest = .SHA512
                 default:
-                    return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Verify does not support key size (\(keySize))", nativeStack: nil)
+                    return .failure(code: .UNSUPPORTED, message: "Verify does not support key size (\(keySize)).", nativeStack: nil)
                 }
                 
             } else if keyType == (kSecAttrKeyTypeRSA as String) {
                 // Key is RSA
                 guard let safeSigPaddingAlg = metadata.signaturePaddingAlgorithm else {
-                    throw SiliconException(
-                        code: "BAD_METADATA",
-                        message: "Metadata did not contain signaturePaddingAlgorithm when attempting verify with RSA key"
+                    return .failure(
+                        code: .INTERNAL_ERROR,
+                        message: "Metadata did not contain signaturePaddingAlgorithm when attempting verify with RSA key.",
+                        nativeStack: nil
                     )
                 }
                 
@@ -358,11 +373,15 @@ struct SiliconVerifier {
                     }
                     digest = .SHA512
                 default:
-                    return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Verify does not support key size (\(keySize))", nativeStack: nil)
+                    return .failure(
+                        code: .UNSUPPORTED,
+                        message: "Verify does not support key size (\(keySize)).",
+                        nativeStack: nil
+                    )
                 }
                 
             } else {
-                return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Key family (\(keyType)) is not supported for Verify", nativeStack: nil)
+                return .failure(code: .INCOMPATIBLE, message: "Key family (\(keyType.utf8)) is not supported for Verify.", nativeStack: nil)
             }
             
             // Check if the digest is in the list of allowed digests
@@ -370,7 +389,7 @@ struct SiliconVerifier {
                 algorithm = attemptAlgorithm
             } else {
                 return .failure(
-                    code: "VERIFY_FAILED",
+                    code: .UNSUPPORTED,
                     message: "Could not use default verify algorithm for key (\(alias)). Please set the algorithm explicitly in the options.",
                     nativeStack: nil
                 )
@@ -381,18 +400,19 @@ struct SiliconVerifier {
     }
     
     // MARK: - External Keys
-    private static func extractExternalKey(pubkeyB64: String, opts: VerifyOptions) throws -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
+    private static func extractExternalKey(pubkeyB64: String, opts: VerifyOptions) -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
         var algorithm: VerifyAlgorithms
         
         // Parse from External X.509 Base64
         guard let keyData = Data(base64Encoded: pubkeyB64, options: .ignoreUnknownCharacters) else {
-            return .failure(code: "INVALID_KEY_B64", message: "Could not decode Base64 public key", nativeStack: nil)
+            return .failure(code: .MALFORMED_DATA, message: "Could not decode public key.", nativeStack: nil)
         }
         
         guard let safeAlgorithm = opts.algorithm else {
-            throw SiliconException(
-                code: "INVALID_PARAM",
-                message: "iOS: opts.algorithm was null"
+            return .failure(
+                code: .INVALID_ARGUMENT,
+                message: "opts.algorithm is undefined",
+                nativeStack: nil
             )
         }
         algorithm = safeAlgorithm
@@ -433,7 +453,7 @@ struct SiliconVerifier {
         var error: Unmanaged<CFError>?
         guard let publicKey = SecKeyCreateWithData(keyData as CFData, attributes as CFDictionary, &error) else {
             let errStr = error?.takeRetainedValue().localizedDescription ?? "Unknown parse error"
-            return .failure(code: "INVALID_PUBKEY", message: "Could not parse X.509 key: \(errStr)", nativeStack: nil)
+            return .failure(code: .MALFORMED_DATA, message: "Could not parse X.509 key: \(errStr)", nativeStack: nil)
         }
         
         return .success((algorithm: algorithm, publicKey: publicKey))
@@ -442,17 +462,18 @@ struct SiliconVerifier {
     // MARK: - ASN.1 DER Transcoder
     
     // Evaluates EC signatures and converts raw IEEE P1363 arrays into standard ASN.1 DER sequences.
-    private static func ensureDerSignature(signatureData: Data, algorithm: VerifyAlgorithms) throws -> Data {
+    private static func ensureDerSignature(signatureData: Data, algorithm: VerifyAlgorithms) -> SiliconResult<Data> {
         var expectedP1363DataCount: Int
         
         switch algorithm {
         case .ES256: expectedP1363DataCount = 64 // 256 / 8 * 2 = 64 Bytes
         case .ES384: expectedP1363DataCount = 96 // 384 / 8 * 2 = 96 Bytes
-        case .ES512: expectedP1363DataCount = 132 // 521 / 8 = 65.125, round up to 66 * 2 = 132 Bytes
+        case .ES512: expectedP1363DataCount = 132 // 521 / 8 = 65.125 (round up) 66 * 2 = 132 Bytes
         default:
-            throw SiliconException(
-                code: "INTERNAL_ERROR",
-                message: "Silicon Error: iOS: verify: unexpected algorithm (\(algorithm.rawValue)) when attempting to ensure ASN.1 DER signature"
+            return .failure(
+                code: .INTERNAL_ERROR,
+                message: "verify: unexpected algorithm (\(algorithm.rawValue)) when attempting to ensure ASN.1 DER signature.",
+                nativeStack: nil
             )
         }
         
@@ -462,9 +483,13 @@ struct SiliconVerifier {
         if !isRawP1363 {
             // Signature should already be DER
             guard signatureData.first == 0x30 else {
-                throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "Signature did not start with DER Sequence tag (0x30)"])
+                return .failure(
+                    code: .MALFORMED_DATA,
+                    message: "Signature did not start with DER Sequence tag (0x30).",
+                    nativeStack: nil
+                )
             }
-            return signatureData
+            return .success(signatureData)
         }
         
         let halfLen = signatureData.count / 2
@@ -496,7 +521,7 @@ struct SiliconVerifier {
         der.append(UInt8(sDer.count))
         der.append(sDer)
         
-        return der
+        return .success(der)
     }
     
     // Strips leading zeros, but prepends 0x00 if the Most Significant Bit is >= 0x80.

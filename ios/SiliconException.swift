@@ -1,5 +1,6 @@
 import ExpoModulesCore
 
+/*
 final class SiliconException: Exception {
     private let customCode: String
     private let customMessage: String
@@ -25,3 +26,4 @@ final class SiliconException: Exception {
         return customMessage
     }
 }
+*/

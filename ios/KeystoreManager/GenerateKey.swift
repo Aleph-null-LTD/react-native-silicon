@@ -2,7 +2,7 @@ import DeviceCheck
 
 enum GenerateKey {
     // MARK: - Hardware Keys
-    static func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) throws -> SiliconResult<String?> {
+    static func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) -> SiliconResult<String?> {
         // Initialize Core Generation Parameters
         var attributes: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom, // Matches NIST P-256 / secp256r1
@@ -59,7 +59,7 @@ enum GenerateKey {
             &error
         ) else {
             let cfErr = error?.takeRetainedValue()
-            return .failure(code: "KEY_GENERATION_FAILED", message: cfErr?.localizedDescription ?? "Unknown error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
+            return .failure(code: .GENERATE_KEY_FAILED, message: cfErr?.localizedDescription ?? "Unknown error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
         }
         
         privateKeyAttrs[kSecAttrAccessControl as String] = accessControl
@@ -74,7 +74,7 @@ enum GenerateKey {
         var genError: Unmanaged<CFError>?
         guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &genError) else {
             let err = genError?.takeRetainedValue()
-            return .failure(code: "KEY_GENERATION_FAILED", message: err?.localizedDescription ?? "Unknown generation error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
+            return .failure(code: .GENERATE_KEY_FAILED, message: err?.localizedDescription ?? "Unknown generation error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
         }
         
         // Create the attest key if a challenge was provided
@@ -110,17 +110,21 @@ enum GenerateKey {
             
             if let error = nativeError {
                 cleanupSecKey();
-                return .failure(code: "KEY_GENERATION_FAILED", message: error.localizedDescription, nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
+                return .failure(code: .GENERATE_KEY_FAILED, message: error.localizedDescription, nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
             }
             
             guard let keyId = generatedKeyId else {
                 cleanupSecKey();
-                return .failure(code: "KEY_GENERATION_FAILED", message: "Failed to retrieve hardware key identifier", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
+                return .failure(code: .GENERATE_KEY_FAILED, message: "Failed to retrieve hardware key identifier", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
             }
             
             guard let challenge = opts.attestChallenge else {
                 cleanupSecKey();
-                throw SiliconException(code: "NIL_CHALLENGE", message: "'opts.attestChallenge' was nil")
+                return .failure(
+                    code: .INTERNAL_ERROR,
+                    message: "'opts.attestChallenge' was nil",
+                    nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+                )
             }
             
             // Persist the alias -> keyId map locally so attestKey can find it
@@ -128,7 +132,7 @@ enum GenerateKey {
             if !isAttestIdStored {
                 cleanupSecKey()
                 return .failure(
-                    code: "KEY_GENERATION_FAILED",
+                    code: .GENERATE_KEY_FAILED,
                     message: "Failed to store key identifier in keychain",
                     nativeStack: Thread.callStackSymbols.joined(separator: "\n")
                 )
@@ -140,7 +144,7 @@ enum GenerateKey {
                 _ = KeychainHelper.delete(key: "\(alias)_attest_id")
                 cleanupSecKey()
                 return .failure(
-                    code: "KEY_GENERATION_FAILED",
+                    code: .GENERATE_KEY_FAILED,
                     message: "Failed to store key identifier in keychain",
                     nativeStack: Thread.callStackSymbols.joined(separator: "\n")
                 )
@@ -151,7 +155,7 @@ enum GenerateKey {
     }
     
     // MARK: - Software Keys
-    static func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) throws -> SiliconResult<String?> {
+    static func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) -> SiliconResult<String?> {
         var keyType: String
         var keySize: Int
         
@@ -234,7 +238,11 @@ enum GenerateKey {
                 &error
             ) else {
                 let cfErr = error?.takeRetainedValue()
-                return .failure(code: "KEY_GENERATION_FAILED", message: cfErr?.localizedDescription ?? "Unknown error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
+                return .failure(
+                    code: .GENERATE_KEY_FAILED,
+                    message: cfErr?.localizedDescription ?? "Failed to create Access Control",
+                    nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+                )
             }
             
             privateKeyAttrs[kSecAttrAccessControl as String] = accessControl
@@ -280,7 +288,7 @@ enum GenerateKey {
                 privateKeyAttrs[kSecAttrCanDerive as String] = true
                 publicKeyAttrs[kSecAttrCanDerive as String] = true
             case KeyPurpose.WRAP:
-                throw SiliconException(code: "NOT_IMPLEMENTED", message: "The WRAP purpose is not yet implemented for iOS")
+                return .failure(code: .UNSUPPORTED, message: "The WRAP purpose is not yet implemented for iOS", nativeStack: nil)
                 // publicKeyAttrs[kSecAttrCanWrap as String] = true
             }
         }
@@ -292,7 +300,11 @@ enum GenerateKey {
         var genError: Unmanaged<CFError>?
         guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &genError) else {
             let err = genError?.takeRetainedValue()
-            return .failure(code: "KEY_GENERATION_FAILED", message: err?.localizedDescription ?? "Unknown generation error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
+            return .failure(
+                code: .GENERATE_KEY_FAILED,
+                message: err?.localizedDescription ?? "Unknown generation error",
+                nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+            )
         }
         
         // TODO: for symmetric keys we will skip the pubkey formatting and return nil
@@ -304,19 +316,19 @@ enum GenerateKey {
     private static func formatPubkey(privateKey: SecKey, opts: GenerateKeyOptions) -> SiliconResult<String?> {
         // Extract the attributes from the SecKey
         guard let attributes = SecKeyCopyAttributes(privateKey) as? [String: Any] else {
-            return .failure(code: "COPY_ATTRIBUTES_FAILED", message: "Failed to copy attributes from the generated SecKey.", nativeStack: nil)
+            return .failure(code: .GENERATE_KEY_FAILED, message: "Failed to copy attributes from the generated SecKey.", nativeStack: nil)
         }
         
         // Extract the Public Key object from the SecKey
         guard let publicKey = SecKeyCopyPublicKey(privateKey) else {
-            return .failure(code: "PUBLIC_KEY_EXTRACTION_FAILED", message: "Failed to extract public key from generated pair.", nativeStack: nil)
+            return .failure(code: .GENERATE_KEY_FAILED, message: "Failed to extract public key from generated pair.", nativeStack: nil)
         }
         
         // Extract the raw bytes
         var exportError: Unmanaged<CFError>?
         guard let rawPublicKeyData = SecKeyCopyExternalRepresentation(publicKey, &exportError) as Data? else {
             let err = exportError?.takeRetainedValue()
-            return .failure(code: "PUBLIC_KEY_EXPORT_FAILED", message: err?.localizedDescription ?? "Failed to export public key bytes.", nativeStack: nil)
+            return .failure(code: .GENERATE_KEY_FAILED, message: err?.localizedDescription ?? "Failed to export public key bytes.", nativeStack: nil)
         }
         
         do {
@@ -330,7 +342,7 @@ enum GenerateKey {
             
         } catch {
             return .failure(
-                code: "KEY_GENERATION_FAILED",
+                code: .GENERATE_KEY_FAILED,
                 message: error.localizedDescription,
                 nativeStack: Thread.callStackSymbols.joined(separator: "\n")
             )

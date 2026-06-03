@@ -17,11 +17,10 @@ extension BridgePayloadRecord {
         } else if let bytes = self.bytes {
             return .byteArr(bytes)
         } else {
-            // Throw a standard error that Expo can catch and pipe back to JS
             throw NSError(
                 domain: "Silicon",
                 code: 0,
-                userInfo: [NSLocalizedDescriptionKey: "Payload record must contain either 'text' or 'bytes'"]
+                userInfo: [NSLocalizedDescriptionKey: "Payload record must contain either text or bytes."]
             )
         }
     }

@@ -3,32 +3,26 @@ import Foundation
 import LocalAuthentication
 
 struct SiliconSigner {
-    static func sign(alias: String, payload: PayloadType, opts: SignOptions) async throws -> SiliconResult<String> {
+    static func sign(alias: String, payload: PayloadType, opts: SignOptions) async -> SiliconResult<String> {
         guard let tag = alias.data(using: .utf8) else {
-            return .failure(code: "INVALID_ALIAS", message: "Failed to encode alias", nativeStack: nil)
+            return .failure(code: .INVALID_ARGUMENT, message: "Failed to encode alias.", nativeStack: nil)
         }
         
         // Get the key metadata
         guard let metadata = try? KeyMetadataStore.get(alias: alias) else {
-            throw SiliconException(
-                code: "SIGN_FAILED",
-                message: "iOS: Failed to read key metadata"
-            )
+            return .failure(code: .SIGN_FAILED, message: "Failed to read key metadata.", nativeStack: nil)
         }
         
         if !metadata.purposes.contains(KeyPurpose.SIGN) {
             return .failure(
-                code: "DISALLOWED_PURPOSE",
-                message: "iOS: Key does not have the SIGN purpose",
+                code: .KEY_POLICY_VIOLATION,
+                message: "Key (\(alias)) does not have the SIGN purpose.",
                 nativeStack: nil
             )
         }
         
         guard let allowedDigests = metadata.digests else {
-            throw SiliconException(
-                code: "SIGN_FAILED",
-                message: "iOS: No allowed digests in key metadata"
-            )
+            return .failure(code: .INTERNAL_ERROR, message: "No allowed digests in key metadata.", nativeStack: nil)
         }
         
         // Get the timeout and cast it to Double
@@ -56,7 +50,7 @@ struct SiliconSigner {
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         
         if status == errSecItemNotFound {
-            return .failure(code: "KEY_NOT_FOUND", message: "No key found for alias: \(alias)", nativeStack: nil)
+            return .failure(code: .KEY_NOT_FOUND, message: "No key found for alias \(alias)", nativeStack: nil)
         }
         
         guard status == errSecSuccess,
@@ -65,9 +59,9 @@ struct SiliconSigner {
             
             // Catch if the user hit "Cancel" on the Face ID prompt during key fetch
             if status == errSecUserCanceled || status == errSecAuthFailed {
-                 return .failure(code: "AUTH_CANCELED", message: "User canceled authentication.", nativeStack: nil)
+                return .failure(code: .AUTH_CANCELED, message: "User canceled authentication.", nativeStack: nil)
             }
-            return .failure(code: "GET_KEY_FAILED", message: "Keychain lookup failed with OSStatus: \(status)", nativeStack: nil)
+            return .failure(code: .SIGN_FAILED, message: "Keychain lookup failed with OSStatus: \(status)", nativeStack: nil)
         }
         
         // Determine Algorithm & Attributes
@@ -81,16 +75,17 @@ struct SiliconSigner {
             // If it's already a string, keep it
             keyType = typeStr
         } else {
-            throw SiliconException(
-                code: "KEY_TYPE_COERCE_ERROR",
-                message: "iOS: rawKeyType was an unexpected type: got '\(String(describing: type(of: keyType)))' expected 'String | Int'"
+            return .failure(
+                code: .SIGN_FAILED,
+                message: "rawKeyType had an unexpected type: got \(String(describing: type(of: keyType))) expected String | Int",
+                nativeStack: nil
             )
         }
         
         guard let keySize = dict[kSecAttrKeySizeInBits as String] as? Int else {
             return .failure(
-                code: "SIGN_FAILED",
-                message: "iOS: Unable to read key size from kSecAttrKeySizeInBits",
+                code: .SIGN_FAILED,
+                message: "Unable to read key size from kSecAttrKeySizeInBits.",
                 nativeStack: nil
             )
         }
@@ -103,8 +98,8 @@ struct SiliconSigner {
                 // Ensure the digest is in the key's allowed digests
                 if !allowedDigests.contains(requestedDigest) {
                     return .failure(
-                        code: "DISALLOWED_DIGEST",
-                        message: "iOS: Requested digest \(requestedDigest) is not in the list of allowed digests for key \(alias)",
+                        code: .KEY_POLICY_VIOLATION,
+                        message: "Requested digest \(requestedDigest) is not in the list of allowed digests for key \(alias).",
                         nativeStack: nil
                     )
                 }
@@ -113,8 +108,8 @@ struct SiliconSigner {
                 case .SHA256:
                     if keySize != 256 {
                         return .failure(
-                            code: "INVALID_PARAM",
-                            message: "iOS: key (\(alias)) is an EC key and must use the digest that matches it's key size (\(KeyDigests.SHA256.rawValue))",
+                            code: .INCOMPATIBLE,
+                            message: "key (\(alias)) is an EC key and must use the digest that matches it's key size (\(KeyDigests.SHA256.rawValue)).",
                             nativeStack: nil
                         )
                     }
@@ -122,8 +117,8 @@ struct SiliconSigner {
                 case .SHA384:
                     if keySize != 384 {
                         return .failure(
-                            code: "INVALID_PARAM",
-                            message: "iOS: key (\(alias)) is an EC key and must use the digest that matches it's key size (\(KeyDigests.SHA384.rawValue))",
+                            code: .INCOMPATIBLE,
+                            message: "key (\(alias)) is an EC key and must use the digest that matches it's key size (\(KeyDigests.SHA384.rawValue)).",
                             nativeStack: nil
                         )
                     }
@@ -131,8 +126,8 @@ struct SiliconSigner {
                 case .SHA512:
                     if keySize != 521 {
                         return .failure(
-                            code: "INVALID_PARAM",
-                            message: "iOS: key (\(alias)) is an EC key and must use the digest that matches it's key size (\(KeyDigests.SHA512.rawValue))",
+                            code: .INCOMPATIBLE,
+                            message: "key (\(alias)) is an EC key and must use the digest that matches it's key size (\(KeyDigests.SHA512.rawValue)).",
                             nativeStack: nil
                         )
                     }
@@ -154,16 +149,16 @@ struct SiliconSigner {
                     defaultDigest = .SHA512
                 default:
                     return .failure(
-                        code: "NOT_SUPPORTED",
-                        message: "iOS: EC keys with size \(keySize) are not supported for sign",
+                        code: .UNSUPPORTED,
+                        message: "EC keys with size \(keySize) are not supported for sign.",
                         nativeStack: nil
                     )
                 }
                 
                 if !allowedDigests.contains(defaultDigest) {
                     return .failure(
-                        code: "DISALLOWED_DIGEST",
-                        message: "iOS: Cannot use default digest (\(defaultDigest)) for key \(alias) as it is not in the allowed digests list (\(allowedDigests)). Please set it explicitly in the options.",
+                        code: .KEY_POLICY_VIOLATION,
+                        message: "Cannot use default digest (\(defaultDigest)) for key \(alias) as it is not in the allowed digests list (\(allowedDigests)). Please set it explicitly in the options.",
                         nativeStack: nil
                     )
                 }
@@ -173,8 +168,8 @@ struct SiliconSigner {
         } else if keyType == (kSecAttrKeyTypeRSA as String) {
             guard let sigPaddingAlg = metadata.signaturePaddingAlgorithm else {
                 return .failure(
-                    code: "SIGN_FAILED",
-                    message: "iOS: Key metadata did not include signaturePaddingAlgorithm",
+                    code: .SIGN_FAILED,
+                    message: "Key metadata did not include signaturePaddingAlgorithm.",
                     nativeStack: nil
                 )
             }
@@ -182,9 +177,10 @@ struct SiliconSigner {
             if let requestedDigest = opts.digest {
                 // Ensure the digest is in the key's allowed digests
                 if !allowedDigests.contains(requestedDigest) {
-                    throw SiliconException(
-                        code: "DISALLOWED_DIGEST",
-                        message: "iOS: Requested digest \(requestedDigest) is not in the list of allowed digests for key \(alias)"
+                    return .failure(
+                        code: .KEY_POLICY_VIOLATION,
+                        message: "Requested digest \(requestedDigest) is not in the list of allowed digests for key \(alias).",
+                        nativeStack: nil
                     )
                 }
                 
@@ -230,16 +226,16 @@ struct SiliconSigner {
                     defaultDigest = .SHA512
                 default:
                     return .failure(
-                        code: "NOT_SUPPORTED",
-                        message: "iOS: RSA keys with size \(keySize) are not supported for sign",
+                        code: .UNSUPPORTED,
+                        message: "RSA keys with size \(keySize) are not supported for sign.",
                         nativeStack: nil
                     )
                 }
                 
                 if !allowedDigests.contains(defaultDigest) {
                     return .failure(
-                        code: "DISALLOWED_DIGEST",
-                        message: "iOS: Cannot use default digest (\(defaultDigest)) for key \(alias) as it is not in the allowed digests list (\(allowedDigests)). Please set it explicitly in the options.",
+                        code: .KEY_POLICY_VIOLATION,
+                        message: "Cannot use default digest (\(defaultDigest)) for key \(alias) as it is not in the allowed digests list (\(allowedDigests)). Please set it explicitly in the options.",
                         nativeStack: nil
                     )
                 }
@@ -247,7 +243,7 @@ struct SiliconSigner {
             isEC = false
             
         } else {
-            return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Unsupported key type", nativeStack: nil)
+            return .failure(code: .INCOMPATIBLE, message: "Key with type \(keyType.utf8) cannot be used for signing.", nativeStack: nil)
         }
         
         // Convert the payload to CFData
@@ -259,10 +255,7 @@ struct SiliconSigner {
             
         case .text(let payloadStr):
             guard let rawBytes = payloadStr.data(using: .utf8) else {
-                throw SiliconException(
-                    code: "PAYLOAD_INVALID",
-                    message: "iOS: payloadStr could not be converted to UTF8 Data"
-                )
+                return .failure(code: .MALFORMED_DATA, message: "payloadStr could not be converted to UTF8 Data", nativeStack: nil)
             }
             payloadData = rawBytes as CFData
         }
@@ -276,10 +269,10 @@ struct SiliconSigner {
             
             // Catch if the user hit "Cancel" during the actual signing operation
             if errCode == errSecUserCanceled || errCode == errSecAuthFailed {
-                return .failure(code: "AUTH_CANCELED", message: "User canceled authentication.", nativeStack: nil)
+                return .failure(code: .AUTH_CANCELED, message: "User canceled authentication.", nativeStack: nil)
             }
             
-            return .failure(code: "SIGNING_FAILED", message: err?.localizedDescription ?? "Unknown signing error", nativeStack: nil)
+            return .failure(code: .SIGN_FAILED, message: err?.localizedDescription ?? "Unknown signing error", nativeStack: nil)
         }
         
         
@@ -293,7 +286,7 @@ struct SiliconSigner {
                     let targetCoordSize = (keySize + 7) / 8
                     finalSignature = try transcodeDerToP1363(derSignature: signatureData, targetSize: targetCoordSize)
                 } catch {
-                    return .failure(code: "TRANSCODING_FAILED", message: "Failed to align signature coordinates.", nativeStack: nil)
+                    return .failure(code: .SIGN_FAILED, message: "Failed to transcode DER signature to P1363.", nativeStack: nil)
                 }
             } else if opts.format == .DER {
                 // Do nothing (signature is already DER)

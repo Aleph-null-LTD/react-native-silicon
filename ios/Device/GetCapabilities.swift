@@ -5,44 +5,35 @@ import DeviceCheck
 
 enum SiliconDevice {
     static func getCapabilities() -> SiliconResult<[String: Any]> {
-            do {
-                let context = LAContext()
-                var error: NSError?
+            let context = LAContext()
+            var error: NSError?
 
-                // Secure Enclave
-                let securityLevel = SecureEnclave.isAvailable ? "IOS_SECURE_ENCLAVE" : "SOFTWARE"
+            // Secure Enclave
+            let securityLevel = SecureEnclave.isAvailable ? "IOS_SECURE_ENCLAVE" : "SOFTWARE"
 
-                // Biometric / Passcode Status
-                let canUseBiometrics = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
-                let canUseDeviceCredential = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
+            // Biometric / Passcode Status
+            let canUseBiometrics = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
+            let canUseDeviceCredential = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
 
-                let userAuthLevel: String
-                if canUseBiometrics {
-                    userAuthLevel = "BIOMETRICS_STRONG"
-                } else if canUseDeviceCredential {
-                    userAuthLevel = "DEVICE_CREDENTIAL"
-                } else {
-                    userAuthLevel = "NONE"
-                }
-
-                // Check for Key Attestation Support (iOS 14+)
-                let canAttest = DCAppAttestService.shared.isSupported
-
-                // Construct the payload dictionary
-                let capabilities: [String: Any] = [
-                    "securityLevel": securityLevel,
-                    "userAuthLevel": userAuthLevel,
-                    "canAttest": canAttest
-                ]
-
-                return .success(capabilities)
-                
-            } catch {
-                return .failure(
-                    code: "GET_CAPABILITIES_FAILED",
-                    message: error.localizedDescription,
-                    nativeStack: Thread.callStackSymbols.joined(separator: "\n")
-                )
+            let userAuthLevel: String
+            if canUseBiometrics {
+                userAuthLevel = "BIOMETRICS_STRONG"
+            } else if canUseDeviceCredential {
+                userAuthLevel = "DEVICE_CREDENTIAL"
+            } else {
+                userAuthLevel = "NONE"
             }
+
+            // Check for Key Attestation Support (iOS 14+)
+            let canAttest = DCAppAttestService.shared.isSupported
+
+            // Construct the payload dictionary
+            let capabilities: [String: Any] = [
+                "securityLevel": securityLevel,
+                "userAuthLevel": userAuthLevel,
+                "canAttest": canAttest
+            ]
+
+            return .success(capabilities)
         }
 }

@@ -20,7 +20,7 @@ enum GetPubKeyDataError: Error {
 
 func getPubKeyData(alias: String) throws -> (rawData: Data, dict: [String: Any]) {
     guard let tag = alias.data(using: .utf8) else {
-        throw GetPubKeyDataError.invalidAlias(message: "Failed to encode alias to data.")
+        throw GetPubKeyDataError.invalidAlias(message: "Failed to encode alias to data. The alias must be valid UTF8.")
     }
     
     // Query the Keychain for ANY key matching this alias

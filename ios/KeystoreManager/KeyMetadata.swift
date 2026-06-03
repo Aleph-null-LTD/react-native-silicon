@@ -1,3 +1,13 @@
+enum KeyMetaDataStoreError: Error {
+    case jsonEncoding(message: String)
+    case failedSave(message: String)
+}
+
+enum KeyMetaDataReadError: Error {
+    case jsonDecoding(message: String)
+    case failedRead(message: String)
+}
+
 struct KeyMetadata: Codable {
     let purposes: [KeyPurpose]
     let digests: [KeyDigests]?
@@ -20,39 +30,31 @@ struct KeyMetadataStore {
         mutex.lock()
         defer { mutex.unlock() }
         
+        let metadata = KeyMetadata(
+            purposes: opts.purposes,
+            digests: opts.ios.digests,
+            signaturePaddingAlgorithm: opts.ios.signaturePaddingAlgorithm,
+            isHardwareBacked: isHardwareBacked,
+            userAuthRequire: opts.userAuth.require,
+            userAuthTimeout: opts.userAuth.timeout,
+            userAuthInvalidateOnEnrollment: opts.userAuth.invalidateOnEnrollment,
+            userAuthPolicy: opts.userAuth.policy
+        )
+        
         do {
-            let metadata = KeyMetadata(
-                purposes: opts.purposes,
-                digests: opts.ios.digests,
-                signaturePaddingAlgorithm: opts.ios.signaturePaddingAlgorithm,
-                isHardwareBacked: isHardwareBacked,
-                userAuthRequire: opts.userAuth.require,
-                userAuthTimeout: opts.userAuth.timeout,
-                userAuthInvalidateOnEnrollment: opts.userAuth.invalidateOnEnrollment,
-                userAuthPolicy: opts.userAuth.policy
-            )
-            
             let jsonData = try JSONEncoder().encode(metadata)
             
             // Store the metadata as JSON in the keychain
             let isSaveSuccessful = KeychainHelper.saveData(key: "\(alias)_metadata", data: jsonData)
             if !isSaveSuccessful {
-                throw SiliconException(code: "KEY_METADATA_ERR", message: "Failed to save key metadate to keychain")
+                throw KeyMetaDataStoreError.failedSave(message: "Failed to save key metadata to keychain")
             }
             
             // Store it in the cache
             cache[alias] = metadata
             
-        } catch let error as SiliconException {
-            throw error
-            
         } catch {
-            throw SiliconException(
-                code: "KEY_METADATA_ERR",
-                message: "Failed to encode metadata JSON",
-                cause: error
-            )
-            
+            throw KeyMetaDataStoreError.jsonEncoding(message: "Failed to encode key metadata as JSON: \(error.localizedDescription)")
         }
     }
     
@@ -79,10 +81,7 @@ struct KeyMetadataStore {
         
         // If not cached, read it from keychain and parse the JSON
         guard let jsonData = KeychainHelper.readData(key: "\(alias)_metadata") else {
-            throw SiliconException(
-                code: "KEY_METADATA_ERR",
-                message: "Failed to read key metadata from keychain"
-            )
+            throw KeyMetaDataReadError.failedRead(message: "Failed to read key metadata from keychain.")
         }
         
         do {
@@ -92,11 +91,7 @@ struct KeyMetadataStore {
             cache[alias] = parsed
             return parsed
         } catch {
-            throw SiliconException(
-                code: "KEY_METADATA_ERR",
-                message: "Failed to decode metadata JSON",
-                cause: error
-            )
+            throw KeyMetaDataReadError.jsonDecoding(message: "Failed to decode key metadata JSON: \(error.localizedDescription)")
         }
             
     }

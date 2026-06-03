@@ -6,15 +6,15 @@ import CryptoKit
 
 enum SiliconKeystoreManager {
     
-    static func generateKey(alias: String, opts: GenerateKeyOptions) throws -> SiliconResult<String?> {
+    static func generateKey(alias: String, opts: GenerateKeyOptions) -> SiliconResult<String?> {
         // Fail-fast if attest challenge is provided but attest is not supported
         if opts.attestChallenge != nil {
-            guard DCAppAttestService.shared.isSupported else {
-                return .failure(code: "ATTEST_NOT_SUPPORTED", message: "Hardware attestation is unavailable on this device", nativeStack: nil)
+            if (opts.ios.hardwarePolicy != .REQUIRE_SECURE_ENCLAVE) {
+                return .failure(code: .INVALID_ARGUMENT, message: "Hardware attestation cannot be performed on a software key. Set the hardware policy to \(HardwarePolicy.REQUIRE_SECURE_ENCLAVE) to enable it.", nativeStack: nil)
             }
             
-            if (opts.ios.hardwarePolicy != .REQUIRE_SECURE_ENCLAVE) {
-                return .failure(code: "INVALID_OPTIONS", message: "Hardware attestation cannot be performed on a software key. Set the hardware policy to \(HardwarePolicy.REQUIRE_SECURE_ENCLAVE) to enable it.", nativeStack: nil)
+            guard DCAppAttestService.shared.isSupported else {
+                return .failure(code: .ATTEST_NOT_SUPPORTED, message: "Hardware attestation is unavailable on this device", nativeStack: nil)
             }
         }
         
@@ -29,7 +29,7 @@ enum SiliconKeystoreManager {
         
         let status = SecItemCopyMatching(existenceQuery as CFDictionary, nil)
         if status == errSecSuccess {
-            return .failure(code: "ALIAS_IN_USE", message: "A key with alias '\(alias)' already exists", nativeStack: nil)
+            return .failure(code: .ALIAS_IN_USE, message: "A key with alias '\(alias)' already exists", nativeStack: nil)
         }
         
         // Hardware Policy
@@ -38,7 +38,7 @@ enum SiliconKeystoreManager {
         switch opts.ios.hardwarePolicy {
         case .REQUIRE_SECURE_ENCLAVE:
             if !SecureEnclaveSupport.isAvailable() {
-                return .failure(code: "HARDWARE_NOT_AVAILABLE", message: "Secure Enclave is required but unavailable", nativeStack: nil)
+                return .failure(code: .HARDWARE_NOT_AVAILABLE, message: "Secure Enclave is required but unavailable", nativeStack: nil)
             }
             hardwareRequested = true
             useHardware = true
@@ -59,8 +59,8 @@ enum SiliconKeystoreManager {
             // Secure Enclave hardware strictly disallows WRAP
             if opts.purposes.contains(.WRAP) {
                 return .failure(
-                    code: "UNSUPPORTED_PURPOSE",
-                    message: "iOS: Secure Enclave does not support WRAP operations. To use it, change your hardware policy to \(HardwarePolicy.SOFTWARE_ONLY.rawValue).",
+                    code: .INVALID_ARGUMENT,
+                    message: "Secure Enclave does not support WRAP operations. To use it, change your hardware policy to \(HardwarePolicy.SOFTWARE_ONLY.rawValue).",
                     nativeStack: nil
                 )
             }
@@ -68,8 +68,8 @@ enum SiliconKeystoreManager {
             // ALL Secure Enclave keys must be EC_P256
             if opts.ios.algorithm != KeyAlgorithm.EC_P256 {
                 return .failure(
-                    code: "UNSUPPORTED_KEY_FAMILY",
-                    message: "iOS: Secure Enclave does not support algorithm \(opts.ios.algorithm). Change the algorithm to \(KeyAlgorithm.EC_P256.rawValue) for hardware-backed cryptography, or change your hardware policy to \(HardwarePolicy.SOFTWARE_ONLY.rawValue).",
+                    code: .UNSUPPORTED,
+                    message: "Secure Enclave does not support algorithm \(opts.ios.algorithm). Change the algorithm to \(KeyAlgorithm.EC_P256.rawValue) for hardware-backed cryptography, or change your hardware policy to \(HardwarePolicy.SOFTWARE_ONLY.rawValue).",
                     nativeStack: nil
                 )
             }
@@ -102,9 +102,10 @@ enum SiliconKeystoreManager {
             }
             
             guard let allowedDigests = opts.ios.digests else {
-                throw SiliconException(
-                    code: "INVALID_DIGESTS",
-                    message: "Silicon Error: iOS: opts.ios.digests was nil after default value was set"
+                return .failure(
+                    code: .GENERATE_KEY_FAILED,
+                    message: "Silicon Error: opts.ios.digests was nil after default value was set",
+                    nativeStack: nil
                 )
             }
             
@@ -114,8 +115,8 @@ enum SiliconKeystoreManager {
             case .EC_P256:
                 if !allowedDigests.contains(KeyDigests.SHA256) {
                     return .failure(
-                        code: "INVALID_PARAMETER",
-                        message: "iOS: EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA256.rawValue) for \(KeyAlgorithm.EC_P256.rawValue) keys",
+                        code: .INVALID_ARGUMENT,
+                        message: "EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA256.rawValue) for \(KeyAlgorithm.EC_P256.rawValue) keys",
                         nativeStack: nil
                     )
                 }
@@ -123,8 +124,8 @@ enum SiliconKeystoreManager {
             case .EC_P384:
                 if !allowedDigests.contains(KeyDigests.SHA384) {
                     return .failure(
-                        code: "INVALID_PARAMETER",
-                        message: "iOS: EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA384.rawValue) for \(KeyAlgorithm.EC_P384.rawValue) keys",
+                        code: .INVALID_ARGUMENT,
+                        message: "EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA384.rawValue) for \(KeyAlgorithm.EC_P384.rawValue) keys",
                         nativeStack: nil
                     )
                 }
@@ -132,8 +133,8 @@ enum SiliconKeystoreManager {
             case .EC_P521:
                 if !allowedDigests.contains(KeyDigests.SHA512) {
                     return .failure(
-                        code: "INVALID_PARAMETER",
-                        message: "iOS: EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA512.rawValue) for \(KeyAlgorithm.EC_P521.rawValue) keys",
+                        code: .INVALID_ARGUMENT,
+                        message: "EC keys cannot be used for signing with any digest other than the one that matches the size of the key. Use \(KeyDigests.SHA512.rawValue) for \(KeyAlgorithm.EC_P521.rawValue) keys",
                         nativeStack: nil
                     )
                 }
@@ -144,8 +145,8 @@ enum SiliconKeystoreManager {
             
             if isEC && allowedDigests.count > 1 {
                 return .failure(
-                    code: "INVALID_PARAMETER",
-                    message: "iOS: EC keys cannot be used for signing with multiple digests. Use the digest that matches the key size.",
+                    code: .INVALID_ARGUMENT,
+                    message: "EC keys cannot be used for signing with multiple digests. Use the digest that matches the key size.",
                     nativeStack: nil
                 )
             }
@@ -155,32 +156,23 @@ enum SiliconKeystoreManager {
         do {
             try KeyMetadataStore.store(alias: alias, opts: opts, isHardwareBacked: useHardware)
         } catch {
-            return SiliconResult.failure(code: "GENERATE_KEY_FAILED", message: "iOS: Failed to save metadata to keychain", nativeStack: nil)
+            return SiliconResult.failure(code: .GENERATE_KEY_FAILED, message: "Failed to save metadata to keychain", nativeStack: nil)
         }
         
-        do {
-            var ret: SiliconResult<String?>
-            if useHardware {
-                ret = try GenerateKey.generateHardwareKey(alias: alias, tag: tag, opts: opts)
-            } else {
-                ret = try GenerateKey.generateSoftwareKey(alias: alias, tag: tag, opts: opts)
-            }
-            
-            switch ret {
-            case .failure:
-                // Cleanup metadata
-                _ = KeyMetadataStore.delete(alias: alias)
-                return ret
-            case .success:
-                return ret
-            }
-            
-        } catch {
+        var res: SiliconResult<String?>
+        if useHardware {
+            res = GenerateKey.generateHardwareKey(alias: alias, tag: tag, opts: opts)
+        } else {
+            res = GenerateKey.generateSoftwareKey(alias: alias, tag: tag, opts: opts)
+        }
+        
+        switch res {
+        case .failure:
             // Cleanup metadata
             _ = KeyMetadataStore.delete(alias: alias)
-            
-            // Re-throw
-            throw error
+            return res
+        case .success:
+            return res
         }
     }
     
@@ -219,7 +211,7 @@ enum SiliconKeystoreManager {
             return .success(true)
         } else {
             return .failure(
-                code: "DELETE_FAILED",
+                code: .DELETE_FAILED,
                 message: "Failed to fully clear keychain. Primary Key Status: \(secKeyStatus), Attest Token Status: \(attestKeyStatus), Metadata Status: \(metadataClean)",
                 nativeStack: nil
             )
@@ -249,7 +241,7 @@ enum SiliconKeystoreManager {
                 }
             }
         } else if keyStatus != errSecItemNotFound {
-            return .failure(code: "BULK_DELETE_FAILED", message: "Failed to read primary keys. OSStatus: \(keyStatus)", nativeStack: nil)
+            return .failure(code: .DELETE_ALL_FAILED, message: "Failed to read primary keys. OSStatus: \(keyStatus)", nativeStack: nil)
         }
         
         // --- Fetch all Attestation / Challenge Orphans ---
@@ -276,7 +268,7 @@ enum SiliconKeystoreManager {
                 }
             }
         } else if passStatus != errSecItemNotFound {
-            return .failure(code: "BULK_DELETE_FAILED", message: "Failed to read attestation tokens. OSStatus: \(passStatus)", nativeStack: nil)
+            return .failure(code: .DELETE_ALL_FAILED, message: "Failed to read attestation tokens. OSStatus: \(passStatus)", nativeStack: nil)
         }
         
         // --- Filter and Execute Deletion ---
@@ -319,7 +311,7 @@ enum SiliconKeystoreManager {
         } else {
             // Something went wrong at the OS level (e.g., Keychain locked, memory error)
             return .failure(
-                code: "KEY_EXISTS_FAILED",
+                code: .KEY_EXISTS_FAILED,
                 message: "Failed to verify key existence for alias: \(alias). OSStatus code: \(status)",
                 nativeStack: nil
             )
@@ -356,7 +348,7 @@ enum SiliconKeystoreManager {
         // Handle actual OS/Keychain errors
         guard status == errSecSuccess else {
             return .failure(
-                code: "KEY_LIST_FAILED",
+                code: .LIST_KEYS_FAILED,
                 message: "Failed to list keys from Keychain. OSStatus: \(status)",
                 nativeStack: nil
             )
@@ -365,7 +357,7 @@ enum SiliconKeystoreManager {
         // Cast the raw C-array into a Swift dictionary array
         guard let items = result as? [[String: Any]] else {
             return .failure(
-                code: "KEY_LIST_FAILED",
+                code: .LIST_KEYS_FAILED,
                 message: "Unexpected result format returned from Keychain",
                 nativeStack: nil
             )
@@ -410,22 +402,22 @@ enum SiliconKeystoreManager {
             return .success(formattedPubKey)
 
         } catch let error as GetPubKeyDataError {
-            var code: String
+            var code: SiliconErrorCode
             switch error {
             case .invalidAlias:
-                code = "INVALID_ALIAS"
+                code = .INVALID_ARGUMENT
             case .keyNotFound:
-                code = "KEY_NOT_FOUND"
+                code = .KEY_NOT_FOUND
             case .unsupportedKeyFamily:
-                code = "UNSUPPORTED_KEY_FAMILY"
+                code = .UNSUPPORTED
             default:
-                code = "GET_PUB_KEY_FAILED"
+                code = .GET_PUB_KEY_FAILED
             }
             return .failure(code: code, message: error.localizedDescription, nativeStack: nil)
 
         } catch {
             return .failure(
-                code: "GET_PUB_KEY_FAILED",
+                code: .GET_PUB_KEY_FAILED,
                 message: error.localizedDescription,
                 nativeStack: Thread.callStackSymbols.joined(separator: "\n")
             )
@@ -435,8 +427,8 @@ enum SiliconKeystoreManager {
     static func validateKey(alias: String) -> SiliconResult<String> {
         guard let tag = alias.data(using: .utf8) else {
             return .failure(
-                code: "KEY_VALIDATION_FAILED",
-                message: "Invalid alias format",
+                code: .INVALID_ARGUMENT,
+                message: "Failed to encode alias to data. The alias must be valid UTF8.",
                 nativeStack: nil
             )
         }
@@ -480,7 +472,7 @@ enum SiliconKeystoreManager {
         default:
             // A low-level system error, OS corruption, or unexpected OSStatus code.
             return .failure(
-                code: "KEY_VALIDATION_FAILED",
+                code: .VALIDATE_KEY_FAILED,
                 message: "Unrecognized OSStatus: \(status)",
                 nativeStack: nil
             )
@@ -495,32 +487,32 @@ enum SiliconKeystoreManager {
             pubKey = try getPubKeyData(alias: alias)
 
         } catch let error as GetPubKeyDataError {
-            var code: String
+            var code: SiliconErrorCode
             switch error {
             case .invalidAlias:
-                code = "INVALID_ALIAS"
+                code = .INVALID_ARGUMENT
             case .keyNotFound:
-                code = "KEY_NOT_FOUND"
+                code = .KEY_NOT_FOUND
             case .unsupportedKeyFamily:
-                code = "UNSUPPORTED_KEY_FAMILY"
+                code = .UNSUPPORTED
             default:
-                code = "ATTESTATION_FAILED"
+                code = .ATTEST_KEY_FAILED
             }
             return .failure(code: code, message: error.localizedDescription, nativeStack: nil)
             
         } catch {
-            return .failure(code: "ATTESTATION_FAILED", message: error.localizedDescription, nativeStack: nil)
+            return .failure(code: .ATTEST_KEY_FAILED, message: error.localizedDescription, nativeStack: nil)
             
         }
         
         // Retrieve the linked App Attest keyId
         guard let attestKeyId = KeychainHelper.readStr(key: "\(alias)_attest_id") else {
-            return .failure(code: "ATTEST_ID_NOT_FOUND", message: "No App Attest key linked to this alias.", nativeStack: nil)
+            return .failure(code: .UNSUPPORTED, message: "No App Attest key linked to this alias.", nativeStack: nil)
         }
         
         // Retrieve the stored Challenge
         guard let storedChallenge = KeychainHelper.readStr(key: "\(alias)_challenge") else {
-            return .failure(code: "CHALLENGE_NOT_FOUND", message: "No attestation challenge was provided during key generation.", nativeStack: nil)
+            return .failure(code: .UNSUPPORTED, message: "No attestation challenge was provided during key generation.", nativeStack: nil)
         }
         
         // BINDING: Hash the Stored Challenge + SecKey Public Key
@@ -544,11 +536,11 @@ enum SiliconKeystoreManager {
         _ = semaphore.wait(timeout: .distantFuture)
         
         if let error = nativeError {
-            return .failure(code: "ATTESTATION_FAILED", message: error.localizedDescription, nativeStack: nil)
+            return .failure(code: .ATTEST_KEY_FAILED, message: error.localizedDescription, nativeStack: nil)
         }
         
         guard let validBlob = attestationBlob else {
-            return .failure(code: "ATTESTATION_FAILED", message: "Failed to compile Apple certificate.", nativeStack: nil)
+            return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to compile Apple certificate.", nativeStack: nil)
         }
         
         var formattedPubKey: String
@@ -568,7 +560,7 @@ enum SiliconKeystoreManager {
                 "attestationStatement": validBlob
             ])
         } catch {
-            return .failure(code: "ATTESTATION_FAILED", message: error.localizedDescription, nativeStack: nil)
+            return .failure(code: .ATTEST_KEY_FAILED, message: error.localizedDescription, nativeStack: nil)
         }
     }
     
@@ -577,7 +569,7 @@ enum SiliconKeystoreManager {
         
         guard let tag = alias.data(using: .utf8) else {
             return .failure(
-                code: "INVALID_ALIAS",
+                code: .INVALID_ARGUMENT,
                 message: "Failed to encode alias to data",
                 nativeStack: Thread.callStackSymbols.joined(separator: "\n")
             )
@@ -598,7 +590,7 @@ enum SiliconKeystoreManager {
         
         if privateStatus == errSecItemNotFound {
             return .failure(
-                code: "KEY_NOT_FOUND",
+                code: .KEY_NOT_FOUND,
                 message: "No key exists for alias: '\(alias)'",
                 nativeStack: nil
             )
@@ -606,7 +598,7 @@ enum SiliconKeystoreManager {
         
         guard privateStatus == errSecSuccess, let privateDict = privateItem as? [String: Any] else {
             return .failure(
-                code: "GET_KEY_INFO_FAILED",
+                code: .GET_KEY_INFO_FAILED,
                 message: "Failed to read Keychain item attributes. OSStatus: \(privateStatus)",
                 nativeStack: Thread.callStackSymbols.joined(separator: "\n")
             )
@@ -708,7 +700,7 @@ enum SiliconKeystoreManager {
             
         } catch {
             return .failure(
-                code: "GET_KEY_INFO_FAILED",
+                code: .GET_KEY_INFO_FAILED,
                 message: "Failed to read key metadata",
                 nativeStack: Thread.callStackSymbols.joined(separator: "\n")
             )

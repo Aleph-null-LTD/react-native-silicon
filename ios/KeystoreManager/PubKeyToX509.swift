@@ -4,6 +4,7 @@ enum PubKeyFormatError: Error {
     case unknownKeySize
     case unsupportedRSASize(size: Int)
     case unsupportedECCurve(size: Int)
+    case unknownKeyType(type: String)
     
     var errorDescription: String? {
         switch self {
@@ -15,6 +16,8 @@ enum PubKeyFormatError: Error {
             return "EC key size \(size) is not supported. Supported sizes are 256, 384, and 521."
         case .unsupportedKeyType(let type):
             return "Key algorithm not supported for SPKI export. Found value: '\(type)'"
+        case .unknownKeyType(let type):
+            return "rawKeyType was an unexpected type: got '\(type)' expected String | Int"
         }
     }
 }
@@ -29,10 +32,7 @@ func pubKeyToX509(format: PubKeyFormat, rawPublicKeyData: Data, rawKeyType: Any?
         // If it's already a string, keep it
         keyType = typeStr
     } else {
-        throw SiliconException(
-            code: "PUBKEY_FORMAT_FAILED",
-            message: "iOS: rawKeyType was an unexpected type: got '\(String(describing: type(of: keyType)))' expected 'String | Int'"
-        )
+        throw PubKeyFormatError.unknownKeyType(type: String(describing: type(of: keyType)))
     }
     
     var uniformPublicKeyBytes = Data()

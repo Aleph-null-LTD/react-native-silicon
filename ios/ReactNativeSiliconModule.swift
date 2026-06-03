@@ -19,7 +19,7 @@ public class ReactNativeSiliconModule: Module {
         // ---- Keystore Manager ----
         
         AsyncFunction("generateKey") { (alias: String, opts: GenerateKeyOptions) -> [String: Any] in
-            return try SiliconKeystoreManager.generateKey(alias: alias, opts: opts).toBridgeMap()
+            return SiliconKeystoreManager.generateKey(alias: alias, opts: opts).toBridgeMap()
         }
         
         AsyncFunction("deleteKey") { (alias: String) -> [String: Any] in
@@ -57,23 +57,39 @@ public class ReactNativeSiliconModule: Module {
         // ---- Sign/Verify ----
         
         AsyncFunction("sign") { (alias: String, payloadStr: String?, payloadByteArr: Data?, opts: SignOptions) -> [String: Any] in
-            // Convert the payload to PayloadType
-            let bridgePayload = BridgePayloadRecord()
-            bridgePayload.text = payloadStr
-            bridgePayload.bytes = payloadByteArr
-            let payload = try bridgePayload.toPayloadType()
-            
-            return try await SiliconSigner.sign(alias: alias, payload: payload, opts: opts).toBridgeMap()
+            do {
+                // Convert the payload to PayloadType
+                let bridgePayload = BridgePayloadRecord()
+                bridgePayload.text = payloadStr
+                bridgePayload.bytes = payloadByteArr
+                let payload = try bridgePayload.toPayloadType()
+                
+                return await SiliconSigner.sign(alias: alias, payload: payload, opts: opts).toBridgeMap()
+            } catch {
+                return SiliconResult<Never>.failure(
+                    code: .INTERNAL_ERROR,
+                    message: error.localizedDescription,
+                    nativeStack: nil
+                ).toBridgeMap()
+            }
         }
         
         AsyncFunction("verify") { (payloadStr: String?, payloadByteArr: Data?, signature: String, opts: VerifyOptions) -> [String: Any] in
-            // Convert the payload to PayloadType
-            let bridgePayload = BridgePayloadRecord()
-            bridgePayload.text = payloadStr
-            bridgePayload.bytes = payloadByteArr
-            let payload = try bridgePayload.toPayloadType()
-            
-            return try SiliconVerifier.verify(payload: payload, signatureB64: signature, opts: opts).toBridgeMap()
+            do {
+                // Convert the payload to PayloadType
+                let bridgePayload = BridgePayloadRecord()
+                bridgePayload.text = payloadStr
+                bridgePayload.bytes = payloadByteArr
+                let payload = try bridgePayload.toPayloadType()
+                
+                return SiliconVerifier.verify(payload: payload, signatureB64: signature, opts: opts).toBridgeMap()
+            } catch {
+                return SiliconResult<Never>.failure(
+                    code: .INTERNAL_ERROR,
+                    message: error.localizedDescription,
+                    nativeStack: nil
+                ).toBridgeMap()
+            }
         }
         
         // ---- Random Generator ----
