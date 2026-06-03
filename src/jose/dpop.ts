@@ -51,7 +51,7 @@ export async function generateDpopProof(alias: string, opts: GenerateDpopProofOp
         throw new TypeError("Silicon Error: 'opts.nonce' must be of type 'string'");
     }
     
-    const jwk = await getJwk(alias);
+    const jwk = await getJwk(alias, opts.digest);
     
     // Strip the alg out of the JWK so we can store it in the header seperately
     const alg = jwk.alg;

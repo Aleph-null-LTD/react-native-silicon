@@ -1,3 +1,4 @@
+import { SignDigest } from '../core/operations';
 import { SiliconError, SiliconErrorCode } from '../errors';
 import NativeSilicon from '../module';
 import { Jwk } from './types';
@@ -7,10 +8,10 @@ import { Jwk } from './types';
  * @param alias 
  * @returns 
  */
-export async function getJwk(alias: string): Promise<Jwk> {
+export async function getJwk(alias: string, digest?: SignDigest): Promise<Jwk> {
     if (typeof alias !== 'string') throw new TypeError("Silicon Error: 'alias' must be of type 'string'");
     
-    const result = await NativeSilicon.getJwk(alias);
+    const result = await NativeSilicon.getJwk(alias, digest);
     if (!result.success) {
         switch (result.errorCode) {
             case "KEY_NOT_FOUND":
