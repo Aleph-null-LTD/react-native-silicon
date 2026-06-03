@@ -199,28 +199,16 @@ enum SiliconKeystoreManager {
         
         // Check if it exists before trying to delete, or just check its deletion status
         // Safely handle the optional App Attest Token AND the Challenge
-        let attestKeyAlias = "\(alias)_attest_id"
-        let challengeAlias = "\(alias)_challenge"
-
         var attestKeyClean = true
 
-        if KeychainHelper.readStr(key: attestKeyAlias) != nil {
+        if KeychainHelper.readStr(key: "\(alias)_attest_id") != nil {
             // Wipe the ID
-            let attestQuery: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrAccount as String: attestKeyAlias
-            ]
-            let statusId = SecItemDelete(attestQuery as CFDictionary)
+            let statusId = KeychainHelper.delete(key: "\(alias)_attest_id")
             
             // Wipe the stored challenge
-            let challengeQuery: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrAccount as String: challengeAlias
-            ]
-            let statusChallenge = SecItemDelete(challengeQuery as CFDictionary)
+            let statusChallenge = KeychainHelper.delete(key: "\(alias)_challenge")
             
-            attestKeyClean = (statusId == errSecSuccess || statusId == errSecItemNotFound) &&
-                             (statusChallenge == errSecSuccess || statusChallenge == errSecItemNotFound)
+            attestKeyClean = statusId && statusChallenge
         }
         
         let metadataClean = KeyMetadataStore.delete(alias: alias)
