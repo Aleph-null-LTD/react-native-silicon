@@ -5,3 +5,6 @@ packages:
 storeDir: ./.pnpm-store
 autoInstallPeers: true
 strictPeerDependencies: true
+allowBuilds:
+  msgpackr-extract: true
+  unrs-resolver: true
