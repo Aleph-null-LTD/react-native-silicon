@@ -24,6 +24,13 @@ struct SiliconSigner {
             )
         }
         
+        guard let allowedDigests = metadata.digests else {
+            throw SiliconException(
+                code: "SIGN_FAILED",
+                message: "iOS: No allowed digests in key metadata"
+            )
+        }
+        
         // Get the timeout and cast it to Double
         let timeoutSecs = Double(metadata.userAuthTimeout)
         
@@ -79,22 +86,168 @@ struct SiliconSigner {
                 message: "iOS: rawKeyType was an unexpected type: got '\(String(describing: type(of: keyType)))' expected 'String | Int'"
             )
         }
-        let keySize = dict[kSecAttrKeySizeInBits as String] as? Int ?? 256
+        
+        guard let keySize = dict[kSecAttrKeySizeInBits as String] as? Int else {
+            return .failure(
+                code: "SIGN_FAILED",
+                message: "iOS: Unable to read key size from kSecAttrKeySizeInBits",
+                nativeStack: nil
+            )
+        }
         
         let algorithm: SecKeyAlgorithm
         let isEC: Bool
         
-        // TODO: Implement other digests
         if keyType == (kSecAttrKeyTypeECSECPrimeRandom as String) || keyType == (kSecAttrKeyTypeEC as String) {
-            algorithm = .ecdsaSignatureMessageX962SHA256
+            if let requestedDigest = opts.digest {
+                // Ensure the digest is in the key's allowed digests
+                if !allowedDigests.contains(requestedDigest) {
+                    return .failure(
+                        code: "DISALLOWED_DIGEST",
+                        message: "iOS: Requested digest \(requestedDigest) is not in the list of allowed digests for key \(alias)",
+                        nativeStack: nil
+                    )
+                }
+                
+                switch requestedDigest {
+                case .SHA256:
+                    if keySize != 256 {
+                        return .failure(
+                            code: "INVALID_PARAM",
+                            message: "iOS: key (\(alias)) is an EC key and must use the digest that matches it's key size (\(KeyDigests.SHA256.rawValue))",
+                            nativeStack: nil
+                        )
+                    }
+                    algorithm = .ecdsaSignatureMessageX962SHA256
+                case .SHA384:
+                    if keySize != 384 {
+                        return .failure(
+                            code: "INVALID_PARAM",
+                            message: "iOS: key (\(alias)) is an EC key and must use the digest that matches it's key size (\(KeyDigests.SHA384.rawValue))",
+                            nativeStack: nil
+                        )
+                    }
+                    algorithm = .ecdsaSignatureMessageX962SHA384
+                case .SHA512:
+                    if keySize != 521 {
+                        return .failure(
+                            code: "INVALID_PARAM",
+                            message: "iOS: key (\(alias)) is an EC key and must use the digest that matches it's key size (\(KeyDigests.SHA512.rawValue))",
+                            nativeStack: nil
+                        )
+                    }
+                    algorithm = .ecdsaSignatureMessageX962SHA512
+                }
+                
+            } else {
+                var defaultDigest: KeyDigests
+                
+                switch keySize {
+                case 256:
+                    algorithm = .ecdsaSignatureMessageX962SHA256
+                    defaultDigest = .SHA256
+                case 384:
+                    algorithm = .ecdsaSignatureMessageX962SHA384
+                    defaultDigest = .SHA384
+                case 521:
+                    algorithm = .ecdsaSignatureMessageX962SHA512
+                    defaultDigest = .SHA512
+                default:
+                    return .failure(
+                        code: "NOT_SUPPORTED",
+                        message: "iOS: EC keys with size \(keySize) are not supported for sign",
+                        nativeStack: nil
+                    )
+                }
+                
+                if !allowedDigests.contains(defaultDigest) {
+                    return .failure(
+                        code: "DISALLOWED_DIGEST",
+                        message: "iOS: Cannot use default digest (\(defaultDigest)) for key \(alias) as it is not in the allowed digests list (\(allowedDigests)). Please set it explicitly in the options.",
+                        nativeStack: nil
+                    )
+                }
+            }
             isEC = true
             
         } else if keyType == (kSecAttrKeyTypeRSA as String) {
-            algorithm = .rsaSignatureMessagePKCS1v15SHA256
+            guard let sigPaddingAlg = metadata.signaturePaddingAlgorithm else {
+                return .failure(
+                    code: "SIGN_FAILED",
+                    message: "iOS: Key metadata did not include signaturePaddingAlgorithm",
+                    nativeStack: nil
+                )
+            }
+            
+            if let requestedDigest = opts.digest {
+                // Ensure the digest is in the key's allowed digests
+                if !allowedDigests.contains(requestedDigest) {
+                    throw SiliconException(
+                        code: "DISALLOWED_DIGEST",
+                        message: "iOS: Requested digest \(requestedDigest) is not in the list of allowed digests for key \(alias)"
+                    )
+                }
+                
+                switch requestedDigest {
+                case .SHA256:
+                    switch sigPaddingAlg {
+                    case .PKCS1: algorithm = .rsaSignatureMessagePKCS1v15SHA256
+                    case .PSS: algorithm = .rsaSignatureMessagePSSSHA256
+                    }
+                case .SHA384:
+                    switch sigPaddingAlg {
+                    case .PKCS1: algorithm = .rsaSignatureMessagePKCS1v15SHA384
+                    case .PSS: algorithm = .rsaSignatureMessagePSSSHA384
+                    }
+                case .SHA512:
+                    switch sigPaddingAlg {
+                    case .PKCS1: algorithm = .rsaSignatureMessagePKCS1v15SHA512
+                    case .PSS: algorithm = .rsaSignatureMessagePSSSHA512
+                    }
+                }
+                
+            } else {
+                var defaultDigest: KeyDigests
+                
+                switch keySize {
+                case 2048:
+                    switch sigPaddingAlg {
+                    case .PKCS1: algorithm = .rsaSignatureMessagePKCS1v15SHA256
+                    case .PSS: algorithm = .rsaSignatureMessagePSSSHA256
+                    }
+                    defaultDigest = .SHA256
+                case 3072:
+                    switch sigPaddingAlg {
+                    case .PKCS1: algorithm = .rsaSignatureMessagePKCS1v15SHA256
+                    case .PSS: algorithm = .rsaSignatureMessagePSSSHA256
+                    }
+                    defaultDigest = .SHA384
+                case 4096:
+                    switch sigPaddingAlg {
+                    case .PKCS1: algorithm = .rsaSignatureMessagePKCS1v15SHA256
+                    case .PSS: algorithm = .rsaSignatureMessagePSSSHA256
+                    }
+                    defaultDigest = .SHA512
+                default:
+                    return .failure(
+                        code: "NOT_SUPPORTED",
+                        message: "iOS: RSA keys with size \(keySize) are not supported for sign",
+                        nativeStack: nil
+                    )
+                }
+                
+                if !allowedDigests.contains(defaultDigest) {
+                    return .failure(
+                        code: "DISALLOWED_DIGEST",
+                        message: "iOS: Cannot use default digest (\(defaultDigest)) for key \(alias) as it is not in the allowed digests list (\(allowedDigests)). Please set it explicitly in the options.",
+                        nativeStack: nil
+                    )
+                }
+            }
             isEC = false
             
         } else {
-            return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Unsupported key type.", nativeStack: nil)
+            return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Unsupported key type", nativeStack: nil)
         }
         
         // Convert the payload to CFData
