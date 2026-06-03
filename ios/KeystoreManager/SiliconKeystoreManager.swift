@@ -583,19 +583,20 @@ enum SiliconKeystoreManager {
             )
         }
         
-        // Query the Keychain for the Key and its Attributes
-        let query: [String: Any] = [
+        // Query the Keychain for the private key
+        let privateQuery: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
+            kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
             kSecReturnAttributes as String: true,
-            kSecReturnRef as String: true,
+            kSecReturnRef as String: false,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
         
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        var privateItem: CFTypeRef?
+        let privateStatus = SecItemCopyMatching(privateQuery as CFDictionary, &privateItem)
         
-        if status == errSecItemNotFound {
+        if privateStatus == errSecItemNotFound {
             return .failure(
                 code: "KEY_NOT_FOUND",
                 message: "No key exists for alias: '\(alias)'",
@@ -603,37 +604,56 @@ enum SiliconKeystoreManager {
             )
         }
         
-        guard status == errSecSuccess, let dict = item as? [String: Any] else {
+        guard privateStatus == errSecSuccess, let privateDict = privateItem as? [String: Any] else {
             return .failure(
                 code: "GET_KEY_INFO_FAILED",
-                message: "Failed to read Keychain item attributes. OSStatus: \(status)",
+                message: "Failed to read Keychain item attributes. OSStatus: \(privateStatus)",
                 nativeStack: Thread.callStackSymbols.joined(separator: "\n")
             )
         }
         
+        // Query the Keychain for the public key
+        let publicQuery: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrApplicationTag as String: tag,
+            kSecAttrKeyClass as String: kSecAttrKeyClassPublic, // Explicitly target Public Key
+            kSecReturnAttributes as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+
+        var publicItem: CFTypeRef?
+        let publicStatus = SecItemCopyMatching(publicQuery as CFDictionary, &publicItem)
+        let publicDict = (publicStatus == errSecSuccess) ? (publicItem as? [String: Any]) : nil
+        
         // Hardware Isolation Security Level
         // If the TokenID is SecureEnclave, it's hardware-backed. Otherwise, it's software Keychain.
-        let tokenID = dict[kSecAttrTokenID as String] as? String
+        let tokenID = privateDict[kSecAttrTokenID as String] as? String
         let securityLevel = (tokenID == (kSecAttrTokenIDSecureEnclave as String)) ? "SECURE_ENCLAVE" : "SOFTWARE"
         
         // Extract Purposes
         var purposes: [String] = []
-        if dict[kSecAttrCanSign as String] as? Bool == true { purposes.append("SIGN") }
-        if dict[kSecAttrCanVerify as String] as? Bool == true { purposes.append("VERIFY") }
-        if dict[kSecAttrCanEncrypt as String] as? Bool == true { purposes.append("ENCRYPT") }
-        if dict[kSecAttrCanDecrypt as String] as? Bool == true { purposes.append("DECRYPT") }
-        if dict[kSecAttrCanDerive as String] as? Bool == true { purposes.append("AGREE") }
-        if dict[kSecAttrCanWrap as String] as? Bool == true { purposes.append("WRAP") }
-        if dict[kSecAttrCanUnwrap as String] as? Bool == true { purposes.append("UNWRAP") }
+        
+        // Check Private Key purposes
+        if privateDict[kSecAttrCanSign as String] as? Bool == true { purposes.append("SIGN") }
+        if privateDict[kSecAttrCanDecrypt as String] as? Bool == true { purposes.append("DECRYPT") }
+        if privateDict[kSecAttrCanDerive as String] as? Bool == true { purposes.append("AGREE") }
+        if privateDict[kSecAttrCanUnwrap as String] as? Bool == true { purposes.append("UNWRAP") }
+
+        // Check Public Key purposes (if it exists)
+        if let pubDict = publicDict {
+            if pubDict[kSecAttrCanVerify as String] as? Bool == true { purposes.append("VERIFY") }
+            if pubDict[kSecAttrCanEncrypt as String] as? Bool == true { purposes.append("ENCRYPT") }
+            if pubDict[kSecAttrCanWrap as String] as? Bool == true { purposes.append("WRAP") }
+        }
         
         // Algorithm & Curve Extraction
-        let rawKeyType = dict[kSecAttrKeyType as String]
+        let rawKeyType = privateDict[kSecAttrKeyType as String]
         let keyType: String
         if let typeNum = rawKeyType as? NSNumber { keyType = typeNum.stringValue }
         else if let typeStr = rawKeyType as? String { keyType = typeStr }
         else { keyType = "UNKNOWN" }
         
-        let keySize = dict[kSecAttrKeySizeInBits as String] as? Int
+        let keySize = privateDict[kSecAttrKeySizeInBits as String] as? Int
         var algorithm = "UNKNOWN"
         var curve: String? = nil
         
@@ -650,10 +670,10 @@ enum SiliconKeystoreManager {
         
         // Appraise the Access Control
         var isUserAuthRequired = false
-        let accessibleClass = dict[kSecAttrAccessible as String] as? String
+        let accessibleClass = privateDict[kSecAttrAccessible as String] as? String
         
         // If an Access Control object exists, it almost certainly involves biometrics or passcode
-        if dict[kSecAttrAccessControl as String] != nil {
+        if privateDict[kSecAttrAccessControl as String] != nil {
             isUserAuthRequired = true
         }
         
@@ -676,6 +696,15 @@ enum SiliconKeystoreManager {
             
             infoMap["userAuthValidityDurationSecs"] = metadata.userAuthTimeout
             infoMap["policy"] = metadata.userAuthPolicy
+            
+            // Overwrite the purposes for Secure Enclave keys (because purposes are always ["SIGN", "AGREE"])
+            if metadata.isHardwareBacked {
+                purposes = []
+                for purpose in metadata.purposes {
+                    purposes.append(purpose.rawValue)
+                }
+                infoMap["purposes"] = purposes
+            }
             
         } catch {
             return .failure(
