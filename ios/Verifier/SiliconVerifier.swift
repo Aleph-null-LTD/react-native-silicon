@@ -172,13 +172,34 @@ struct SiliconVerifier {
                 // Ensure it is compatible with the key family
                 switch safeAlgorithm {
                 case .ES256:
+                    if keySize != 256 {
+                        return .failure(
+                            code: "INVALID_PARAMETER",
+                            message: "iOS: key (\(alias)) is an EC key and must use the algorithm that matches it's size (\(VerifyAlgorithms.ES256.rawValue))",
+                            nativeStack: nil
+                        )
+                    }
                     digest = .SHA256
                 case .ES384:
+                    if keySize != 384 {
+                        return .failure(
+                            code: "INVALID_PARAMETER",
+                            message: "iOS: key (\(alias)) is an EC key and must use the algorithm that matches it's size (\(VerifyAlgorithms.ES384.rawValue))",
+                            nativeStack: nil
+                        )
+                    }
                     digest = .SHA384
                 case .ES512:
+                    if keySize != 512 {
+                        return .failure(
+                            code: "INVALID_PARAMETER",
+                            message: "iOS: key (\(alias)) is an EC key and must use the algorithm that matches it's size (\(VerifyAlgorithms.ES512.rawValue))",
+                            nativeStack: nil
+                        )
+                    }
                     digest = .SHA512
                 default:
-                    return .failure(code: "INVALID_ALGORITHM_PARAMETER", message: "Cannot use \(safeAlgorithm) with a non-EC key", nativeStack: nil)
+                    return .failure(code: "INVALID_PARAMETER", message: "Cannot use \(safeAlgorithm) with a non-EC key", nativeStack: nil)
                 }
                 
             } else if keyType == (kSecAttrKeyTypeRSA as String) {
