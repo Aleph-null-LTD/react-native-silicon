@@ -2,7 +2,7 @@ import Security
 import Foundation
 
 struct SiliconJose {
-    static func getJwk(alias: String) -> SiliconResult<[String: Any]> {
+    static func getJwk(alias: String, digest: KeyDigests?) -> SiliconResult<[String: Any]> {
         do {
             // Get the pubkey
             let pubkey = try getPubKeyData(alias: alias)
@@ -23,7 +23,7 @@ struct SiliconJose {
                 keyType = typeStr
             } else {
                 throw SiliconException(
-                    code: "KEY_TYPE_COERCE_ERROR",
+                    code: "GET_JWK_FAILED",
                     message: "iOS: rawKeyType was an unexpected type: got '\(String(describing: type(of: keyType)))' expected 'String | Int'"
                 )
             }
@@ -31,9 +31,29 @@ struct SiliconJose {
             // Route to the correct JWK constructor
             let jwk: [String: Any]
             if keyType == (kSecAttrKeyTypeECSECPrimeRandom as String) || keyType == (kSecAttrKeyTypeEC as String) {
-                jwk = try constructEcJwk(rawData: pubkey.rawData, keySize: keySize)
+                jwk = try constructEcJwk(rawData: pubkey.rawData, keySize: keySize, digest: digest)
             } else if keyType == (kSecAttrKeyTypeRSA as String) {
-                jwk = try constructRsaJwk(rawData: pubkey.rawData, keySize: keySize)
+                do {
+                    let metadata = try KeyMetadataStore.get(alias: alias)
+                    
+                    guard let sigPadAlg = metadata.signaturePaddingAlgorithm else {
+                        return .failure(
+                            code: "GET_JWK_FAILED",
+                            message: "iOS: No signature padding algorithm was found in the metadata for key (\(alias))",
+                            nativeStack: nil
+                        )
+                    }
+                    
+                    let isPSS = sigPadAlg == .PSS
+                    
+                    jwk = try constructRsaJwk(rawData: pubkey.rawData, keySize: keySize, isPSS: isPSS, digest: digest)
+                } catch {
+                    return .failure(
+                        code: "GET_JWK_FAILED",
+                        message: error.localizedDescription,
+                        nativeStack: nil
+                    )
+                }
             } else {
                 return .failure(code: "UNSUPPORTED_KEY_FAMILY", message: "Key family is not supported for JWK", nativeStack: nil)
             }
@@ -59,15 +79,15 @@ struct SiliconJose {
     }
 
     // MARK: - EC Construction
-    private static func constructEcJwk(rawData: Data, keySize: Int) throws -> [String: Any] {
+    private static func constructEcJwk(rawData: Data, keySize: Int, digest: KeyDigests?) throws -> [String: Any] {
         // Apple's EC External Representation is ANSI X9.63 format: 0x04 || X || Y
         guard rawData.first == 0x04 else {
-            throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid EC public key format."])
+            throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "iOS: Invalid EC public key format."])
         }
         
         let coordinateLength = (keySize + 7) / 8 // 256 bits = 32 bytes
         guard rawData.count == 1 + (2 * coordinateLength) else {
-            throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "EC key byte length mismatch."])
+            throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "iOS: EC key byte length mismatch."])
         }
         
         let xData = rawData[1 ... coordinateLength]
@@ -75,10 +95,35 @@ struct SiliconJose {
         
         let (alg, crv): (String, String)
         switch keySize {
-            case 256: (alg, crv) = ("ES256", "P-256")
-            case 384: (alg, crv) = ("ES384", "P-384")
-            case 521: (alg, crv) = ("ES512", "P-521")
-            default: throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unsupported EC curve size: \(keySize)"])
+        case 256:
+            if digest != nil && digest != .SHA256 {
+                throw NSError(
+                    domain: "Silicon",
+                    code: 0,
+                    userInfo: [NSLocalizedDescriptionKey: "iOS: \(KeyAlgorithm.EC_P256.rawValue) keys must use the \(KeyDigests.SHA256.rawValue) digest"]
+                )
+            }
+            (alg, crv) = ("ES256", "P-256")
+        case 384:
+            if digest != nil && digest != .SHA384 {
+                throw NSError(
+                    domain: "Silicon",
+                    code: 0,
+                    userInfo: [NSLocalizedDescriptionKey: "iOS: \(KeyAlgorithm.EC_P384.rawValue) keys must use the \(KeyDigests.SHA384.rawValue) digest"]
+                )
+            }
+            (alg, crv) = ("ES384", "P-384")
+        case 521:
+            if digest != nil && digest != .SHA512 {
+                throw NSError(
+                    domain: "Silicon",
+                    code: 0,
+                    userInfo: [NSLocalizedDescriptionKey: "iOS: \(KeyAlgorithm.EC_P521.rawValue) keys must use the \(KeyDigests.SHA512.rawValue) digest"]
+                )
+            }
+            (alg, crv) = ("ES512", "P-521")
+        default:
+            throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unsupported EC curve size: \(keySize)"])
         }
         
         return [
@@ -91,18 +136,35 @@ struct SiliconJose {
     }
 
     // MARK: - RSA Construction
-    private static func constructRsaJwk(rawData: Data, keySize: Int) throws -> [String: Any] {
+    private static func constructRsaJwk(rawData: Data, keySize: Int, isPSS: Bool, digest: KeyDigests?) throws -> [String: Any] {
         // rawData is ASN.1 DER encoded: SEQUENCE { INTEGER n, INTEGER e }
         guard let (nData, eData) = extractRSADerComponents(der: rawData) else {
             throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to parse RSA ASN.1 structure."])
         }
         
+        // Determine the algorithm
         let alg: String
-        if keySize >= 4096 { alg = "RS512" }
-        else if keySize >= 3072 { alg = "RS384" }
-        else if keySize >= 2048 { alg = "RS256" }
-        else { throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "RSA key size \(keySize) is too weak."]) }
-        
+        if let requestedDigest = digest {
+            // Digest was explicitly set so use the corresponding algorithm
+            switch requestedDigest {
+            case .SHA256: alg = isPSS ? "PS256" : "RS256"
+            case .SHA384: alg = isPSS ? "PS384" : "RS384"
+            case .SHA512: alg = isPSS ? "PS512" : "RS512"
+            }
+        } else {
+            // Digest was not set so use the algorithm that matches the key size
+            // This corresponds to the same default algorithms we use when signing/verifying
+            if keySize >= 4096 {
+                alg = isPSS ? "PS512" : "RS512"
+            } else if keySize >= 3072 {
+                alg = isPSS ? "PS384" : "RS384"
+            } else if keySize >= 2048 {
+                alg = isPSS ? "PS256" : "RS256"
+            } else {
+                throw NSError(domain: "Silicon", code: 0, userInfo: [NSLocalizedDescriptionKey: "RSA key size \(keySize) is too weak."])
+            }
+        }
+
         return [
             "kty": "RSA",
             "n": base64URLEncode(nData),

@@ -84,8 +84,8 @@ public class ReactNativeSiliconModule: Module {
 
         // ---- JOSE ----
         
-        AsyncFunction("getJwk") { (alias: String) -> [String: Any] in
-            return SiliconJose.getJwk(alias: alias).toBridgeMap()
+        AsyncFunction("getJwk") { (alias: String, digest: KeyDigests?) -> [String: Any] in
+            return SiliconJose.getJwk(alias: alias, digest: digest).toBridgeMap()
         }
     }
 }
