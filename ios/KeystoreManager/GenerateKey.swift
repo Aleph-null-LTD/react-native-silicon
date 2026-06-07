@@ -2,7 +2,7 @@ import DeviceCheck
 
 enum GenerateKey {
     // MARK: - Hardware Keys
-    static func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) -> SiliconResult<String?> {
+    static func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) -> SiliconResult<Void> {
         // Initialize Core Generation Parameters
         var attributes: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom, // Matches NIST P-256 / secp256r1
@@ -128,34 +128,55 @@ enum GenerateKey {
             }
             
             // Persist the alias -> keyId map locally so attestKey can find it
-            let isAttestIdStored = KeychainHelper.saveStr(key: "\(alias)_attest_id", value: keyId)
-            if !isAttestIdStored {
+            do {
+                try KeychainHelper.saveStr(key: "\(alias)_attest_id", value: keyId)
+            } catch let error as KeychainHelper.KeychainHelperError {
                 cleanupSecKey()
                 return .failure(
                     code: .GENERATE_KEY_FAILED,
-                    message: "Failed to store key identifier in keychain",
+                    message: "Failed to store key identifier in keychain: \(error.errorDescription)",
+                    nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+                )
+            } catch {
+                cleanupSecKey()
+                return .failure(
+                    code: .GENERATE_KEY_FAILED,
+                    message: "Failed to store key identifier in keychain: \(error.localizedDescription)",
                     nativeStack: Thread.callStackSymbols.joined(separator: "\n")
                 )
             }
             
             // Persist the alias -> challenge map locally so attestKey can find it
-            let isAttestChallengeStored = KeychainHelper.saveStr(key: "\(alias)_challenge", value: challenge)
-            if !isAttestChallengeStored {
-                _ = KeychainHelper.delete(key: "\(alias)_attest_id")
+            do {
+                try KeychainHelper.saveData(key: "\(alias)_challenge", data: challenge)
+                
+            } catch let error as KeychainHelper.KeychainHelperError {
+                do { _ = try KeychainHelper.delete(key: "\(alias)_attest_id") } catch {} // Ignore failed cleanup
                 cleanupSecKey()
+                
                 return .failure(
                     code: .GENERATE_KEY_FAILED,
-                    message: "Failed to store key identifier in keychain",
+                    message: "Failed to store key identifier in keychain: \(error.errorDescription)",
+                    nativeStack: Thread.callStackSymbols.joined(separator: "\n")
+                )
+                
+            } catch {
+                do { _ = try KeychainHelper.delete(key: "\(alias)_attest_id") } catch {} // Ignore failed cleanup
+                cleanupSecKey()
+                
+                return .failure(
+                    code: .GENERATE_KEY_FAILED,
+                    message: "Failed to store key identifier in keychain: \(error.localizedDescription)",
                     nativeStack: Thread.callStackSymbols.joined(separator: "\n")
                 )
             }
         }
         
-        return formatPubkey(privateKey: privateKey, opts: opts)
+        return .success(())
     }
     
     // MARK: - Software Keys
-    static func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) -> SiliconResult<String?> {
+    static func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) -> SiliconResult<Void> {
         var keyType: String
         var keySize: Int
         
@@ -306,13 +327,12 @@ enum GenerateKey {
                 nativeStack: Thread.callStackSymbols.joined(separator: "\n")
             )
         }
-        
-        // TODO: for symmetric keys we will skip the pubkey formatting and return nil
 
-        return formatPubkey(privateKey: privateKey, opts: opts)
+        return .success(())
     }
     
     // MARK: - Helpers
+    /*
     private static func formatPubkey(privateKey: SecKey, opts: GenerateKeyOptions) -> SiliconResult<String?> {
         // Extract the attributes from the SecKey
         guard let attributes = SecKeyCopyAttributes(privateKey) as? [String: Any] else {
@@ -348,4 +368,5 @@ enum GenerateKey {
             )
         }
     }
+     */
 }

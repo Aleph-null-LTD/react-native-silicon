@@ -6,7 +6,7 @@ import CryptoKit
 
 enum SiliconKeystoreManager {
     
-    static func generateKey(alias: String, opts: GenerateKeyOptions) -> SiliconResult<String?> {
+    static func generateKey(alias: String, opts: GenerateKeyOptions) -> SiliconResult<Void> {
         // Fail-fast if attest challenge is provided but attest is not supported
         if opts.attestChallenge != nil {
             if (opts.ios.hardwarePolicy != .REQUIRE_SECURE_ENCLAVE) {
@@ -14,7 +14,7 @@ enum SiliconKeystoreManager {
             }
             
             guard DCAppAttestService.shared.isSupported else {
-                return .failure(code: .ATTEST_NOT_SUPPORTED, message: "Hardware attestation is unavailable on this device", nativeStack: nil)
+                return .failure(code: .ATTEST_NOT_AVAILABLE, message: "Hardware attestation is unavailable on this device", nativeStack: nil)
             }
         }
         
@@ -159,7 +159,7 @@ enum SiliconKeystoreManager {
             return SiliconResult.failure(code: .GENERATE_KEY_FAILED, message: "Failed to save metadata to keychain", nativeStack: nil)
         }
         
-        var res: SiliconResult<String?>
+        var res: SiliconResult<Void>
         if useHardware {
             res = GenerateKey.generateHardwareKey(alias: alias, tag: tag, opts: opts)
         } else {
@@ -169,16 +169,36 @@ enum SiliconKeystoreManager {
         switch res {
         case .failure:
             // Cleanup metadata
-            _ = KeyMetadataStore.delete(alias: alias)
+            do {
+                _ = try KeyMetadataStore.delete(alias: alias)
+            } catch {
+                // Ignore errors from the cleanup
+            }
             return res
+            
         case .success:
             return res
         }
     }
     
     static func deleteKey(alias: String) -> SiliconResult<Bool> {
-        let tag = alias.data(using: .utf8)!
+        // TODO: Possibly implement this so that we cannot delete keys outside of our library
+        /*
+        do {
+            let metadataExists = try KeychainHelper.exists(key: "\(alias)_metadata")
             
+            if !metadataExists {
+                return .failure(
+                    code: .OPERATION_NOT_PERMITTED,
+                    message: "Failed to delete key (\(alias)). Keys that are not generated with react-native-silicon cannot be deleted.",
+                    nativeStack: nil
+                )
+            }
+        }
+        */
+        
+        let tag = alias.data(using: .utf8)! // TODO: Handle this (remove the !)
+        
         // Delete the Standard SecKey
         let secKeyQuery: [String: Any] = [
             kSecClass as String: kSecClassKey,
@@ -186,35 +206,70 @@ enum SiliconKeystoreManager {
         ]
         let secKeyStatus = SecItemDelete(secKeyQuery as CFDictionary)
         
-        // Safely handle the optional App Attest Token
-        let attestKeyStatus: OSStatus = errSecSuccess
-        
-        // Check if it exists before trying to delete, or just check its deletion status
-        // Safely handle the optional App Attest Token AND the Challenge
-        var attestKeyClean = true
-
-        if KeychainHelper.readStr(key: "\(alias)_attest_id") != nil {
-            // Wipe the ID
-            let statusId = KeychainHelper.delete(key: "\(alias)_attest_id")
-            
-            // Wipe the stored challenge
-            let statusChallenge = KeychainHelper.delete(key: "\(alias)_challenge")
-            
-            attestKeyClean = statusId && statusChallenge
-        }
-        
-        let metadataClean = KeyMetadataStore.delete(alias: alias)
-        
-        let primaryKeyClean = (secKeyStatus == errSecSuccess || secKeyStatus == errSecItemNotFound)
-        
-        if primaryKeyClean && attestKeyClean {
-            return .success(true)
-        } else {
+        // If it's a system error (not just missing), fail-fast
+        guard secKeyStatus == errSecSuccess || secKeyStatus == errSecItemNotFound else {
             return .failure(
                 code: .DELETE_FAILED,
-                message: "Failed to fully clear keychain. Primary Key Status: \(secKeyStatus), Attest Token Status: \(attestKeyStatus), Metadata Status: \(metadataClean)",
+                message: "Failed to delete key (\(alias)). OSStatus: \(secKeyStatus)",
                 nativeStack: nil
             )
+        }
+        
+        var keyDeleted = (secKeyStatus == errSecSuccess)
+        var wasError = false
+        var errorMessages: [String] = [];
+        
+        // Wipe the attest ID (If one exists)
+        var attestIdDeleted = false
+        do {
+            attestIdDeleted = try KeychainHelper.delete(key: "\(alias)_attest_id")
+        } catch let error as KeychainHelper.KeychainHelperError {
+            wasError = true
+            errorMessages.append("Failed to delete attest ID: \(error.errorDescription)")
+        } catch {
+            wasError = true
+            errorMessages.append("Failed to delete attest ID: \(error.localizedDescription)")
+        }
+        
+        // Wipe the challenge (If one exists)
+        var challengeDeleted = false
+        do {
+            challengeDeleted = try KeychainHelper.delete(key: "\(alias)_challenge")
+        } catch let error as KeychainHelper.KeychainHelperError {
+            wasError = true
+            errorMessages.append("Failed to delete attest challenge: \(error.errorDescription)")
+        } catch {
+            wasError = true
+            errorMessages.append("Failed to delete attest challenge: \(error.localizedDescription)")
+        }
+        
+        // Wipe metadata
+        var metadataDeleted = false
+        do {
+            metadataDeleted = try KeyMetadataStore.delete(alias: alias)
+        } catch let error as KeyMetaDataDeleteError {
+            wasError = true
+            errorMessages.append("Failed to delete key metadata: \(error.errorDescription)")
+        } catch {
+            wasError = true
+            errorMessages.append("Failed to delete key metadata: \(error.localizedDescription)")
+        }
+        
+        
+        if wasError {
+            let finalErrMessage = "Key (\(alias)) was deleted but failed to fully clear keychain. Errors: " + errorMessages.joined(separator: ", ")
+            return .failure(
+                code: .DELETE_FAILED,
+                message: finalErrMessage,
+                nativeStack: nil
+            )
+        }
+        
+        // If anything was deleted, return true
+        if keyDeleted || attestIdDeleted || challengeDeleted || metadataDeleted {
+            return .success(true)
+        } else {
+            return .success(false)
         }
     }
     
@@ -241,10 +296,34 @@ enum SiliconKeystoreManager {
                 }
             }
         } else if keyStatus != errSecItemNotFound {
-            return .failure(code: .DELETE_ALL_FAILED, message: "Failed to read primary keys. OSStatus: \(keyStatus)", nativeStack: nil)
+            return .failure(code: .DELETE_ALL_FAILED, message: "Failed to read keys. OSStatus: \(keyStatus)", nativeStack: nil)
         }
         
-        // --- Fetch all Attestation / Challenge Orphans ---
+        // List internal keychain data to find possible orphans
+        do {
+            let internalItems = try KeychainHelper.listAll()
+            
+            // If any items were found, add them to the uniqueAliases Set
+            if let items = internalItems {
+                for item in items {
+                    if item.hasSuffix("_attest_id") {
+                        let baseAlias = String(item.dropLast(10))
+                        uniqueAliases.insert(baseAlias)
+                    } else if item.hasSuffix("_challenge") {
+                        let baseAlias = String(item.dropLast(10))
+                        uniqueAliases.insert(baseAlias)
+                    } else if item.hasSuffix("_metadata") {
+                        let baseAlias = String(item.dropLast(9))
+                        uniqueAliases.insert(baseAlias)
+                    }
+                }
+            }
+            
+        } catch {
+            // Ignore - We don't block the delete for non-essential cleanup
+        }
+        
+        /*
         let passQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecReturnAttributes as String: true,
@@ -270,6 +349,9 @@ enum SiliconKeystoreManager {
         } else if passStatus != errSecItemNotFound {
             return .failure(code: .DELETE_ALL_FAILED, message: "Failed to read attestation tokens. OSStatus: \(passStatus)", nativeStack: nil)
         }
+         */
+        
+        var errorMessages: [String] = []
         
         // --- Filter and Execute Deletion ---
         for alias in uniqueAliases {
@@ -281,21 +363,32 @@ enum SiliconKeystoreManager {
             // Funnel through deletion function
             let result = deleteKey(alias: alias)
             
-            if case .success = result {
+            switch result {
+            case .success(let deleted):
                 deletedCount += 1
+            case .failure(let code, let message, let nativeStack):
+                errorMessages.append(message)
             }
+        }
+        
+        // If any keys were not fully deleted, it is a failure
+        if errorMessages.count > 0 {
+            let baseMessage = "Failed to delete \(errorMessages.count) out of \(uniqueAliases.count) keys:\n  - "
+            let combinedMessage = baseMessage + errorMessages.joined(separator: "\n  - ")
+            return .failure(code: .DELETE_ALL_FAILED, message: combinedMessage, nativeStack: nil)
         }
         
         return .success(deletedCount)
     }
     
     static func keyExists(alias: String) -> SiliconResult<Bool> {
-        let tag = alias.data(using: .utf8)!
+        let tag = alias.data(using: .utf8)! // TODO: Handle this (remove the !)
         
         // We only query the primary SecKey. If it's there, the key is usable.
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: tag
+            kSecAttrApplicationTag as String: tag,
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip
         ]
         
         // Pass nil for the result because we don't actually need to load the key into memory,
@@ -388,18 +481,25 @@ enum SiliconKeystoreManager {
         return .success(filteredAliases)
     }
     
-    static func getPubKey(alias: String, format: PubKeyFormat) -> SiliconResult<String> {
+    // NOTE: This should only ever return either String or Data
+    static func getPubKey(alias: String, format: PubKeyFormat) -> SiliconResult<Any> {
         do {
             let pubkey = try getPubKeyData(alias: alias)
             
-            let formattedPubKey = try pubKeyToX509(
+            let x509PubKeyResult = try pubKeyToX509(
                 format: format,
                 rawPublicKeyData: pubkey.rawData,
                 // Read the key size and type from the Keychain attributes dictionary
                 rawKeyType: pubkey.dict[kSecAttrKeyType as String],
                 keySize: pubkey.dict[kSecAttrKeySizeInBits as String] as? Int
             )
-            return .success(formattedPubKey)
+            
+            switch x509PubKeyResult {
+            case .data(let rawSpki):
+                return .success(rawSpki)
+            case .str(let formattedPubKey):
+                return .success(formattedPubKey)
+            }
 
         } catch let error as GetPubKeyDataError {
             var code: SiliconErrorCode
@@ -415,6 +515,16 @@ enum SiliconKeystoreManager {
             }
             return .failure(code: code, message: error.localizedDescription, nativeStack: nil)
 
+        } catch let error as PubKeyFormatError {
+            var code: SiliconErrorCode
+            switch error {
+            case .unsupportedECCurve, .unsupportedRSASize, .unsupportedKeyType:
+                code = .UNSUPPORTED
+            case .unknownKeySize, .unknownKeyType:
+                code = .GET_PUB_KEY_FAILED
+            }
+            return .failure(code: code, message: error.localizedDescription, nativeStack: nil)
+            
         } catch {
             return .failure(
                 code: .GET_PUB_KEY_FAILED,
@@ -505,18 +615,34 @@ enum SiliconKeystoreManager {
             
         }
         
-        // Retrieve the linked App Attest keyId
-        guard let attestKeyId = KeychainHelper.readStr(key: "\(alias)_attest_id") else {
-            return .failure(code: .UNSUPPORTED, message: "No App Attest key linked to this alias.", nativeStack: nil)
-        }
-        
         // Retrieve the stored Challenge
-        guard let storedChallenge = KeychainHelper.readStr(key: "\(alias)_challenge") else {
-            return .failure(code: .UNSUPPORTED, message: "No attestation challenge was provided during key generation.", nativeStack: nil)
+        var challengeData: Data
+        do {
+            guard let challenge = try KeychainHelper.readData(key: "\(alias)_challenge") else {
+                return .failure(code: .OPERATION_NOT_PERMITTED, message: "No attestation challenge was provided during key generation.", nativeStack: nil)
+            }
+            challengeData = challenge
+        } catch let error as KeychainHelper.KeychainHelperError {
+            return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to read attest challenge from keychain: \(error.errorDescription)", nativeStack: nil)
+        } catch {
+            return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to read attest challenge from keychain: \(error.localizedDescription)", nativeStack: nil)
+        }
+
+        
+        // Retrieve the linked App Attest keyId
+        var attestKeyId: String
+        do {
+            guard let id = try KeychainHelper.readStr(key: "\(alias)_attest_id") else {
+                return .failure(code: .OPERATION_NOT_PERMITTED, message: "No App Attest key linked to this alias.", nativeStack: nil)
+            }
+            attestKeyId = id
+        } catch let error as KeychainHelper.KeychainHelperError {
+            return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to read attest id from keychain: \(error.errorDescription)", nativeStack: nil)
+        } catch {
+            return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to read attest id from keychain: \(error.localizedDescription)", nativeStack: nil)
         }
         
         // BINDING: Hash the Stored Challenge + SecKey Public Key
-        let challengeData = storedChallenge.data(using: .utf8)!
         var combinedData = challengeData
         combinedData.append(pubKey.rawData)
         
@@ -543,10 +669,11 @@ enum SiliconKeystoreManager {
             return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to compile Apple certificate.", nativeStack: nil)
         }
         
-        var formattedPubKey: String
+        var formattedPubKey: PubKeyType
         
         // Format the pubkey
         do {
+            // TODO: Update the types in TS to reflect that it can be string or Uint8Array
             formattedPubKey = try pubKeyToX509(
                 format: pubKeyFormat,
                 rawPublicKeyData: pubKey.rawData,
@@ -554,11 +681,21 @@ enum SiliconKeystoreManager {
                 keySize: pubKey.dict[kSecAttrKeySizeInBits as String] as? Int
             )
             
-            return .success([
-                "platform": "IOS",
-                "signingPubKey": formattedPubKey, // TODO: allow multiple encodings (PEM, B64, B64URL)
-                "attestationStatement": validBlob
-            ])
+            switch formattedPubKey {
+            case .data(let pubKeyData):
+                return .success([
+                    "platform": "IOS",
+                    "signingPubKey": pubKeyData,
+                    "attestationStatement": validBlob
+                ])
+            case .str(let pubKeyStr):
+                return .success([
+                    "platform": "IOS",
+                    "signingPubKey": pubKeyStr,
+                    "attestationStatement": validBlob
+                ])
+            }
+            
         } catch {
             return .failure(code: .ATTEST_KEY_FAILED, message: error.localizedDescription, nativeStack: nil)
         }

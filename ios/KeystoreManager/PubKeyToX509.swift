@@ -22,7 +22,12 @@ enum PubKeyFormatError: Error {
     }
 }
 
-func pubKeyToX509(format: PubKeyFormat, rawPublicKeyData: Data, rawKeyType: Any?, keySize: Int?) throws -> String {
+enum PubKeyType {
+    case str(String)
+    case data(Data)
+}
+
+func pubKeyToX509(format: PubKeyFormat, rawPublicKeyData: Data, rawKeyType: Any?, keySize: Int?) throws -> PubKeyType {
     // Safely coerce the key type
     let keyType: String
     if let typeNum = rawKeyType as? NSNumber {
@@ -117,22 +122,21 @@ func pubKeyToX509(format: PubKeyFormat, rawPublicKeyData: Data, rawKeyType: Any?
     }
     
     // Format
-    let formattedPubKey: String
-    
     switch format {
     case .PEM:
         let base64Encoded = uniformPublicKeyBytes.base64EncodedString(options: .lineLength64Characters)
-        formattedPubKey = "-----BEGIN PUBLIC KEY-----\n\(base64Encoded)\n-----END PUBLIC KEY-----"
+        let formattedPubKey = "-----BEGIN PUBLIC KEY-----\n\(base64Encoded)\n-----END PUBLIC KEY-----"
+        return .str(formattedPubKey)
         
     case .B64:
-        formattedPubKey = uniformPublicKeyBytes.base64EncodedString()
+        let formattedPubKey = uniformPublicKeyBytes.base64EncodedString()
+        return .str(formattedPubKey)
         
     case .B64URL:
-        formattedPubKey = uniformPublicKeyBytes.base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "="))
+        let formattedPubKey = base64URLEncode(uniformPublicKeyBytes)
+        return .str(formattedPubKey)
+        
+    case .SPKI:
+        return .data(uniformPublicKeyBytes)
     }
-    
-    return formattedPubKey
 }

@@ -18,7 +18,11 @@ public class ReactNativeSiliconModule: Module {
           
         // ---- Keystore Manager ----
         
-        AsyncFunction("generateKey") { (alias: String, opts: GenerateKeyOptions) -> [String: Any] in
+        AsyncFunction("generateKey") { (alias: String, opts: GenerateKeyOptions, attestChallenge: Data?) -> [String: Any] in
+            // Uint8Array (TS) fails to map to Data correctly when it is nested inside the options
+            // so we extract it out of the options on the TS side and then inject it back in here
+            opts.attestChallenge = attestChallenge
+            
             return SiliconKeystoreManager.generateKey(alias: alias, opts: opts).toBridgeMap()
         }
         

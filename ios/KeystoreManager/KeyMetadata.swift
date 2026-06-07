@@ -1,11 +1,34 @@
 enum KeyMetaDataStoreError: Error {
     case jsonEncoding(message: String)
     case failedSave(message: String)
+    
+    var errorDescription: String {
+        switch self {
+        case .jsonEncoding(let message): return message
+        case .failedSave(let message): return message
+        }
+    }
 }
 
 enum KeyMetaDataReadError: Error {
     case jsonDecoding(message: String)
     case failedRead(message: String)
+    var errorDescription: String {
+        switch self {
+        case .jsonDecoding(let message): return message
+        case .failedRead(let message): return message
+        }
+    }
+}
+
+enum KeyMetaDataDeleteError: Error {
+    case failedDelete(message: String)
+    
+    var errorDescription: String {
+        switch self {
+        case .failedDelete(let message): return message
+        }
+    }
 }
 
 struct KeyMetadata: Codable {
@@ -45,8 +68,9 @@ struct KeyMetadataStore {
             let jsonData = try JSONEncoder().encode(metadata)
             
             // Store the metadata as JSON in the keychain
-            let isSaveSuccessful = KeychainHelper.saveData(key: "\(alias)_metadata", data: jsonData)
-            if !isSaveSuccessful {
+            do {
+                try KeychainHelper.saveData(key: "\(alias)_metadata", data: jsonData)
+            } catch {
                 throw KeyMetaDataStoreError.failedSave(message: "Failed to save key metadata to keychain")
             }
             
@@ -58,16 +82,22 @@ struct KeyMetadataStore {
         }
     }
     
-    static func delete(alias: String) -> Bool {
+    static func delete(alias: String) throws -> Bool {
         mutex.lock()
         defer { mutex.unlock() }
         
         // If it has been cached, delete it
         cache[alias] = nil
         
-        // Delete it from the keychain
-        let isDeleted = KeychainHelper.delete(key: "\(alias)_metadata")
-        return isDeleted
+        do {
+            // Delete it from the keychain
+            let isDeleted = try KeychainHelper.delete(key: "\(alias)_metadata")
+            return isDeleted
+        } catch let error as KeychainHelper.KeychainHelperError {
+            throw KeyMetaDataDeleteError.failedDelete(message: error.errorDescription)
+        } catch {
+            throw KeyMetaDataDeleteError.failedDelete(message: error.localizedDescription)
+        }
     }
     
     static func get(alias: String) throws -> KeyMetadata {
@@ -79,13 +109,23 @@ struct KeyMetadataStore {
             return cached
         }
         
-        // If not cached, read it from keychain and parse the JSON
-        guard let jsonData = KeychainHelper.readData(key: "\(alias)_metadata") else {
+        var jsonData: Data?
+        
+        do {
+            // If not cached, read it from keychain and parse the JSON
+            let jsonData = try KeychainHelper.readData(key: "\(alias)_metadata")
+        } catch let error as KeychainHelper.KeychainHelperError {
+            throw KeyMetaDataReadError.failedRead(message: "Failed to read key metadata from keychain: \(error.errorDescription)")
+        } catch {
+            throw KeyMetaDataReadError.failedRead(message: "Failed to read key metadata from keychain.")
+        }
+        
+        guard let safeJsonData = jsonData else {
             throw KeyMetaDataReadError.failedRead(message: "Failed to read key metadata from keychain.")
         }
         
         do {
-            let parsed = try JSONDecoder().decode(KeyMetadata.self, from: jsonData)
+            let parsed = try JSONDecoder().decode(KeyMetadata.self, from: safeJsonData)
             
             // Store it in the cache
             cache[alias] = parsed

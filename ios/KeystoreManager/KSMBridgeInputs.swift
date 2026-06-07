@@ -34,6 +34,7 @@ enum PubKeyFormat: String, Enumerable {
     case PEM = "PEM"
     case B64 = "B64"
     case B64URL = "B64URL"
+    case SPKI = "SPKI"
 }
 
 enum KeyAlgorithm: String, Enumerable {
@@ -86,10 +87,7 @@ struct GenerateKeyOptions: Record {
     var userAuth: UserAuthOptions = UserAuthOptions()
     
     @Field
-    var attestChallenge: String? = nil
-    
-    @Field
-    var pubkeyFormat: PubKeyFormat = .PEM
+    var attestChallenge: Data? = nil
     
     @Field
     var ios: IosOptions = IosOptions()
