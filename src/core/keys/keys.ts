@@ -45,7 +45,7 @@ export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promis
     handleBridgeResult(result);
 }
 
-function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
+function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKeyOpts {
     if (opts !== undefined) {
         if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts' must be an object");
 
@@ -75,10 +75,10 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
                 throw new Error(`[RN-Silicon] Purpose (${opts.purposes}) is not yet implemented`);
             }
 
+            // Ensure purposes inherit 
             if (opts.purposes[0] == keyPurposes.SIGN || opts.purposes[0] == keyPurposes.VERIFY) {
                 opts.purposes = [keyPurposes.SIGN, keyPurposes.VERIFY];
             }
-
             if (opts.purposes[0] == keyPurposes.ENCRYPT || opts.purposes[0] == keyPurposes.DECRYPT) {
                 opts.purposes = [keyPurposes.ENCRYPT, keyPurposes.DECRYPT];
             }
