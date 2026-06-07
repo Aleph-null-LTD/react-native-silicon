@@ -1,7 +1,8 @@
+import { BridgeResult } from "./types/bridge-result";
 import { hasOwn } from "./utils/validation";
 
 type SiliconErrorOpts = {
-    cause?: unknown
+    cause?: unknown,
     nativeStack?: string | null
 }
 
@@ -175,6 +176,9 @@ export enum SiliconErrorCode {
      * @note These should be reported to the react-native-silicon team
      */
     UNKNOWN_NATIVE_ERROR = 'UNKNOWN_NATIVE_ERROR',
+
+    INTERNAL_ERROR = 'INTERNAL_ERROR',
+    INVALID_ARGUMENT = 'INVALID_ARGUMENT'
 };
 
 export class SiliconError extends Error {

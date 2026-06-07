@@ -1,5 +1,6 @@
 import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
+import { handleBridgeResult } from '../../utils/handle-bridge-result';
 import { hasOwn, isPlainObject } from '../../utils/validation';
 import { isSignDigest, isSignEncoding, isSignFormat, isVerifyAlgorithm, signDigest, signEncodings, signFormats, verifyAlgorithms } from './constants';
 import { SignOpts, VerifyOpts } from './types';
@@ -15,9 +16,9 @@ import { SignOpts, VerifyOpts } from './types';
  * @note Will automatically prompt for user authentication if enabled on the key
  */
 export async function sign(alias: string, payload: string | Uint8Array, opts?: SignOpts): Promise<string> {
-    if (typeof alias !== 'string') throw new TypeError("Silicon Error: 'alias' must be of type 'string'");
+    if (typeof alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type 'string'");
 
-    if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new TypeError("Silicon Error: 'payload' must be of type 'string' | 'Uint8Array'");
+    if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'payload' must be of type 'string' | 'Uint8Array'");
 
     let payloadStr: string | null = null;
     let payloadByteArr: Uint8Array | null = null;
@@ -29,70 +30,34 @@ export async function sign(alias: string, payload: string | Uint8Array, opts?: S
     }
 
     if (opts !== undefined) {
-        if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be of type 'object'");
+        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts' must be of type 'object'");
         
         if (hasOwn(opts, 'encoding') &&
             opts.encoding !== undefined &&
             !isSignEncoding(opts.encoding)
         ) {
-            throw new TypeError(`Silicon Error: 'opts.encoding' must be of type ${Object.values(signEncodings).join("|")}`);
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.encoding' must be of type ${Object.values(signEncodings).join("|")}`);
         }
         
         if (hasOwn(opts, 'digest') &&
             opts.digest !== undefined &&
             (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
         ) {
-            throw new TypeError(`Silicon Error: 'opts.digest' must be of type ${Object.values(signDigest).join("|")}`);
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.digest' must be of type ${Object.values(signDigest).join("|")}`);
         }
 
         if (hasOwn(opts, 'format') &&
             opts.format !== undefined &&
             !isSignFormat(opts.format)
         ) {
-            throw new TypeError(`Silicon Error: 'opts.format' must be of type ${Object.values(signFormats).join("|")}`);
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.format' must be of type ${Object.values(signFormats).join("|")}`);
         }
     } else {
         opts = {};
     }
 
     const result = await NativeSilicon.sign(alias, payloadStr, payloadByteArr, opts);
-    if (!result.success) {
-        switch (result.errorCode) {
-            case 'KEY_NOT_FOUND':
-                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'KEY_INVALIDATED':
-                throw new SiliconError(SiliconErrorCode.KEY_INVALIDATED, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'UNSUPPORTED_KEY_FAMILY':
-                throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'INVALID_KEY':
-                throw new SiliconError(SiliconErrorCode.INVALID_KEY, result.errorMessage, { nativeStack: result.nativeStack });
-            
-            case 'SIGNING_FAILED':
-            case 'PROMPT_SIGN_FAILED':
-                throw new SiliconError(SiliconErrorCode.SIGNING_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'AUTH_LOCKED_OUT':
-                throw new SiliconError(SiliconErrorCode.AUTH_LOCKED_OUT, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'AUTH_NOT_ENROLLED':
-                throw new SiliconError(SiliconErrorCode.AUTH_NOT_ENROLLED, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'AUTH_SYSTEM_ERROR':
-                throw new SiliconError(SiliconErrorCode.AUTH_SYSTEM_ERROR, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'AUTH_CANCELED':
-                throw new SiliconError(SiliconErrorCode.AUTH_CANCELED, result.errorMessage, { nativeStack: result.nativeStack });
-            
-            default:
-                console.error(`Native Err: ${result.nativeStack}`)
-                throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-        }
-    }
-
-    return result.data;
+    return handleBridgeResult(result);
 }
 
 // Regex to match PEM headers/footers
@@ -109,7 +74,7 @@ const PEM_REGEX = /(?:-----BEGIN.*?-----|-----END.*?-----|\\s+)/g;
  * @returns
  */
 export async function verify(payload: string | Uint8Array, signature: string, opts: VerifyOpts): Promise<boolean> {
-    if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new TypeError("Silicon Error: 'payload' must be of type 'string' | 'Uint8Array'");
+    if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'payload' must be of type 'string' | 'Uint8Array'");
 
     let payloadStr: string | null = null;
     let payloadByteArr: Uint8Array | null = null;
@@ -120,14 +85,14 @@ export async function verify(payload: string | Uint8Array, signature: string, op
         payloadByteArr = payload;
     }
 
-    if (typeof signature !== 'string') throw new TypeError("Silicon Error: 'signature' must be of type 'string'");
+    if (typeof signature !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'signature' must be of type 'string'");
     
-    if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be of type 'object'");
+    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts' must be of type 'object'");
 
     // TODO: Ensure that either pubkey or alias is present, but not both
     let pubkey;
     if (hasOwn(opts, 'pubkey')) {
-        if (typeof opts.pubkey !== 'string') throw new TypeError("Silicon Error: 'opts.pubkey' must be of type 'string'");
+        if (typeof opts.pubkey !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.pubkey' must be of type 'string'");
 
         pubkey = opts.pubkey
             .replace(PEM_REGEX, '')
@@ -138,19 +103,19 @@ export async function verify(payload: string | Uint8Array, signature: string, op
 
     let alias: string | undefined = undefined;
     if (hasOwn(opts, 'alias')) {
-        if (typeof opts.alias !== 'string') throw new TypeError("Silicon Error: 'opts.alias' must be of type 'string'");
+        if (typeof opts.alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.alias' must be of type 'string'");
 
         alias = opts.alias;
     }
 
     // Ensure that only either alias or pubkey is present
-    if (alias && pubkey) throw TypeError("Silicon Error: 'opts.alias' and 'opts.pubkey' are mutually exclusive");
-    if (!alias && !pubkey) throw TypeError("Silicon Error: either 'opts.alias' or 'opts.pubkey' must be supplied");
+    if (alias && pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.alias' and 'opts.pubkey' are mutually exclusive");
+    if (!alias && !pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] either 'opts.alias' or 'opts.pubkey' must be supplied");
 
-    if (pubkey && !hasOwn(opts, 'algorithm')) throw new TypeError("Silicon Error: 'opts' must contain the 'algorithm' property");
+    if (pubkey && !hasOwn(opts, 'algorithm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts' must contain the 'algorithm' property");
     if (pubkey || (alias && hasOwn(opts, 'algorithm') && opts.algorithm !== undefined)) {
-        if (typeof opts.algorithm !== 'string') throw new TypeError("Silicon Error: 'opts.algorithm' must be of type 'string'");
-        if (!isVerifyAlgorithm(opts.algorithm)) throw new TypeError(`Silicon Error: 'opts.algorithm' must be of type ${Object.values(verifyAlgorithms).join("|")}`);
+        if (typeof opts.algorithm !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.algorithm' must be of type 'string'");
+        if (!isVerifyAlgorithm(opts.algorithm)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.algorithm' must be of type ${Object.values(verifyAlgorithms).join("|")}`);
     }
 
     // Normalize all signatures to standard Base64 with padding
@@ -166,23 +131,7 @@ export async function verify(payload: string | Uint8Array, signature: string, op
             algorithm: opts.algorithm
         }
     );
-    if (!result.success) {
-        switch (result.errorCode) {
-            case 'KEY_NOT_FOUND':
-                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'NO_CERT':
-                throw new SiliconError(SiliconErrorCode.NO_CERT, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'VERIFICATION_FAILED':
-                throw new SiliconError(SiliconErrorCode.VERIFICATION_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-
-            default:
-                throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-        }
-    }
-
-    return result.data;
+    return handleBridgeResult(result);
 }
 
 const HYPHEN_REGEX = /-/g;

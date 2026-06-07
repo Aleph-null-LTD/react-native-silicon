@@ -1,5 +1,5 @@
 import { NativeModule, requireNativeModule } from 'expo';
-import { AttestResult, GenerateKeyOpts, KeyInfo } from './core/keys/types';
+import { AttestResult, GenerateKeyOpts, KeyInfo, PubkeyFormat, PubKeyFormatTypeMap } from './core/keys/types';
 import { BridgeResult } from './types/bridge-result';
 import { SignDigest, SignOpts } from './core/operations/types';
 import { BridgeVerifyOpts } from './core/operations/brige-types';
@@ -8,13 +8,13 @@ import { RandomBytesFormat, RandomGenFormatTypeMap } from './core/random-generat
 
 declare class ReactNativeSiliconModule extends NativeModule {
   getCapabilities(): Promise<BridgeResult<Capabilities>>;
-  generateKey(alias: string, opts: GenerateKeyOpts): Promise<BridgeResult<string>>;
+  generateKey(alias: string, opts: GenerateKeyOpts, attestChallenge: Uint8Array | undefined): Promise<BridgeResult<undefined>>;
   deleteKey(alias: string): Promise<BridgeResult<boolean>>;
   deleteAllKeys(prefix?: string): Promise<BridgeResult<number>>;
   keyExists(alias: string): Promise<BridgeResult<boolean>>;
   listKeys(prefix?: string): Promise<BridgeResult<string[]>>;
-  getPubKey(alias: string, format: 'PEM' | 'B64'): Promise<BridgeResult<string>>;
-  attestKey(alias: string): Promise<BridgeResult<AttestResult>>;
+  getPubKey<F extends PubkeyFormat>(alias: string, format: F): Promise<BridgeResult<PubKeyFormatTypeMap[F]>>;
+  attestKey<F extends PubkeyFormat>(alias: string, format: F): Promise<BridgeResult<AttestResult<F>>>;
   getKeyInfo(alias: string): Promise<BridgeResult<KeyInfo>>;
   validateKey(alias: string): Promise<BridgeResult<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'>>;
   sign(alias: string, payloadStr: string | null, payloadByteArr: Uint8Array | null, opts: SignOpts): Promise<BridgeResult<string>>;

@@ -1,8 +1,27 @@
 import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
+import { handleBridgeResult } from '../../utils/handle-bridge-result';
+import { ensureUint8Array } from '../../utils/bytes';
 import { hasOwn, isPlainObject } from '../../utils/validation';
-import { androidAlgorithms, isAndroidAlgorithm, isAndroidHardwarePolicy, isIosAlgorithm, isIosHardwarePolicy, isKeyDigest, isKeyPurpose, isPubkeyFormat, isUserAuthPolicy, keyDigests, keyPurposeFamilies, keyPurposes, pubkeyFormats, userAuthPolicies } from './constants';
-import { AttestResult, GenerateKeyOpts, KeyInfo } from "./types";
+import { 
+    androidAlgorithms, 
+    isAndroidAlgorithm, 
+    isAndroidHardwarePolicy, 
+    isIosAlgorithm, 
+    isIosHardwarePolicy, 
+    isKeyDigest, 
+    isKeyPurpose, 
+    isPubkeyFormat, 
+    isSignaturePaddingAlgorithm, 
+    isUserAuthPolicy, 
+    keyDigests, 
+    keyPurposeFamilies, 
+    keyPurposes, 
+    pubkeyFormats, 
+    signaturePaddingAlgorithms, 
+    userAuthPolicies 
+} from './constants';
+import { AttestResult, GenerateKeyOpts, KeyInfo, PubkeyFormat, PubKeyFormatTypeMap } from "./types";
 
 /**
  * Generate a key
@@ -11,79 +30,76 @@ import { AttestResult, GenerateKeyOpts, KeyInfo } from "./types";
  * @param opts 
  * @returns 
  */
-export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promise<string> {
+export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promise<void> {
     if (!alias || typeof alias !== 'string') {
-        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 
     opts = validateGenerateKeyOpts(opts);
 
-    const result = await NativeSilicon.generateKey(alias, opts);
-    if (!result.success) {
-        switch (result.errorCode) {
-            case "INVALID_ALGORITHM_PARAMETER":
-                throw new SiliconError(SiliconErrorCode.INVALID_ALGORITHM_PARAMETER, result.errorMessage, { nativeStack: result.nativeStack });
+    // Uint8Array fails to map correctly when passed over the bridge if it is nested inside an object
+    // so we extract the attest challenge (if provided) and pass it as a top level parameter so it can be correctly mapped on the native side
+    const attestChallenge = opts.attestChallenge;
 
-            case 'ALIAS_IN_USE': 
-                throw new SiliconError(SiliconErrorCode.ALIAS_IN_USE, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case "STRONGBOX_NOT_SUPPORTED":
-                throw new SiliconError(SiliconErrorCode.STRONGBOX_NOT_SUPPORTED, result.errorMessage, { nativeStack: result.nativeStack });
-            
-            case "PURPOSE_WRAP_NOT_SUPPORTED":
-                throw new SiliconError(SiliconErrorCode.PURPOSE_WRAP_NOT_SUPPORTED, result.errorMessage, { nativeStack: result.nativeStack });
-            
-            case "PURPOSE_AGREE_NOT_SUPPORTED":
-                throw new SiliconError(SiliconErrorCode.PURPOSE_AGREE_NOT_SUPPORTED, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case "KEY_GENERATION_FAILED":
-                throw new SiliconError(SiliconErrorCode.KEY_GENERATION_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-        }
-
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-    }
-
-    return result.data;
+    const result = await NativeSilicon.generateKey(alias, opts ?? {}, attestChallenge);
+    handleBridgeResult(result);
 }
 
 function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
     if (opts !== undefined) {
-        if (!isPlainObject(opts)) throw new TypeError("Silicon Error: 'opts' must be an object");
+        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts' must be an object");
 
         if (hasOwn(opts, 'purposes') && opts.purposes !== undefined) {
             if (!Array.isArray(opts.purposes)) {
-                throw new TypeError("Silicon Error: 'purposes' must be an array");
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'purposes' must be an array");
             }
 
+            // Ensure that purpose families cannot be mixed
             let family = null;
             for (const purpose of opts.purposes) {
                 if (!isKeyPurpose(purpose)) {
-                    throw new TypeError(`Silicon Error: purpose '${purpose}' is invalid, expected ${Object.values(keyPurposes).join("|")}`);
+                    throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] purpose '${purpose}' is invalid, expected ${Object.values(keyPurposes).join("|")}`);
                 }
 
                 // Check if the purposes conflict
                 const currentFamily = keyPurposeFamilies[purpose];
                 if (family === null) family = currentFamily;
-                if (currentFamily !== family) throw new TypeError(`Silicon Error: mutually exclusive purposes in ${opts.purposes.join(",")}`);
+                if (currentFamily !== family) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] mutually exclusive purposes in ${opts.purposes.join(",")}`);
+            }
+
+            if (opts.purposes.includes(keyPurposes.AGREE) ||
+                opts.purposes.includes(keyPurposes.ENCRYPT) ||
+                opts.purposes.includes(keyPurposes.DECRYPT) ||
+                opts.purposes.includes(keyPurposes.WRAP)
+            ) {
+                throw new Error(`[RN-Silicon] Purpose (${opts.purposes}) is not yet implemented`);
+            }
+
+            if (opts.purposes[0] == keyPurposes.SIGN || opts.purposes[0] == keyPurposes.VERIFY) {
+                opts.purposes = [keyPurposes.SIGN, keyPurposes.VERIFY];
+            }
+
+            if (opts.purposes[0] == keyPurposes.ENCRYPT || opts.purposes[0] == keyPurposes.DECRYPT) {
+                opts.purposes = [keyPurposes.ENCRYPT, keyPurposes.DECRYPT];
             }
         }
 
         if (hasOwn(opts, 'userAuth') && opts.userAuth !== undefined) {
-            if (!isPlainObject(opts.userAuth)) throw new TypeError("Silicon Error: 'opts.userAuth' must be an object");
+            if (!isPlainObject(opts.userAuth)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.userAuth' must be an object");
 
             if (hasOwn(opts.userAuth, 'require') && 
                 opts.userAuth.require !== undefined &&
                 typeof opts.userAuth.require !== 'boolean'
             ) {
-                throw new TypeError("Silicon Error: 'opts.userAuth.require' must be of type 'boolean'");
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.userAuth.require' must be of type 'boolean'");
             }
 
             if (hasOwn(opts.userAuth, 'timeout')) {
                 if (opts.userAuth.timeout !== undefined) {
-                    if (typeof opts.userAuth.timeout !== 'number') throw new TypeError("Silicon Error: 'opts.userAuth.timeout' must be of type 'number'");
+                    if (typeof opts.userAuth.timeout !== 'number') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.userAuth.timeout' must be of type 'number'");
                     
                     if (opts.userAuth.timeout < 0 || opts.userAuth.timeout > 6000) {
-                        throw new TypeError("Silicon Error: 'opts.userAuth.timeout' must be >=0 AND <=6000");
+                        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.userAuth.timeout' must be >=0 AND <=6000");
                     }
                 }
             }
@@ -92,49 +108,42 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
                 opts.userAuth.invalidateOnEnrollment !== undefined &&
                 typeof opts.userAuth.invalidateOnEnrollment !== 'boolean'
             ) {
-                throw new TypeError("Silicon Error: 'opts.userAuth.invalidateOnEnrollment' must be of type 'boolean'");
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.userAuth.invalidateOnEnrollment' must be of type 'boolean'");
             }
 
             if (hasOwn(opts.userAuth, 'policy') &&
                 opts.userAuth !== undefined &&
                 (typeof opts.userAuth.policy !== 'string' || !isUserAuthPolicy(opts.userAuth.policy)) 
             ) {
-                throw new TypeError(`Silicon Error: 'opts.userAuth.policy' (${opts.userAuth.policy}) is invalid, expected ${Object.values(userAuthPolicies).join("|")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.userAuth.policy' (${opts.userAuth.policy}) is invalid, expected ${Object.values(userAuthPolicies).join("|")}`);
             }
         }
 
         if (hasOwn(opts, 'attestChallenge') && 
             opts.attestChallenge !== undefined &&
-            typeof opts.attestChallenge !== 'string'
+            !(opts.attestChallenge instanceof Uint8Array)
         ) {
-            throw new TypeError("Silicon Error: 'opts.attestChallenge' must be of type 'string'");
-        }
-
-        if (hasOwn(opts, 'pubkeyFormat') && 
-            opts.pubkeyFormat !== undefined &&
-            (typeof opts.pubkeyFormat !== 'string' || !isPubkeyFormat(opts.pubkeyFormat))
-        ) {
-            throw new TypeError(`Silicon Error: 'opts.pubkeyFormat' (${opts.pubkeyFormat}) is invalid, expected ${Object.values(pubkeyFormats).join("|")}`);
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.attestChallenge' must be of type 'Uint8Array'");
         }
 
         // Validate Android options
         if (hasOwn(opts, 'android') && opts.android !== undefined) {
-            if (!isPlainObject(opts.android)) throw new TypeError("");
+            if (!isPlainObject(opts.android)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "");
 
             if (hasOwn(opts.android, 'algorithm') && 
                 opts.android.algorithm !== undefined &&
                 (typeof opts.ios !== 'string' || !isAndroidAlgorithm(opts.android.algorithm))
             ) {
-                throw new TypeError(`Silicon Error: 'opts.android.algorithm' (${opts.android.algorithm}) is invalid, expected ${Object.values(androidAlgorithms).join("|")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.android.algorithm' (${opts.android.algorithm}) is invalid, expected ${Object.values(androidAlgorithms).join("|")}`);
             }
 
             if (hasOwn(opts.android, 'digests') && opts.android.digests !== undefined) {
-                if (!Array.isArray(opts.android.digests)) throw new TypeError("Silicon Error: 'opts.android.digests' must be an array");
+                if (!Array.isArray(opts.android.digests)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.android.digests' must be an array");
 
-                if (opts.android.digests.length < 1) throw new TypeError("Silicon Error: 'opts.android.digests' must have at least one element");
+                if (opts.android.digests.length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.android.digests' must have at least one element");
 
                 for (const digest of opts.android.digests) {
-                    if (!isKeyDigest(digest)) throw new TypeError(`Silicon Error: value (${digest}) in 'opts.android.digests' is invalid, expected ${Object.values(keyDigests).join("|")}`);
+                    if (!isKeyDigest(digest)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] value (${digest}) in 'opts.android.digests' is invalid, expected ${Object.values(keyDigests).join("|")}`);
                 }
             }
 
@@ -142,35 +151,35 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
                 opts.android.signaturePaddingAlgorithm !== undefined &&
                 !isSignaturePaddingAlgorithm(opts.android.signaturePaddingAlgorithm)
             ) {
-                throw new TypeError(`Silicon Error: value (${opts.android.signaturePaddingAlgorithm}) in 'opts.android.signaturePaddingAlgorithm' is invalid, expected ${Object.values(signaturePaddingAlgorithms).join("|")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] value (${opts.android.signaturePaddingAlgorithm}) in 'opts.android.signaturePaddingAlgorithm' is invalid, expected ${Object.values(signaturePaddingAlgorithms).join("|")}`);
             }
 
             if (hasOwn(opts.android, 'hardwarePolicy') &&
                 opts.android.hardwarePolicy !== undefined &&
                 (typeof opts.android.hardwarePolicy !== 'string' || !isAndroidHardwarePolicy(opts.android.hardwarePolicy))
             ) {
-                throw new TypeError(`Silicon Error: 'opts.android.hardwarePolicy' (${opts.android.hardwarePolicy}) is invalid, expected ${Object.values(keyDigests).join("|")}`)
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.android.hardwarePolicy' (${opts.android.hardwarePolicy}) is invalid, expected ${Object.values(keyDigests).join("|")}`)
             }
         }
 
         // Validate iOS options
         if (hasOwn(opts, 'ios')) {
-            if (!isPlainObject(opts.ios)) throw new TypeError("Silicon Error: 'opts.ios' must be an object");
+            if (!isPlainObject(opts.ios)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.ios' must be an object");
 
             if (hasOwn(opts.ios, 'algorithm') &&
                 opts.ios.algorithm !== undefined &&
                 (typeof opts.ios.algorithm !== 'string' || !isIosAlgorithm(opts.ios.algorithm))
             ) {
-                throw new TypeError(`Silicon Error: 'opts.ios.algorithm' (${opts.ios.algorithm}) is invalid, expected ${Object.values(androidAlgorithms).join("|")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.ios.algorithm' (${opts.ios.algorithm}) is invalid, expected ${Object.values(androidAlgorithms).join("|")}`);
             }
 
             if (hasOwn(opts.ios, 'digests') && opts.ios.digests !== undefined) {
-                if (!Array.isArray(opts.ios.digests)) throw new TypeError("Silicon Error: 'opts.ios.digests' must be an array");
+                if (!Array.isArray(opts.ios.digests)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.ios.digests' must be an array");
 
-                if (opts.ios.digests.length < 1) throw new TypeError("Silicon Error: 'opts.ios.digests' must have at least one element");
+                if (opts.ios.digests.length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.ios.digests' must have at least one element");
 
                 for (const digest of opts.ios.digests) {
-                    if (!isKeyDigest(digest)) throw new TypeError(`Silicon Error: value (${digest}) in 'opts.ios.digests' is invalid, expected ${Object.values(keyDigests).join("|")}`);
+                    if (!isKeyDigest(digest)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] value (${digest}) in 'opts.ios.digests' is invalid, expected ${Object.values(keyDigests).join("|")}`);
                 }
             }
 
@@ -178,14 +187,14 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
                 opts.ios.signaturePaddingAlgorithm !== undefined &&
                 !isSignaturePaddingAlgorithm(opts.ios.signaturePaddingAlgorithm)
             ) {
-                throw new TypeError(`Silicon Error: value (${opts.ios.signaturePaddingAlgorithm}) in 'opts.ios.signaturePaddingAlgorithm' is invalid, expected ${Object.values(signaturePaddingAlgorithms).join("|")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] value (${opts.ios.signaturePaddingAlgorithm}) in 'opts.ios.signaturePaddingAlgorithm' is invalid, expected ${Object.values(signaturePaddingAlgorithms).join("|")}`);
             }
 
             if (hasOwn(opts.ios, 'hardwarePolicy') &&
                 opts.ios.hardwarePolicy !== undefined &&
                 (typeof opts.ios.hardwarePolicy !== 'string' || !isIosHardwarePolicy(opts.ios.hardwarePolicy))
             ) {
-                throw new TypeError(`Silicon Error: 'opts.ios.hardwarePolicy' (${opts.ios.hardwarePolicy}) is invalid, expected ${Object.values(keyDigests).join("|")}`)
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.ios.hardwarePolicy' (${opts.ios.hardwarePolicy}) is invalid, expected ${Object.values(keyDigests).join("|")}`)
             }
         }
 
@@ -201,23 +210,15 @@ function validateGenerateKeyOpts(opts: unknown): GenerateKeyOpts {
  * Delete a key with the specified alias.
  * 
  * @param alias 
- * @returns true if the key was deleted
+ * @returns true if the key was deleted, false if key not found
  */
 export async function deleteKey(alias: string): Promise<boolean> {
     if (!alias || typeof alias !== 'string') {
-        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
     
     const result = await NativeSilicon.deleteKey(alias);
-    if (!result.success) {
-        if (result.errorCode == 'DELETE_FAILED') {
-            throw new SiliconError(SiliconErrorCode.DELETE_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-        }
-
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-    }
-
-    return result.data;
+    return handleBridgeResult(result);
 }
 
 /**
@@ -234,19 +235,11 @@ export async function deleteKey(alias: string): Promise<boolean> {
  */
 export async function deleteAllKeys(prefix?: string): Promise<number> {
     if (prefix !== undefined && typeof prefix !== 'string') {
-        throw new TypeError("Silicon Error: 'prefix' must be of type string");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'prefix' must be of type string");
     }
 
     const result = await NativeSilicon.deleteAllKeys(prefix);
-    if (!result.success) {
-        if (result.errorCode == 'BULK_DELETE_FAILED') {
-            throw new SiliconError(SiliconErrorCode.BULK_DELETE_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-        }
-
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-    }
-
-    return result.data;
+    return handleBridgeResult(result);
 }
 
 /**
@@ -257,19 +250,11 @@ export async function deleteAllKeys(prefix?: string): Promise<number> {
  */
 export async function keyExists(alias: string): Promise<boolean> {
     if (!alias || typeof alias !== 'string') {
-        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 
     const result = await NativeSilicon.keyExists(alias);
-    if (!result.success) {
-        if (result.errorCode == 'KEY_EXISTS_FAILED') {
-            throw new SiliconError(SiliconErrorCode.KEY_EXISTS_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-        }
-
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-    }
-
-    return result.data;
+    return handleBridgeResult(result);
 }
 
 /**
@@ -282,19 +267,11 @@ export async function keyExists(alias: string): Promise<boolean> {
  */
 export async function listKeys(prefix?: string): Promise<string[]> {
     if (prefix !== undefined && typeof prefix !== 'string') {
-        throw new TypeError("Silicon Error: 'prefix' must be of type string");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'prefix' must be of type string");
     }
 
     const result = await NativeSilicon.listKeys(prefix)
-    if (!result.success) {
-        if (result.errorCode == 'KEY_LIST_FAILED') {
-            throw new SiliconError(SiliconErrorCode.KEY_LIST_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-        }
-
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-    }
-
-    return result.data;
+    return handleBridgeResult(result);
 }
 
 /**
@@ -308,19 +285,11 @@ export async function listKeys(prefix?: string): Promise<string[]> {
  */
 export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'> {
     if (!alias || typeof alias !== 'string') {
-        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 
     const result = await NativeSilicon.validateKey(alias)
-    if (!result.success) {
-        if (result.errorCode == 'KEY_VALIDATION_FAILED') {
-            throw new SiliconError(SiliconErrorCode.KEY_VALIDATION_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-        }
-
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-    }
-
-    return result.data;
+    return handleBridgeResult(result);
 }
 
 /**
@@ -329,37 +298,28 @@ export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 
  * @param format 
  * @returns 
  */
-export async function getPubKey(alias: string, format: keyof typeof pubkeyFormats): Promise<string> {
+export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F): Promise<PubKeyFormatTypeMap[F]> {
     if (!alias || typeof alias !== 'string') {
-        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 
     if (typeof format !== 'string' || 
         !isPubkeyFormat(format)
     ) {
-        throw new TypeError(`Silicon Error: 'format' must be of type ${Object.values(pubkeyFormats).join("|")}`);
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'format' must be of type ${Object.values(pubkeyFormats).join("|")}`);
     }
 
     const result = await NativeSilicon.getPubKey(alias, format);
-    if (!result.success) {
-        switch (result.errorCode) {
-            case 'KEY_NOT_FOUND':
-                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage, { nativeStack: result.nativeStack })
+    const pubKey = handleBridgeResult(result);
 
-            case 'NO_CERT':
-                throw new SiliconError(SiliconErrorCode.NO_CERT, result.errorMessage, { nativeStack: result.nativeStack })
-
-            case 'UNSUPPORTED_KEY_FAMILY':
-                throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage, { nativeStack: result.nativeStack })
-
-            case 'GET_PUB_KEY_FAILED':
-                throw new SiliconError(SiliconErrorCode.GET_PUB_KEY_FAILED, result.errorMessage, { nativeStack: result.nativeStack })
-        }
-
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
+    let ret: PubKeyFormatTypeMap[F];
+    if (format == "SPKI") {
+        ret = ensureUint8Array(pubKey) as PubKeyFormatTypeMap[F];
+    } else {
+        ret = pubKey;
     }
 
-    return result.data;
+    return ret;
 }
 
 /**
@@ -372,38 +332,25 @@ export async function getPubKey(alias: string, format: keyof typeof pubkeyFormat
  * @param pubKeyFormat The format to use for the returned signingPubKey on iOS
  * @returns The certificate chain - An array of PEM strings
  */
-export async function attestKey(alias: string, pubKeyFormat: keyof typeof pubkeyFormats): Promise<AttestResult> {
+export async function attestKey<F extends PubkeyFormat>(alias: string, pubKeyFormat: F): Promise<AttestResult<F>> {
     if (!alias || typeof alias !== 'string') {
-        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 
     if (typeof pubKeyFormat !== 'string' || 
         !isPubkeyFormat(pubKeyFormat)
     ) {
-        throw new TypeError(`Silicon Error: 'format' must be of type ${Object.values(pubkeyFormats).join("|")}`);
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'format' must be of type ${Object.values(pubkeyFormats).join("|")}`);
     }
 
-    const result = await NativeSilicon.attestKey(alias, pubKeyFormat)
-    if (!result.success) {
-        switch (result.errorCode) {
-            case 'KEY_NOT_FOUND':
-                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage, { nativeStack: result.nativeStack });
+    const result = await NativeSilicon.attestKey(alias, pubKeyFormat);
+    const attestResult = handleBridgeResult(result);
 
-            case 'NO_CERT_CHAIN':
-                throw new SiliconError(SiliconErrorCode.NO_CERT_CHAIN, result.errorMessage, { nativeStack: result.nativeStack })
-
-            case 'ATTEST_FAILED':
-                throw new SiliconError(SiliconErrorCode.ATTEST_FAILED, result.errorMessage, { nativeStack: result.nativeStack })
-
-            case 'NO_ATTEST_CHALLENGE':
-                throw new SiliconError(SiliconErrorCode.NO_ATTEST_CHALLENGE, result.errorMessage, { nativeStack: result.nativeStack })
-
-            default:
-                throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-        }
+    if (attestResult.platform === "IOS" && pubKeyFormat === "SPKI") {
+        attestResult.signingPubKey = ensureUint8Array(attestResult.signingPubKey) as PubKeyFormatTypeMap[F];
     }
 
-    return result.data;
+    return attestResult;
 }
 
 /**
@@ -414,38 +361,22 @@ export async function attestKey(alias: string, pubKeyFormat: keyof typeof pubkey
  */
 export async function getKeyInfo(alias: string): Promise<KeyInfo> {
     if (!alias || typeof alias !== 'string') {
-        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 
     const result = await NativeSilicon.getKeyInfo(alias)
-    if (!result.success) {
-        switch (result.errorCode) {
-            case 'KEY_NOT_FOUND':
-                throw new SiliconError(SiliconErrorCode.KEY_NOT_FOUND, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'GET_KEY_INFO_FAILED':
-                throw new SiliconError(SiliconErrorCode.GET_KEY_INFO_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'UNSUPPORTED_KEY_FAMILY':
-                throw new SiliconError(SiliconErrorCode.UNSUPPORTED_KEY_FAMILY, result.errorMessage, { nativeStack: result.nativeStack });
-
-            case 'KEY_LOAD_FAILED':
-                throw new SiliconError(SiliconErrorCode.KEY_LOAD_FAILED, result.errorMessage, { nativeStack: result.nativeStack });
-        }
-
-        throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
-    }
+    const keyInfo = handleBridgeResult(result);
 
     // Remove the curve from the KeyInfo if it is null (i.e., not an EC key)
-    if (result.data.curve == null) delete result.data.curve;
+    if (keyInfo.curve == null) delete keyInfo.curve;
 
-    return result.data;
+    return keyInfo;
 }
 
 /*
 export function isHardwareBacked(alias: string) {
     if (!alias || typeof alias !== 'string') {
-        throw new TypeError("Silicon Error: 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 }
 */

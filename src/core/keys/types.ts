@@ -2,7 +2,15 @@ import { androidAlgorithms, androidHardwarePolicies, iosAlgorithms, iosHardwareP
 
 type KeyDigests = keyof typeof keyDigests;
 type UserAuthPolicies = keyof typeof userAuthPolicies;
-type PubkeyFormat = keyof typeof pubkeyFormats;
+
+export type PubkeyFormat = keyof typeof pubkeyFormats;
+export type PubKeyFormatTypeMap = {
+    [pubkeyFormats.PEM]: string,
+    [pubkeyFormats.B64]: string,
+    [pubkeyFormats.B64URL]: string,
+    [pubkeyFormats.SPKI]: Uint8Array
+}
+
 type SignaturePaddingAlgorithms = keyof typeof signaturePaddingAlgorithms;
 
 type AndroidAlgorithm = keyof typeof androidAlgorithms;
@@ -85,23 +93,13 @@ export type GenerateKeyOpts = {
     } | undefined,
 
     /**
-     * IMPORTANT: You cannot attest an existing key after the fact.
+     * IMPORTANT: You cannot attest an existing key if you did not pass this in when it was generated.
      * 
      * Optional attest challenge string.
      * 
-     * If provided, you will be able to call 'attestKey'
-     * to get the PEM certificate.
+     * If provided, you will be able to call 'attestKey'.
      */
-    attestChallenge?: string | undefined,
-
-    /**
-     * Format for the returned public key.
-     * * PEM - Base64 encoded string with PEM header and footer
-     * * B64 - Base64 encoded string
-     * 
-     * @default PEM
-     */
-    pubkeyFormat?: PubkeyFormat | undefined,
+    attestChallenge?: Uint8Array | undefined,
 
     /**
      * Android specific options
@@ -287,13 +285,13 @@ type AndroidAttestResult = {
 /**
  * The result returned when performing an attest on an iOS device
  */
-type IosAttestResult = {
+type IosAttestResult<F extends PubkeyFormat> = {
     platform: 'IOS',
   
     /**
      * 
      */
-    signingPubKey: string,
+    signingPubKey: PubKeyFormatTypeMap[F],
 
     /**
      * A Base64-encoded CBOR attestation object containing the 
@@ -305,4 +303,4 @@ type IosAttestResult = {
 /**
  * The result returned when performing an attest
  */
-export type AttestResult = AndroidAttestResult | IosAttestResult;
+export type AttestResult<F extends PubkeyFormat> = AndroidAttestResult | IosAttestResult<F>;

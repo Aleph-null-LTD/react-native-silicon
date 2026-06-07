@@ -6,5 +6,5 @@ import { VerifyAlgorithms } from "./types"
 export type BridgeVerifyOpts = {
     alias: string | undefined,
     pubkeyB64: string | undefined,
-    algorithm: VerifyAlgorithms
+    algorithm: VerifyAlgorithms | undefined
 }
