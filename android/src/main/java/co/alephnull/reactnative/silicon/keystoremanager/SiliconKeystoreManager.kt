@@ -1,6 +1,8 @@
 package co.alephnull.reactnative.silicon.keystoremanager
 
 import android.annotation.SuppressLint
+import android.app.KeyguardManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
@@ -11,9 +13,11 @@ import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import android.util.Base64
 import android.util.Log
+import androidx.biometric.BiometricManager
 import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
 import expo.modules.kotlin.AppContext
+import java.io.Serializable
 import java.security.InvalidAlgorithmParameterException
 import java.security.InvalidKeyException
 import java.security.Key
@@ -27,13 +31,14 @@ import java.security.cert.X509Certificate
 import java.security.interfaces.ECKey
 import java.security.interfaces.RSAKey
 import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
 import javax.crypto.Mac
 import javax.crypto.SecretKey
 import javax.crypto.SecretKeyFactory
 
 class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore, private val siliconHelpers: SiliconHelpers) {
 
-    fun generateKey(alias: String, opts: GenerateKeyOptions): SiliconResult<String?> {
+    fun generateKey(alias: String, opts: GenerateKeyOptions): SiliconResult<Unit> {
         if (keystore.containsAlias(alias)) {
             return SiliconResult.Failure(SiliconErrorCode.ALIAS_IN_USE, "A key with alias '$alias' already exists")
         }
@@ -41,9 +46,28 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         // If digests was not set, use the digest with the same size as the algorithm
         val digests: List<KeyDigest> = opts.android.digests ?: listOf(
             when (opts.android.algorithm) {
-                KeyAlgorithm.ES256 -> KeyDigest.SHA256
+                KeyAlgorithm.EC_P256 -> KeyDigest.SHA256
+                KeyAlgorithm.EC_P384 -> KeyDigest.SHA384
+                KeyAlgorithm.EC_P521 -> KeyDigest.SHA512
+                KeyAlgorithm.RSA_2048 -> KeyDigest.SHA256
+                KeyAlgorithm.RSA_3072 -> KeyDigest.SHA384
+                KeyAlgorithm.RSA_4096 -> KeyDigest.SHA512
             }
         )
+
+        var useStrongBox: Boolean
+        val requireStrongBox: Boolean
+        var useTee: Boolean
+        val allowSoftware: Boolean
+
+        when (opts.android.hardwarePolicy) {
+            HardwarePolicy.REQUIRE_STRONGBOX -> { useStrongBox = true; requireStrongBox = true; useTee = false; allowSoftware = false }
+            HardwarePolicy.PREFER_STRONGBOX -> { useStrongBox = true; requireStrongBox = false; useTee = true; allowSoftware = false }
+            HardwarePolicy.PREFER_STRONGBOX_ALLOW_SOFTWARE -> { useStrongBox = true; requireStrongBox = false; useTee = true; allowSoftware = true }
+            HardwarePolicy.REQUIRE_TEE -> { useStrongBox = false; requireStrongBox = false; useTee = true; allowSoftware = false }
+            HardwarePolicy.PREFER_TEE_ALLOW_SOFTWARE -> { useStrongBox = false; requireStrongBox = false; useTee = true; allowSoftware = true }
+            HardwarePolicy.SOFTWARE_ONLY -> { useStrongBox = false; requireStrongBox = false; useTee = false; allowSoftware = true }
+        }
 
         // Check if the device supports StrongBox
         val canUseStrongBox = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
@@ -60,8 +84,105 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             useStrongBox = false;
         }
 
+        // Check if the device supports TEE
+        val canUseTee = isTeeSupported()
+
+        if (useTee && !canUseTee) {
+            // If TEE is required but not supported - fail
+            if (!allowSoftware) return SiliconResult.Failure(SiliconErrorCode.HARDWARE_NOT_AVAILABLE, "TEE is not supported on this device")
+
+            // If TEE is preferred but software allowed - don't use TEE
+            useTee = false
+        }
+
+
+        if (opts.attestChallenge != null) {
+            if (allowSoftware) return SiliconResult.Failure(
+                SiliconErrorCode.INVALID_ARGUMENT,
+                "Hardware attestation cannot be performed on a software key. " +
+                        "Set the hardware policy to ${HardwarePolicy.REQUIRE_STRONGBOX}, ${HardwarePolicy.PREFER_STRONGBOX}, or ${HardwarePolicy.REQUIRE_TEE} to enable it."
+            )
+
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+                return SiliconResult.Failure(
+                    SiliconErrorCode.ATTEST_NOT_AVAILABLE,
+                    "Key attestation is not supported on this device."
+                )
+            }
+        }
+
+        if (opts.purposes.contains(KeyPurpose.SIGN) || opts.purposes.contains(KeyPurpose.VERIFY)) {
+            // If digests were not provided, determine the default based on the algorithm
+            if (opts.android.digests.isNullOrEmpty()) {
+                opts.android.digests = when (opts.android.algorithm) {
+                    KeyAlgorithm.EC_P256, KeyAlgorithm.RSA_2048 -> listOf(KeyDigest.SHA256)
+                    KeyAlgorithm.EC_P384, KeyAlgorithm.RSA_3072 -> listOf(KeyDigest.SHA384)
+                    KeyAlgorithm.EC_P521, KeyAlgorithm.RSA_4096 -> listOf(KeyDigest.SHA512)
+                }
+            }
+
+            val allowedDigests = opts.android.digests
+                ?: return SiliconResult.Failure(SiliconErrorCode.INTERNAL_ERROR, "opts.android.digests was null after default value was set.")
+
+            var isEC = false
+            when (opts.android.algorithm) {
+                KeyAlgorithm.EC_P256 -> {
+                    if (!allowedDigests.contains(KeyDigest.SHA256)) {
+                        return SiliconResult.Failure(
+                            SiliconErrorCode.INVALID_ARGUMENT,
+                            "EC keys cannot be used for signing with any digest other than the one that matches the size of the key. " +
+                                    "Use ${KeyDigest.SHA256.value} for ${KeyAlgorithm.EC_P256.value} keys"
+                        )
+                    }
+                    isEC = true
+                }
+                KeyAlgorithm.EC_P384 -> {
+                    if (!allowedDigests.contains(KeyDigest.SHA384)) {
+                        return SiliconResult.Failure(
+                            SiliconErrorCode.INVALID_ARGUMENT,
+                            "EC keys cannot be used for signing with any digest other than the one that matches the size of the key. " +
+                                    "Use ${KeyDigest.SHA384.value} for ${KeyAlgorithm.EC_P384.value} keys"
+                        )
+                    }
+                    isEC = true
+                }
+                KeyAlgorithm.EC_P521 -> {
+                    if (!allowedDigests.contains(KeyDigest.SHA512)) {
+                        return SiliconResult.Failure(
+                            SiliconErrorCode.INVALID_ARGUMENT,
+                            "EC keys cannot be used for signing with any digest other than the one that matches the size of the key. " +
+                                    "Use ${KeyDigest.SHA512.value} for ${KeyAlgorithm.EC_P521.value} keys"
+                        )
+                    }
+                    isEC = true
+                }
+                else -> {
+                    // Do Nothing
+                }
+            }
+
+            if (isEC && allowedDigests.size > 1) {
+                return SiliconResult.Failure(
+                    SiliconErrorCode.INVALID_ARGUMENT,
+                    "EC keys cannot be used for signing with multiple digests. Use the digest that matches the key size."
+                )
+            }
+        }
+
+        // TODO: Extract the key generation logic into genHardwareKey and genSoftwareKey then call them depending on the bools above
+        // For software keys - we omit "AndroidKeyStore" from the generator call and let android decide the provider
+        // We need to persist the software keys ourselves
+        /*
+            if (useStrongbox || useTee) {
+                genHardwareKey()
+            } else {
+                genSoftwareKey()
+            }
+         */
+
         val alg = when (opts.android.algorithm) {
-            KeyAlgorithm.ES256 -> KeyProperties.KEY_ALGORITHM_EC
+            KeyAlgorithm.EC_P256, KeyAlgorithm.EC_P384, KeyAlgorithm.EC_P521 -> KeyProperties.KEY_ALGORITHM_EC
+            KeyAlgorithm.RSA_2048, KeyAlgorithm.RSA_3072, KeyAlgorithm.RSA_4096 -> KeyProperties.KEY_ALGORITHM_RSA
         }
 
         // Initialize the Generator
@@ -99,18 +220,32 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 purpose
             ).run {
                 when (opts.android.algorithm) {
-                    KeyAlgorithm.ES256 -> setAlgorithmParameterSpec(
-                        java.security.spec.ECGenParameterSpec(
-                            "secp256r1"
-                        )
-                    ) // ES256
+                    KeyAlgorithm.EC_P256 -> setAlgorithmParameterSpec(
+                        java.security.spec.ECGenParameterSpec("secp256r1")
+                    )
+                    KeyAlgorithm.EC_P384 -> setAlgorithmParameterSpec(
+                        java.security.spec.ECGenParameterSpec("secp384r1")
+                    )
+                    KeyAlgorithm.EC_P521 -> setAlgorithmParameterSpec(
+                        java.security.spec.ECGenParameterSpec("secp521r1")
+                    )
+                    KeyAlgorithm.RSA_2048 -> setAlgorithmParameterSpec(
+                        java.security.spec.RSAKeyGenParameterSpec(2048, java.security.spec.RSAKeyGenParameterSpec.F4)
+                    )
+                    KeyAlgorithm.RSA_3072 -> setAlgorithmParameterSpec(
+                        java.security.spec.RSAKeyGenParameterSpec(3072, java.security.spec.RSAKeyGenParameterSpec.F4)
+                    )
+                    KeyAlgorithm.RSA_4096 -> setAlgorithmParameterSpec(
+                        java.security.spec.RSAKeyGenParameterSpec(4096, java.security.spec.RSAKeyGenParameterSpec.F4)
+                    )
                 }
 
                 // Map the digests to an array of the relevant constants
                 val digestsArr: Array<String> = digests.mapNotNull { d ->
                     when (d) {
                         KeyDigest.SHA256 -> KeyProperties.DIGEST_SHA256
-                        else -> null
+                        KeyDigest.SHA384 -> KeyProperties.DIGEST_SHA384
+                        KeyDigest.SHA512 -> KeyProperties.DIGEST_SHA512
                     }
                 }.toTypedArray()
 
@@ -121,17 +256,102 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                         setIsStrongBoxBacked(true)
                     } else {
                         // Should never get here, this is just a failsafe
-                        throw Exception("Attempted to use StrongBox on unsupported SDK version (${Build.VERSION.SDK_INT})");
+                        return SiliconResult.Failure(SiliconErrorCode.INTERNAL_ERROR, "Attempted to use StrongBox on unsupported SDK version (${Build.VERSION.SDK_INT})")
                     }
                 }
 
                 if (opts.attestChallenge != null) {
-                    setAttestationChallenge(opts.attestChallenge?.toByteArray(Charsets.UTF_8))
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+                        return SiliconResult.Failure(
+                            SiliconErrorCode.ATTEST_NOT_AVAILABLE,
+                            "Key attestation is not supported on this device"
+                        )
+                    }
+
+                    setAttestationChallenge(opts.attestChallenge)
                 }
 
                 setUserAuthenticationRequired(opts.userAuth.require)
-
                 if (opts.userAuth.require) {
+                    // Get Context so we can check the biometrics capabilities
+                    val context = appContext.reactContext
+                        ?: return SiliconResult.Failure(SiliconErrorCode.GENERATE_KEY_FAILED, "Failed to get reactContext from AppContext.")
+
+
+                    val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+                    if (!keyguardManager.isDeviceSecure) {
+                        return SiliconResult.Failure(
+                            SiliconErrorCode.DEVICE_NOT_SECURE,
+                            "Cannot create an authenticated key. The device is not protected by a pin/password/pattern."
+                        )
+                    }
+
+                    val biometricManager = BiometricManager.from(context)
+
+                    // Hardware-backed keys require BIOMETRIC_STRONG
+                    val canAuthenticateCode = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                    when (canAuthenticateCode) {
+                        BiometricManager.BIOMETRIC_SUCCESS -> {
+                            // Hardware exists and user is enrolled - Proceed with generating the key
+                        }
+                        BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+                            // Hardware exists but user has not enrolled any biometrics
+                            when (opts.userAuth.policy) {
+                                AuthPolicy.BIOMETRICS_ONLY -> {
+                                    return SiliconResult.Failure(
+                                        SiliconErrorCode.BIOMERICS_NOT_ENROLLED,
+                                        "User has not enrolled biometrics on this device."
+                                    )
+                                }
+                                AuthPolicy.BIOMETRICS_OR_CREDENTIAL -> {
+                                    // Use the passcode fallback
+                                }
+                            }
+                        }
+                        BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE,
+                        BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> {
+                            // The device physically lacks a strong sensor, or the sensor is broken
+                            when (opts.userAuth.policy) {
+                                AuthPolicy.BIOMETRICS_ONLY -> {
+                                    return SiliconResult.Failure(
+                                        SiliconErrorCode.BIOMERICS_NOT_AVAILABLE,
+                                        "Strong biometrics are unavailable on this device."
+                                    )
+                                }
+                                AuthPolicy.BIOMETRICS_OR_CREDENTIAL -> {
+                                    // Use the passcode fallback
+                                }
+                            }
+                        }
+                        BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> {
+                            // Vulnerability was found and the OEM disabled the sensor until the user updates their OS
+                            when (opts.userAuth.policy) {
+                                AuthPolicy.BIOMETRICS_ONLY -> {
+                                    return SiliconResult.Failure(
+                                        SiliconErrorCode.BIOMERICS_NOT_AVAILABLE,
+                                        "The user must update their device to enable biometrics."
+                                    )
+                                }
+                                AuthPolicy.BIOMETRICS_OR_CREDENTIAL -> {
+                                    // Use the passcode fallback
+                                }
+                            }
+                        }
+                        else -> {
+                            when (opts.userAuth.policy) {
+                                AuthPolicy.BIOMETRICS_ONLY -> {
+                                    return SiliconResult.Failure(
+                                        SiliconErrorCode.BIOMERICS_NOT_AVAILABLE,
+                                        "Biometrics are unavailable on this device: Code $canAuthenticateCode"
+                                    )
+                                }
+                                AuthPolicy.BIOMETRICS_OR_CREDENTIAL -> {
+                                    // Use the passcode fallback
+                                }
+                            }
+                        }
+                    }
+
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         val authFlags = when (opts.userAuth.policy) {
                             AuthPolicy.BIOMETRICS_ONLY -> KeyProperties.AUTH_BIOMETRIC_STRONG
@@ -145,7 +365,15 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                         } else {
                             setInvalidatedByBiometricEnrollment(false)
                         }
+
                     } else { // Fallback for older Android devices (API 29 and below)
+                        if (opts.userAuth.policy == AuthPolicy.BIOMETRICS_ONLY) {
+                            return SiliconResult.Failure(
+                                SiliconErrorCode.BIOMERICS_NOT_AVAILABLE,
+                                "Device is Android SDK version is < ${Build.VERSION_CODES.R}. Policy ${AuthPolicy.BIOMETRICS_ONLY.value} cannot be enforced."
+                            )
+                        }
+
                         val timeout = if (opts.userAuth.timeout == 0) {
                             -1 // -1 enforces authentication for every use, but OS fallback rules apply
                         } else {
@@ -157,37 +385,66 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                     }
                 }
 
+                // Build the param spec
                 build()
             }
-
-            // TODO: When key family is not asymmetric return null
 
             kpg.initialize(parameterSpec)
 
             // Generate the Key
             val keyPair = kpg.generateKeyPair()
 
-            // Encode and format the pubkey
-            var pubkey = when (opts.pubkeyFormat) {
-                PubkeyFormat.PEM -> buildString {
-                    append("-----BEGIN PUBLIC KEY-----\n")
-                    // Line breaks are required for PEM keys
-                    append(Base64.encodeToString(keyPair.public.encoded, Base64.DEFAULT))
-                    append("-----END PUBLIC KEY-----")
-                }
-
-                // Disable line breaks for raw Base64
-                PubkeyFormat.B64 -> Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP)
-
-                PubkeyFormat.B64URL -> Base64.encodeToString(keyPair.public.encoded, Base64.NO_WRAP or Base64.URL_SAFE or Base64.NO_PADDING)
-            }
-
-            return SiliconResult.Success(pubkey);
+            return SiliconResult.Success(Unit)
         } catch (e: InvalidAlgorithmParameterException) {
             return SiliconResult.Failure(
-                "INVALID_ALGORITHM_PARAMETER",
+                SiliconErrorCode.GENERATE_KEY_FAILED,
                 e.localizedMessage ?: "Failed to generate key due to invalid algorithm parameter"
             );
+        } catch (e: Exception) {
+            return SiliconResult.Failure(
+                SiliconErrorCode.GENERATE_KEY_FAILED,
+                e.localizedMessage ?: "Failed to generate key due to unknown error"
+            )
+        }
+    }
+
+    private fun isTeeSupported(): Boolean {
+        val tempAlias = "co.alephnull.reactnative.silicon.temp.tee_hardware_check_key"
+
+        try {
+            // Generate a temporary symmetric key in the AndroidKeyStore
+            val keyGenerator = KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES,
+                "AndroidKeyStore"
+            )
+
+            keyGenerator.init(
+                KeyGenParameterSpec.Builder(
+                    tempAlias,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                ).build()
+            )
+
+            val secretKey = keyGenerator.generateKey() as SecretKey
+
+            // Extract the KeyInfo to inspect where the key actually lives
+            val factory = KeyFactory.getInstance(secretKey.algorithm, "AndroidKeyStore")
+            val keyInfo = factory.getKeySpec(secretKey, KeyInfo::class.java)
+
+            // Verify if it resides inside secure hardware (TEE or StrongBox)
+            val isHardwareBacked = keyInfo.isInsideSecureHardware
+
+            // Clean up the temporary key so we don't leave garbage behind
+            val keyStore = KeyStore.getInstance("AndroidKeyStore")
+            keyStore.load(null)
+            keyStore.deleteEntry(tempAlias)
+
+            return isHardwareBacked
+
+        } catch (e: Exception) {
+            // If anything fails (Keystore corrupted, unsupported algorithms, etc.),
+            // we safely assume the hardware cannot support strict TEE requirements.
+            return false
         }
     }
 
@@ -272,7 +529,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         }
     }
 
-    fun getPubKey(alias: String, format: PubkeyFormat): SiliconResult<String> {
+    fun getPubKey(alias: String, format: PubkeyFormat): SiliconResult<Serializable> {
         try {
             // Ensure the key exists
             if (!keystore.containsAlias(alias)) {
@@ -287,8 +544,9 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             }
 
             val certificate = keystore.getCertificate(alias)
-                ?: return SiliconResult.Failure(SiliconErrorCode.GET_PUB_KEY_FAILED, "No certificate chain found for key '$alias'.")
+                ?: return SiliconResult.Failure(SiliconErrorCode.GET_PUB_KEY_FAILED, "No certificate chain found for key ($alias).")
 
+            // certificate.publicKey.encoded will be DER-encoded X.509 SPKI by default
             val publicKey = when (format) {
                 PubkeyFormat.B64 -> Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
 
@@ -306,6 +564,10 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                         append("-----END PUBLIC KEY-----")
                     }
                 }
+
+                PubkeyFormat.SPKI -> {
+                    certificate.publicKey.encoded
+                }
             }
             return SiliconResult.Success(publicKey)
 
@@ -322,15 +584,15 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         try {
             // Ensure the key exists
             if (!keystore.containsAlias(alias)) {
-                return SiliconResult.Failure(SiliconErrorCode.KEY_NOT_FOUND, "No key exists for alias: '$alias'")
+                return SiliconResult.Failure(SiliconErrorCode.KEY_NOT_FOUND, "No key exists for alias '$alias'")
             }
 
             // Query the Keystore for the certificate array
             val certChain = keystore.getCertificateChain(alias)
-                ?: return SiliconResult.Failure(SiliconErrorCode.ATTEST_KEY_FAILED, "Key exists but has no certificate chain for alias: '$alias'")
+                ?: return SiliconResult.Failure(SiliconErrorCode.ATTEST_KEY_FAILED, "Key exists but has no certificate chain for alias '$alias'")
 
             if (!isKeyAttested(certChain)) {
-                return SiliconResult.Failure(SiliconErrorCode.OPERATION_NOT_PERMITTED, "No attest challenge exists for key with alias: '$alias'")
+                return SiliconResult.Failure(SiliconErrorCode.OPERATION_NOT_PERMITTED, "No attest challenge exists for key with alias '$alias'")
             }
 
             // Map the raw binary certificates to an array of PEM strings
@@ -427,7 +689,12 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 }
             }
 
-            val (algorithm, curve) = siliconHelpers.getKeyAlgorithm(key)
+            var (algorithm, curve) = siliconHelpers.getKeyAlgorithm(key)
+            if (algorithm.startsWith("ES")) {
+                algorithm = "EC"
+            } else if (algorithm.startsWith("RS")) {
+                algorithm = "RS"
+            }
 
             val infoMap = mutableMapOf(
                 "alias" to keyInfo.keystoreAlias,

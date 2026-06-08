@@ -30,7 +30,7 @@ class ReactNativeSiliconModule : Module() {
     private val device by lazy { SiliconDevice(appContext) }
     private val keystoreManager by lazy { SiliconKeystoreManager(appContext, keystore, helpers) }
     private val signer by lazy { SiliconSigner(appContext, keystore, helpers) }
-    private val verifier by lazy { SiliconVerifier(keystore) }
+    private val verifier by lazy { SiliconVerifier(keystore, helpers) }
     private val randomGen by lazy { SiliconRandomGen() }
     private val jose by lazy { SiliconJose(keystore, helpers) }
 
@@ -50,7 +50,11 @@ class ReactNativeSiliconModule : Module() {
 
         // ---- Keystore Manager ----
 
-        AsyncFunction("generateKey") { alias: String, opts: GenerateKeyOptions ->
+        AsyncFunction("generateKey") { alias: String, opts: GenerateKeyOptions, attestChallenge: ByteArray ->
+            // Uint8Array (TS) fails to map to ByteArray correctly when it is nested inside the options
+            // so we extract it out of the options on the TS side and then inject it back in here
+            opts.attestChallenge = attestChallenge
+
             val result = keystoreManager.generateKey(alias, opts)
             return@AsyncFunction result.toBridgeMap()
         }
