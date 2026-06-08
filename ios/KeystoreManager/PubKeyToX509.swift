@@ -27,6 +27,7 @@ enum PubKeyType {
     case data(Data)
 }
 
+// Converts the raw ANSI X9.63 key to DER-encoded X.509 SPKI
 func pubKeyToX509(format: PubKeyFormat, rawPublicKeyData: Data, rawKeyType: Any?, keySize: Int?) throws -> PubKeyType {
     // Safely coerce the key type
     let keyType: String

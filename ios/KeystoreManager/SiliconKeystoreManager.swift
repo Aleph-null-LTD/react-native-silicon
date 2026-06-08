@@ -104,7 +104,7 @@ enum SiliconKeystoreManager {
             guard let allowedDigests = opts.ios.digests else {
                 return .failure(
                     code: .GENERATE_KEY_FAILED,
-                    message: "Silicon Error: opts.ios.digests was nil after default value was set",
+                    message: "opts.ios.digests was nil after default value was set.",
                     nativeStack: nil
                 )
             }
@@ -157,9 +157,25 @@ enum SiliconKeystoreManager {
         
         if opts.userAuth.require {
             let context = LAContext()
-            var authError: NSError?
+            var deviceAuthError: NSError?
+                
+            // Check if the device has ANY form of secure lock screen
+            if !context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &deviceAuthError) {
+                if let error = deviceAuthError {
+                    let laError = LAError(_nsError: error)
+                    
+                    if laError.code == .passcodeNotSet {
+                        return SiliconResult.failure(
+                            code: .DEVICE_NOT_SECURE,
+                            message: "Cannot create an authenticated key. The device is not protected by a pin/password/pattern.",
+                            nativeStack: nil
+                        )
+                    }
+                }
+            }
             
-            if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) {
+            var biometricsAuthError: NSError?
+            if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometricsAuthError) {
                 // This is a Data object containing the current biometric hash
                 guard let currentDomainState = context.evaluatedPolicyDomainState else {
                     return .failure(code: .GENERATE_KEY_FAILED, message: "Domain state was nil.", nativeStack: nil)
@@ -167,12 +183,12 @@ enum SiliconKeystoreManager {
                 domainState = currentDomainState
             }
             
-            if let error = authError {
+            if let error = biometricsAuthError {
                 let laError = LAError(_nsError: error)
                 switch laError.code {
                 case .biometryNotAvailable:
                     if opts.userAuth.policy == .BIOMETRICS_ONLY {
-                        return .failure(code: .BIOMETRICS_NOT_AVAILABLE, message: "Biometry is not available on this device.", nativeStack: nil)
+                        return .failure(code: .BIOMETRICS_NOT_AVAILABLE, message: "Biometrics are unavailable on this device.", nativeStack: nil)
                     }
                 case .biometryNotEnrolled:
                     if opts.userAuth.policy == .BIOMETRICS_ONLY {
