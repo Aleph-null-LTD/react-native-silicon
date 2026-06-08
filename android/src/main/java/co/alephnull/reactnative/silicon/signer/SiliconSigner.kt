@@ -331,8 +331,10 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             7, 9 -> SiliconResult.Failure(SiliconErrorCode.AUTH_LOCKED_OUT, errString.toString())
 
             // 11 - ERROR_NO_BIOMETRICS
+            11 -> SiliconResult.Failure(SiliconErrorCode.BIOMERICS_NOT_ENROLLED, errString.toString())
+
             // 14 - ERROR_NO_DEVICE_CREDENTIAL
-            11, 14 -> SiliconResult.Failure(SiliconErrorCode.AUTH_NOT_ENROLLED, errString.toString())
+            14 -> SiliconResult.Failure(SiliconErrorCode.DEVICE_UNSECURE, errString.toString())
 
             // All other errors are system errors
             else -> SiliconResult.Failure(SiliconErrorCode.SIGN_FAILED, errString.toString())
