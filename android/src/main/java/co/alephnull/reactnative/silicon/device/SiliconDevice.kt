@@ -3,6 +3,7 @@ package co.alephnull.reactnative.silicon.device
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.biometric.BiometricManager
+import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.SiliconResult
 import expo.modules.kotlin.AppContext
 
@@ -55,8 +56,7 @@ class SiliconDevice(private val appContext: AppContext) {
             } else {
                 "NONE"
             }
-
-            // Return as a Map (which becomes a JS Object)
+            
             return SiliconResult.Success(
                 mapOf(
                     "securityLevel" to securityLevel,
@@ -66,7 +66,7 @@ class SiliconDevice(private val appContext: AppContext) {
             )
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "GET_CAPABILITIES_FAILED",
+                SiliconErrorCode.GET_CAPABILITIES_FAILED,
                 e.localizedMessage ?: "Failed to get capabilities",
                 e.stackTraceToString()
             )

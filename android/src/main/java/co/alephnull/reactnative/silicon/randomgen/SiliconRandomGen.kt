@@ -1,6 +1,7 @@
 package co.alephnull.reactnative.silicon.randomgen
 
 import android.util.Base64
+import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.SecureRandom
 
@@ -30,7 +31,7 @@ class SiliconRandomGen {
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "RANDOM_GEN_FAILED",
+                SiliconErrorCode.RANDOM_GEN_FAILED,
                 e.localizedMessage ?: "Failed to generate secure random bytes",
                 e.stackTraceToString()
             )

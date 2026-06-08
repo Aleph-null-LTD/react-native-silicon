@@ -14,6 +14,7 @@ import androidx.fragment.app.FragmentActivity
 import co.alephnull.reactnative.silicon.PayloadByteArr
 import co.alephnull.reactnative.silicon.PayloadText
 import co.alephnull.reactnative.silicon.PayloadType
+import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.SiliconException
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
 import co.alephnull.reactnative.silicon.onFailure
@@ -35,7 +36,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
         try {
             // Verify that the key exists
             if (!keystore.containsAlias(alias)) {
-                return SiliconResult.Failure("KEY_NOT_FOUND", "No key found for alias: $alias")
+                return SiliconResult.Failure(SiliconErrorCode.KEY_NOT_FOUND, "No key found for alias: $alias")
             }
 
             val payloadBytes = when (payload) {
@@ -49,7 +50,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             // Grab the PrivateKey reference from the hardware provider
             // The password parameter is always null for AndroidKeyStore
             val privateKey = keystore.getKey(alias, null) as? PrivateKey
-                ?: return SiliconResult.Failure("INVALID_KEY", "Key is not a valid PrivateKey")
+                ?: return SiliconResult.Failure(SiliconErrorCode.SIGN_FAILED, "Key is not a valid PrivateKey")
 
             val (keyAlgorithm, crv) = helpers.getKeyAlgorithm(privateKey)
 
@@ -60,7 +61,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                     // keyAlgorithm == "ES384" || keyAlgorithm == "RS384" -> SignDigest.SHA384
                     // keyAlgorithm == "ES512" || keyAlgorithm == "RS512" -> SignDigest.SHA512
                     else -> return SiliconResult.Failure(
-                        "UNSUPPORTED_KEY_FAMILY",
+                        SiliconErrorCode.UNSUPPORTED,
                         "Key algorithm $keyAlgorithm is not supported for this function"
                     )
                 }
@@ -126,14 +127,14 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
         } catch (e: KeyPermanentlyInvalidatedException) {
             // Occurs if the user enrolled new biometrics and invalidateOnNewBiometrics was true
             return SiliconResult.Failure(
-                "KEY_INVALIDATED",
+                SiliconErrorCode.KEY_INVALIDATED,
                 "Key was permanently invalidated because biometric enrollment changed"
             )
 
         } catch (e: InvalidKeyException) {
             // Occurs if the key cannot be used for any reason (e.g., invalid encoding, wrong length, uninitialized, etc.)
             return SiliconResult.Failure(
-                "INVALID_KEY",
+                SiliconErrorCode.SIGN_FAILED,
                 e.localizedMessage ?: "Key could not be used for this signing operation"
             )
 
@@ -141,7 +142,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             throw e
 
         } catch (e: Exception) {
-            return SiliconResult.Failure("SIGNING_FAILED", e.localizedMessage ?: "Unknown signing error", e.stackTraceToString())
+            return SiliconResult.Failure(SiliconErrorCode.SIGN_FAILED, e.localizedMessage ?: "Unknown signing error", e.stackTraceToString())
         }
     }
 
@@ -149,7 +150,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
         // Grab the active UI context and cast it
         val activity = appContext.currentActivity as? FragmentActivity
             ?: return SiliconResult.Failure(
-                "NO_ACTIVITY",
+                SiliconErrorCode.SIGN_FAILED,
                 "Current activity is null or not a FragmentActivity."
             )
 
@@ -205,7 +206,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
 
                     } catch (e: Exception) {
                         continuation.resume(
-                            SiliconResult.Failure("PROMPT_SIGN_FAILED", e.message ?: "Failed post-auth", e.stackTraceToString()),
+                            SiliconResult.Failure(SiliconErrorCode.SIGN_FAILED, e.message ?: "Failed post-auth", e.stackTraceToString()),
                         )
                     }
                 }
@@ -281,7 +282,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
 
                     } catch (e: Exception) {
                         continuation.resume(
-                            SiliconResult.Failure("PROMPT_SIGN_FAILED", e.message ?: "Failed post-auth", e.stackTraceToString()),
+                            SiliconResult.Failure(SiliconErrorCode.SIGN_FAILED, e.message ?: "Failed post-auth", e.stackTraceToString()),
                         )
                     }
                 }
@@ -323,18 +324,18 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             // 13 - ERROR_NEGATIVE_BUTTON
             // 10 - ERROR_USER_CANCELED
             // 5 - ERROR_CANCELED
-            13, 10, 5 -> SiliconResult.Failure("AUTH_CANCELED", errString.toString())
+            13, 10, 5 -> SiliconResult.Failure(SiliconErrorCode.AUTH_CANCELED, errString.toString())
 
             // 7 - ERROR_LOCKOUT
             // 9 - ERROR_LOCKOUT_PERMANENT
-            7, 9 -> SiliconResult.Failure("AUTH_LOCKED_OUT", errString.toString())
+            7, 9 -> SiliconResult.Failure(SiliconErrorCode.AUTH_LOCKED_OUT, errString.toString())
 
             // 11 - ERROR_NO_BIOMETRICS
             // 14 - ERROR_NO_DEVICE_CREDENTIAL
-            11, 14 -> SiliconResult.Failure("AUTH_NOT_ENROLLED", errString.toString())
+            11, 14 -> SiliconResult.Failure(SiliconErrorCode.AUTH_NOT_ENROLLED, errString.toString())
 
             // All other errors are system errors
-            else -> SiliconResult.Failure("AUTH_SYSTEM_ERROR", errString.toString())
+            else -> SiliconResult.Failure(SiliconErrorCode.SIGN_FAILED, errString.toString())
         }
     }
 
@@ -349,7 +350,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 SignDigest.SHA256 -> SiliconResult.Success("SHA256withRSA")
             }
 
-            else -> SiliconResult.Failure("UNSUPPORTED_KEY_FAMILY", "Unsupported key family: ${key.algorithm}")
+            else -> SiliconResult.Failure(SiliconErrorCode.UNSUPPORTED, "Unsupported key family: ${key.algorithm}")
         }
     }
 

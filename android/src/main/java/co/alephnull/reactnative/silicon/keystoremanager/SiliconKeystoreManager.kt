@@ -11,6 +11,7 @@ import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import android.util.Base64
 import android.util.Log
+import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
 import expo.modules.kotlin.AppContext
 import java.security.InvalidAlgorithmParameterException
@@ -34,7 +35,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
     fun generateKey(alias: String, opts: GenerateKeyOptions): SiliconResult<String?> {
         if (keystore.containsAlias(alias)) {
-            return SiliconResult.Failure("ALIAS_IN_USE", "A key with alias '$alias' already exists")
+            return SiliconResult.Failure(SiliconErrorCode.ALIAS_IN_USE, "A key with alias '$alias' already exists")
         }
 
         // If digests was not set, use the digest with the same size as the algorithm
@@ -48,18 +49,9 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         val canUseStrongBox = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
                 appContext.reactContext?.packageManager?.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE) == true
 
-        var useStrongBox: Boolean
-        val requireStrongBox: Boolean
-
-        when (opts.android.hardwarePolicy) {
-            HardwarePolicy.REQUIRE_STRONGBOX -> { useStrongBox = true; requireStrongBox = true }
-            HardwarePolicy.PREFER_STRONGBOX -> { useStrongBox = true; requireStrongBox = false }
-            HardwarePolicy.USE_TEE -> { useStrongBox = false; requireStrongBox = false }
-        }
-
         // Fail-fast if StrongBox was required but not supported
         if (useStrongBox && requireStrongBox && !canUseStrongBox) {
-            return SiliconResult.Failure("STRONGBOX_NOT_SUPPORTED", "StrongBox is not supported on this device")
+            return SiliconResult.Failure(SiliconErrorCode.STRONGBOX_NOT_SUPPORTED, "StrongBox is not supported on this device")
         }
 
         // If StrongBox was preferred but not required,
@@ -89,14 +81,14 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 KeyPurpose.WRAP -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     purpose = purpose or KeyProperties.PURPOSE_WRAP_KEY
                 } else {
-                    return SiliconResult.Failure("PURPOSE_WRAP_NOT_SUPPORTED", "Purpose ")
+                    return SiliconResult.Failure(SiliconErrorCode.UNSUPPORTED, "Purpose WRAP is not supported on this device")
                 }
                 KeyPurpose.AGREE -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     purpose = purpose or KeyProperties.PURPOSE_AGREE_KEY
                 }  else {
-                    return SiliconResult.Failure("PURPOSE_AGREE_NOT_SUPPORTED", "Purpose ")
+                    return SiliconResult.Failure(SiliconErrorCode.UNSUPPORTED, "Purpose AGREE is not supported on this device")
                 }
-                KeyPurpose.ATTEST -> purpose = purpose or KeyProperties.PURPOSE_ATTEST_KEY
+                //KeyPurpose.ATTEST -> purpose = purpose or KeyProperties.PURPOSE_ATTEST_KEY // NOTE: ATTEST has been removed to keep the API symmetric between platforms
             }
         }
 
@@ -212,7 +204,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         } catch (e: Exception) {
             // Catches underlying KeyStoreException if the hardware state is locked/corrupted
             return SiliconResult.Failure(
-                "DELETE_FAILED",
+                SiliconErrorCode.DELETE_FAILED,
                 e.localizedMessage ?: "Hardware key deletion failed for alias: $alias",
                 e.stackTraceToString()
             )
@@ -239,7 +231,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "BULK_DELETE_FAILED",
+                SiliconErrorCode.DELETE_ALL_FAILED,
                 e.localizedMessage ?: "Failed to execute bulk key wipe: $count/$total deleted",
                 e.stackTraceToString()
             )
@@ -253,7 +245,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "KEY_EXISTS_FAILED",
+                SiliconErrorCode.KEY_EXISTS_FAILED,
                 e.localizedMessage ?: "Failed to verify key existence for alias: $alias",
                 e.stackTraceToString()
             )
@@ -273,7 +265,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "KEY_LIST_FAILED",
+                SiliconErrorCode.LIST_KEYS_FAILED,
                 e.localizedMessage ?: "Failed to list keys",
                 e.stackTraceToString()
             )
@@ -284,18 +276,18 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         try {
             // Ensure the key exists
             if (!keystore.containsAlias(alias)) {
-                return SiliconResult.Failure("KEY_NOT_FOUND", "No key exists for alias: '$alias'")
+                return SiliconResult.Failure(SiliconErrorCode.KEY_NOT_FOUND, "No key exists for alias: '$alias'")
             }
 
             if (!keystore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry::class.java)) {
                 return SiliconResult.Failure(
-                    "UNSUPPORTED_KEY_FAMILY",
+                    SiliconErrorCode.UNSUPPORTED,
                     "The key stored under alias '$alias' is a symmetric key. Public key extraction is only supported for asymmetric keypairs (RSA/EC)."
                 )
             }
 
             val certificate = keystore.getCertificate(alias)
-                ?: return SiliconResult.Failure("NO_CERT", "No certificate chain found for key '$alias'.")
+                ?: return SiliconResult.Failure(SiliconErrorCode.GET_PUB_KEY_FAILED, "No certificate chain found for key '$alias'.")
 
             val publicKey = when (format) {
                 PubkeyFormat.B64 -> Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
@@ -319,7 +311,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "GET_PUB_KEY_FAILED",
+                SiliconErrorCode.GET_PUB_KEY_FAILED,
                 e.localizedMessage ?: "Failed to extract public key.",
                 e.stackTraceToString()
             )
@@ -330,15 +322,15 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         try {
             // Ensure the key exists
             if (!keystore.containsAlias(alias)) {
-                return SiliconResult.Failure("KEY_NOT_FOUND", "No key exists for alias: '$alias'")
+                return SiliconResult.Failure(SiliconErrorCode.KEY_NOT_FOUND, "No key exists for alias: '$alias'")
             }
 
             // Query the Keystore for the certificate array
             val certChain = keystore.getCertificateChain(alias)
-                ?: return SiliconResult.Failure("NO_CERT_CHAIN", "Key exists but has no certificate chain for alias: '$alias'")
+                ?: return SiliconResult.Failure(SiliconErrorCode.ATTEST_KEY_FAILED, "Key exists but has no certificate chain for alias: '$alias'")
 
             if (!isKeyAttested(certChain)) {
-                return SiliconResult.Failure("NO_ATTEST_CHALLENGE", "No attest challenge exists for key with alias: '$alias'")
+                return SiliconResult.Failure(SiliconErrorCode.OPERATION_NOT_PERMITTED, "No attest challenge exists for key with alias: '$alias'")
             }
 
             // Map the raw binary certificates to an array of PEM strings
@@ -353,7 +345,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "ATTEST_FAILED",
+                SiliconErrorCode.ATTEST_KEY_FAILED,
                 e.localizedMessage ?: "Failed to extract certificate chain.",
                 e.stackTraceToString()
             )
@@ -385,12 +377,12 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         try {
             // Ensure the key exists
             if (!keystore.containsAlias(alias)) {
-                return SiliconResult.Failure("KEY_NOT_FOUND", "No key exists for alias: '$alias'")
+                return SiliconResult.Failure(SiliconErrorCode.KEY_NOT_FOUND, "No key exists for alias: '$alias'")
             }
 
             // Grab the private key interface
             val key = keystore.getKey(alias, null)
-                ?: return SiliconResult.Failure("KEY_LOAD_FAILED", "KeyInfo extraction requires a PrivateKey")
+                ?: return SiliconResult.Failure(SiliconErrorCode.GET_KEY_INFO_FAILED, "KeyInfo extraction requires a PrivateKey")
 
             // Smart-cast to the correct JCA engine to extract the underlying OS KeyInfo spec
             val keyInfo: KeyInfo = when (key) {
@@ -403,7 +395,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                     factory.getKeySpec(key, KeyInfo::class.java) as KeyInfo
                 }
                 else -> return SiliconResult.Failure(
-                    "UNSUPPORTED_KEY_FAMILY",
+                    SiliconErrorCode.UNSUPPORTED,
                     "KeyInfo extraction is not supported for key class: ${key.javaClass.simpleName}"
                 )
             }
@@ -456,7 +448,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "GET_KEY_INFO_FAILED",
+                SiliconErrorCode.GET_KEY_INFO_FAILED,
                 e.localizedMessage ?: "Failed to read KeyInfo.",
                 e.stackTraceToString()
             )
@@ -560,7 +552,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                         }
                     }
                 }
-                else -> return SiliconResult.Failure("KEY_VALIDATION_FAILED", "Unrecognized Keystore entry type.")
+                else -> return SiliconResult.Failure(SiliconErrorCode.VALIDATE_KEY_FAILED, "Unrecognized Keystore entry type.")
             }
 
             // If we made it here without throwing, the key material is 100% healthy
@@ -577,7 +569,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
         } catch (e: Exception) {
             // Catch-all for generic system/hardware state corruption
             return SiliconResult.Failure(
-                "KEY_VALIDATION_FAILED",
+                SiliconErrorCode.VALIDATE_KEY_FAILED,
                 e.localizedMessage ?: "Key evaluation failed",
                 e.stackTraceToString()
             )

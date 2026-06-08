@@ -5,6 +5,7 @@ import android.util.Base64
 import co.alephnull.reactnative.silicon.PayloadByteArr
 import co.alephnull.reactnative.silicon.PayloadText
 import co.alephnull.reactnative.silicon.PayloadType
+import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.SiliconException
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.io.ByteArrayOutputStream
@@ -29,13 +30,13 @@ class SiliconVerifier(private val keystore: KeyStore) {
                 !opts.alias.isNullOrBlank() -> {
                     if (!keystore.containsAlias(opts.alias)) {
                         return SiliconResult.Failure(
-                            "KEY_NOT_FOUND",
+                            SiliconErrorCode.KEY_NOT_FOUND,
                             "Local key alias '$opts.alias' missing"
                         )
                     }
                     keystore.getCertificate(opts.alias).publicKey
                         ?: return SiliconResult.Failure(
-                            "NO_CERT",
+                            SiliconErrorCode.VERIFY_FAILED,
                             "Missing certificate for local key"
                         )
                 }
@@ -85,7 +86,7 @@ class SiliconVerifier(private val keystore: KeyStore) {
         } catch (e: Exception) {
             // Cryptographic parser exceptions (bad sig byte arrays, corrupted PEM strings)
             return SiliconResult.Failure(
-                "VERIFICATION_FAILED",
+                SiliconErrorCode.VERIFY_FAILED,
                 e.localizedMessage ?: "Verification engine failure",
                 e.stackTraceToString()
             )

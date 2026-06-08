@@ -2,6 +2,7 @@ package co.alephnull.reactnative.silicon.jose
 
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.SiliconResult
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
 import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
@@ -18,24 +19,24 @@ class SiliconJose(private val keystore: KeyStore, private val siliconHelpers: Si
         try {
             // Ensure the key exists
             if (!keystore.containsAlias(alias)) {
-                return SiliconResult.Failure("KEY_NOT_FOUND", "No key exists for alias: '$alias'")
+                return SiliconResult.Failure(SiliconErrorCode.KEY_NOT_FOUND, "No key exists for alias: '$alias'")
             }
 
             if (!keystore.entryInstanceOf(alias, KeyStore.PrivateKeyEntry::class.java)) {
                 return SiliconResult.Failure(
-                    "UNSUPPORTED_KEY_FAMILY",
+                    SiliconErrorCode.UNSUPPORTED,
                     "The key stored under alias '$alias' is a symmetric key. Public key extraction is only supported for asymmetric keypairs (RSA/EC)."
                 )
             }
 
             val certificate = keystore.getCertificate(alias)
-                ?: return SiliconResult.Failure("NO_CERT", "No certificate chain found for key '$alias'.")
+                ?: return SiliconResult.Failure(SiliconErrorCode.GET_JWK_FAILED, "No certificate chain found for key '$alias'.")
 
             val jwk = when (certificate.publicKey.algorithm) {
                 KeyProperties.KEY_ALGORITHM_EC -> constructEcJwk(certificate.publicKey)
                 KeyProperties.KEY_ALGORITHM_RSA -> constructRsaJwk(certificate.publicKey)
                 else -> return SiliconResult.Failure(
-                    "UNSUPPORTED_KEY_FAMILY",
+                    SiliconErrorCode.UNSUPPORTED,
                     "Key family ${certificate.publicKey.algorithm} is not supported for this function"
                 )
             }
@@ -44,7 +45,7 @@ class SiliconJose(private val keystore: KeyStore, private val siliconHelpers: Si
 
         } catch (e: Exception) {
             return SiliconResult.Failure(
-                "GET_JWK_FAILED",
+                SiliconErrorCode.GET_JWK_FAILED,
                 e.localizedMessage ?: "Failed to extract JWK.",
                 e.stackTraceToString()
             )
