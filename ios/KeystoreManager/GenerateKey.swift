@@ -2,7 +2,7 @@ import DeviceCheck
 
 enum GenerateKey {
     // MARK: - Hardware Keys
-    static func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) -> SiliconResult<Void> {
+    static func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions, isDomainStateStored: Bool) -> SiliconResult<Void> {
         // Initialize Core Generation Parameters
         var attributes: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom, // Matches NIST P-256 / secp256r1
@@ -29,6 +29,13 @@ enum GenerateKey {
             switch opts.userAuth.policy {
             case .BIOMETRICS_ONLY:
                 if opts.userAuth.invalidateOnEnrollment {
+                    if !isDomainStateStored {
+                        return .failure(
+                            code: .INTERNAL_ERROR,
+                            message: "Domain state not stored when generating key with invalidateOnEnrollment",
+                            nativeStack: nil
+                        )
+                    }
                     // Invalidate when new biometrics are added
                     flags.insert(.biometryCurrentSet)
                 } else {
@@ -38,10 +45,15 @@ enum GenerateKey {
             case .BIOMETRICS_OR_CREDENTIAL:
                 // Allow device Passcode fallback
                 if opts.userAuth.invalidateOnEnrollment {
-                    // Invalidate when new biometrics are added
-                    flags.insert(.biometryCurrentSet)
-                    flags.insert(.devicePasscode)
-                    flags.insert(.or)
+                    if isDomainStateStored {
+                        // Invalidate when new biometrics are added
+                        flags.insert(.biometryCurrentSet)
+                        flags.insert(.devicePasscode)
+                        flags.insert(.or)
+                    } else {
+                        flags.insert(.devicePasscode)
+                    }
+                    
                 } else {
                     // Do not invalidate when new biometrics are added
                     flags.insert(.biometryAny)
@@ -176,7 +188,7 @@ enum GenerateKey {
     }
     
     // MARK: - Software Keys
-    static func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions) -> SiliconResult<Void> {
+    static func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions, isDomainStateStored: Bool) -> SiliconResult<Void> {
         var keyType: String
         var keySize: Int
         
@@ -230,6 +242,13 @@ enum GenerateKey {
             switch opts.userAuth.policy {
             case .BIOMETRICS_ONLY:
                 if opts.userAuth.invalidateOnEnrollment {
+                    if !isDomainStateStored {
+                        return .failure(
+                            code: .INTERNAL_ERROR,
+                            message: "Domain state not stored when generating key with invalidateOnEnrollment",
+                            nativeStack: nil
+                        )
+                    }
                     // Invalidate when new biometrics are added
                     flags.insert(.biometryCurrentSet)
                 } else {
@@ -239,10 +258,15 @@ enum GenerateKey {
             case .BIOMETRICS_OR_CREDENTIAL:
                 // Allow device Passcode fallback
                 if opts.userAuth.invalidateOnEnrollment {
-                    // Invalidate when new biometrics are added
-                    flags.insert(.biometryCurrentSet)
-                    flags.insert(.devicePasscode)
-                    flags.insert(.or)
+                    if isDomainStateStored {
+                        // Invalidate when new biometrics are added
+                        flags.insert(.biometryCurrentSet)
+                        flags.insert(.devicePasscode)
+                        flags.insert(.or)
+                    } else {
+                        flags.insert(.devicePasscode)
+                    }
+                    
                 } else {
                     // Do not invalidate when new biometrics are added
                     flags.insert(.biometryAny)

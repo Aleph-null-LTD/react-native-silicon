@@ -152,21 +152,71 @@ enum SiliconKeystoreManager {
             }
         }
 
+        // Domain state will be nil if user auth is not required
+        var domainState: Data? = nil
+        
+        if opts.userAuth.require {
+            let context = LAContext()
+            var authError: NSError?
+            
+            if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) {
+                // This is a Data object containing the current biometric hash
+                guard let currentDomainState = context.evaluatedPolicyDomainState else {
+                    return .failure(code: .GENERATE_KEY_FAILED, message: "Domain state was nil.", nativeStack: nil)
+                }
+                domainState = currentDomainState
+            }
+            
+            if let error = authError {
+                let laError = LAError(_nsError: error)
+                switch laError.code {
+                case .biometryNotAvailable:
+                    if opts.userAuth.policy == .BIOMETRICS_ONLY {
+                        return .failure(code: .BIOMETRICS_NOT_AVAILABLE, message: "Biometry is not available on this device.", nativeStack: nil)
+                    }
+                case .biometryNotEnrolled:
+                    if opts.userAuth.policy == .BIOMETRICS_ONLY {
+                        return .failure(code: .BIOMETRICS_NOT_ENROLLED, message: "User has not enrolled biometrics on this device.", nativeStack: nil)
+                    }
+                default:
+                    return .failure(code: .GENERATE_KEY_FAILED, message: "Failed to evaluate policy 'deviceOwnerAuthenticationWithBiometrics': LAError code \(laError.code.rawValue)", nativeStack: nil)
+                }
+            }
+            
+            if domainState == nil && opts.userAuth.policy == .BIOMETRICS_ONLY {
+                return .failure(
+                    code: .GENERATE_KEY_FAILED,
+                    message: "Domain state was nil when key had policy \(AuthPolicy.BIOMETRICS_ONLY.rawValue).",
+                    nativeStack: nil
+                )
+            }
+        }
+        
         // Store metadata
         do {
-            try KeyMetadataStore.store(alias: alias, opts: opts, isHardwareBacked: useHardware)
+            try KeyMetadataStore.store(alias: alias, opts: opts, isHardwareBacked: useHardware, domainState: domainState)
         } catch {
             return SiliconResult.failure(code: .GENERATE_KEY_FAILED, message: "Failed to save metadata to keychain", nativeStack: nil)
         }
         
-        var res: SiliconResult<Void>
+        var result: SiliconResult<Void>
         if useHardware {
-            res = GenerateKey.generateHardwareKey(alias: alias, tag: tag, opts: opts)
+            result = GenerateKey.generateHardwareKey(
+                alias: alias,
+                tag: tag,
+                opts: opts,
+                isDomainStateStored: domainState != nil
+            )
         } else {
-            res = GenerateKey.generateSoftwareKey(alias: alias, tag: tag, opts: opts)
+            result = GenerateKey.generateSoftwareKey(
+                alias: alias,
+                tag: tag,
+                opts: opts,
+                isDomainStateStored: domainState != nil
+            )
         }
         
-        switch res {
+        switch result {
         case .failure:
             // Cleanup metadata
             do {
@@ -174,10 +224,10 @@ enum SiliconKeystoreManager {
             } catch {
                 // Ignore errors from the cleanup
             }
-            return res
+            return result
             
         case .success:
-            return res
+            return result
         }
     }
     

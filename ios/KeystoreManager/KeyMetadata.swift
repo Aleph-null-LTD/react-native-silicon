@@ -1,3 +1,5 @@
+import LocalAuthentication
+
 enum KeyMetaDataStoreError: Error {
     case jsonEncoding(message: String)
     case failedSave(message: String)
@@ -40,6 +42,7 @@ struct KeyMetadata: Codable {
     let userAuthTimeout: Int
     let userAuthInvalidateOnEnrollment: Bool
     let userAuthPolicy: AuthPolicy
+    let userAuthDomainState: Data?
 }
 
 struct KeyMetadataStore {
@@ -49,7 +52,7 @@ struct KeyMetadataStore {
     // Mutex used for protecting the cache from race conditions
     private static let mutex = NSLock()
     
-    static func store(alias: String, opts: GenerateKeyOptions, isHardwareBacked: Bool) throws -> Void {
+    static func store(alias: String, opts: GenerateKeyOptions, isHardwareBacked: Bool, domainState: Data?) throws -> Void {
         mutex.lock()
         defer { mutex.unlock() }
         
@@ -61,7 +64,8 @@ struct KeyMetadataStore {
             userAuthRequire: opts.userAuth.require,
             userAuthTimeout: opts.userAuth.timeout,
             userAuthInvalidateOnEnrollment: opts.userAuth.invalidateOnEnrollment,
-            userAuthPolicy: opts.userAuth.policy
+            userAuthPolicy: opts.userAuth.policy,
+            userAuthDomainState: domainState
         )
         
         do {

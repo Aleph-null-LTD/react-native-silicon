@@ -57,10 +57,12 @@ struct SiliconSigner {
               let dict = item as? [String: Any],
               let privateKey = dict[kSecValueRef as String] as! SecKey? else {
             
-            // Catch if the user hit "Cancel" on the Face ID prompt during key fetch
-            if status == errSecUserCanceled || status == errSecAuthFailed {
+            if status == errSecUserCanceled {
                 return .failure(code: .AUTH_CANCELED, message: "User canceled authentication.", nativeStack: nil)
+            } else if status == errSecAuthFailed {
+                return handleAuthFailed(context: context, keyMetadata: metadata)
             }
+            
             return .failure(code: .SIGN_FAILED, message: "Keychain lookup failed with OSStatus: \(status)", nativeStack: nil)
         }
         
@@ -268,8 +270,10 @@ struct SiliconSigner {
             let errCode = CFErrorGetCode(err)
             
             // Catch if the user hit "Cancel" during the actual signing operation
-            if errCode == errSecUserCanceled || errCode == errSecAuthFailed {
+            if errCode == errSecUserCanceled {
                 return .failure(code: .AUTH_CANCELED, message: "User canceled authentication.", nativeStack: nil)
+            } else if errCode == errSecAuthFailed {
+                return handleAuthFailed(context: context, keyMetadata: metadata)
             }
             
             return .failure(code: .SIGN_FAILED, message: err?.localizedDescription ?? "Unknown signing error", nativeStack: nil)
@@ -302,6 +306,70 @@ struct SiliconSigner {
         }
         
         return .success(base64Signature)
+    }
+    
+    // MARK: - Helpers
+    private static func handleAuthFailed(context: LAContext, keyMetadata: KeyMetadata) -> SiliconResult<String> {
+        var authError: NSError?
+        
+        context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError)
+        
+        if let error = authError {
+            let laError = LAError(_nsError: error)
+                    
+            switch laError.code {
+            case .biometryLockout:
+                // The user failed 5 times. The sensor is disabled.
+                return .failure(
+                    code: .AUTH_LOCKED_OUT,
+                    message: "Too many failed attempts. Biometrics are locked and require the device passcode to re-enable.",
+                    nativeStack: nil
+                )
+                
+            case .biometryNotEnrolled:
+                return .failure(
+                    code: .BIOMETRICS_NOT_ENROLLED,
+                    message: "Biometrics are not enrolled on this device.",
+                    nativeStack: nil
+                )
+                
+            case .biometryNotAvailable:
+                return .failure(
+                    code: .BIOMETRICS_NOT_AVAILABLE,
+                    message: "Biometrics are not enrolled on this device.",
+                    nativeStack: nil
+                )
+                
+            case .passcodeNotSet:
+                return .failure(
+                    code: .NO_PASSCODE,
+                    message: "Passcode is not set on this device.",
+                    nativeStack: nil
+                )
+                
+            case .systemCancel, .appCancel, .userCancel:
+                return .failure(
+                    code: .AUTH_CANCELED,
+                    message: "Authentication was canceled.",
+                    nativeStack: nil
+                )
+                
+            default:
+                break // Some other LAError, continue
+            }
+        }
+        
+        // context.evaluatedPolicyDomainState will be nil if the user is currently locked out
+        if let currentDomainState = context.evaluatedPolicyDomainState {
+            if keyMetadata.userAuthInvalidateOnEnrollment &&
+                keyMetadata.userAuthDomainState != nil &&
+                currentDomainState != keyMetadata.userAuthDomainState
+            {
+                return .failure(code: .KEY_INVALIDATED, message: "Key was invalidated due to new biometrics enrollment.", nativeStack: nil)
+            }
+        }
+        
+        return .failure(code: .AUTH_FAILED, message: "Authentication failed", nativeStack: nil)
     }
 
     // MARK: - DER to P1363 Transcoder
