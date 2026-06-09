@@ -30,7 +30,7 @@ class ReactNativeSiliconModule : Module() {
     private val device by lazy { SiliconDevice(appContext) }
     private val keystoreManager by lazy { SiliconKeystoreManager(appContext, keystore, helpers) }
     private val signer by lazy { SiliconSigner(appContext, keystore, helpers) }
-    private val verifier by lazy { SiliconVerifier(keystore, helpers) }
+    private val verifier by lazy { SiliconVerifier(keystore) }
     private val randomGen by lazy { SiliconRandomGen() }
     private val jose by lazy { SiliconJose(keystore, helpers) }
 

@@ -6,6 +6,14 @@ import expo.modules.kotlin.types.Enumerable
 
 enum class VerifyAlgorithm(val value: String) : Enumerable {
     ES256("ES256"),
+    ES384("ES384"),
+    ES512("ES512"),
+    RS256("ES256"),
+    RS384("ES384"),
+    RS512("ES512"),
+    PS256("ES256"),
+    PS384("ES384"),
+    PS512("ES512"),
 }
 
 class VerifyOptions : Record {

@@ -334,7 +334,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             11 -> SiliconResult.Failure(SiliconErrorCode.BIOMERICS_NOT_ENROLLED, errString.toString())
 
             // 14 - ERROR_NO_DEVICE_CREDENTIAL
-            14 -> SiliconResult.Failure(SiliconErrorCode.DEVICE_UNSECURE, errString.toString())
+            14 -> SiliconResult.Failure(SiliconErrorCode.DEVICE_NOT_SECURE, errString.toString())
 
             // All other errors are system errors
             else -> SiliconResult.Failure(SiliconErrorCode.SIGN_FAILED, errString.toString())

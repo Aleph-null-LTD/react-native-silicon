@@ -1,7 +1,12 @@
 package co.alephnull.reactnative.silicon.helpers
 
+import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
+import co.alephnull.reactnative.silicon.SiliconErrorCode
+import co.alephnull.reactnative.silicon.SiliconResult
+import co.alephnull.reactnative.silicon.verifier.VerifyAlgorithm
 import java.security.Key
+import java.security.KeyFactory
 import java.security.interfaces.ECKey
 import java.security.interfaces.RSAKey
 
@@ -40,7 +45,7 @@ class SiliconHelpers {
                     keySize >= 4096 -> "RS512"
                     keySize >= 3072 -> "RS384"
                     keySize >= 2048 -> "RS256"
-                    else -> throw Exception("RSA key size ($keySize) is too weak for secure JWTs")
+                    else -> throw Exception("RSA key size ($keySize) is too weak")
                 }
 
                 return Pair(alg, null)
