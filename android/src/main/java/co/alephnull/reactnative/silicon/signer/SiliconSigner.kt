@@ -7,7 +7,6 @@ import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.security.keystore.UserNotAuthenticatedException
 import android.util.Base64
-import android.util.Log
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
@@ -15,9 +14,10 @@ import co.alephnull.reactnative.silicon.PayloadByteArr
 import co.alephnull.reactnative.silicon.PayloadText
 import co.alephnull.reactnative.silicon.PayloadType
 import co.alephnull.reactnative.silicon.SiliconErrorCode
-import co.alephnull.reactnative.silicon.SiliconException
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
+import co.alephnull.reactnative.silicon.keystoremanager.SignaturePaddingAlgorithm
 import co.alephnull.reactnative.silicon.onFailure
+import co.alephnull.reactnative.silicon.verifier.VerifyAlgorithm
 import expo.modules.kotlin.AppContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -26,9 +26,12 @@ import java.security.InvalidKeyException
 import java.security.KeyFactory
 import kotlin.coroutines.resume
 import java.security.KeyStore
-import java.security.KeyStoreException
 import java.security.PrivateKey
 import java.security.Signature
+import java.security.interfaces.ECKey
+import java.security.interfaces.RSAKey
+import java.security.spec.MGF1ParameterSpec
+import java.security.spec.PSSParameterSpec
 
 class SiliconSigner(private val appContext: AppContext, private val keystore: KeyStore, private val helpers: SiliconHelpers) {
 
@@ -52,44 +55,273 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             val privateKey = keystore.getKey(alias, null) as? PrivateKey
                 ?: return SiliconResult.Failure(SiliconErrorCode.SIGN_FAILED, "Key is not a valid PrivateKey")
 
-            val (keyAlgorithm, crv) = helpers.getKeyAlgorithm(privateKey)
+            val factory = KeyFactory.getInstance(privateKey.algorithm, "AndroidKeyStore")
+            val keyInfo = factory.getKeySpec(privateKey, KeyInfo::class.java)
 
-            // Set the default digest based on the key algorithm if it is not set
-            if (opts.digest == null) {
-                opts.digest = when {
-                    keyAlgorithm == "ES256" || keyAlgorithm == "RS256" -> SignDigest.SHA256
-                    // keyAlgorithm == "ES384" || keyAlgorithm == "RS384" -> SignDigest.SHA384
-                    // keyAlgorithm == "ES512" || keyAlgorithm == "RS512" -> SignDigest.SHA512
-                    else -> return SiliconResult.Failure(
+            var jcaAlgo: String
+            var algorithm: VerifyAlgorithm
+            var digest: String
+            var signDigest: SignDigest
+
+            when (privateKey.algorithm) {
+                KeyProperties.KEY_ALGORITHM_EC -> {
+                    val ecKey = privateKey as ECKey
+                    val fieldSize = ecKey.params.curve.field.fieldSize
+
+                    if (opts.digest != null) {
+                        // Digest was explicitly provided
+                        when (opts.digest as SignDigest) {
+                            SignDigest.SHA256 -> {
+                                if (fieldSize != 256) {
+                                    return SiliconResult.Failure(
+                                        SiliconErrorCode.INCOMPATIBLE,
+                                        "key ($alias) is an EC key and must use the digest that matches it's key size (${SignDigest.SHA256.value})."
+                                    )
+                                }
+                                jcaAlgo = "SHA256withECDSA"
+                                algorithm = VerifyAlgorithm.ES256
+                                digest = KeyProperties.DIGEST_SHA256
+                            }
+                            SignDigest.SHA384 -> {
+                                if (fieldSize != 384) {
+                                    return SiliconResult.Failure(
+                                        SiliconErrorCode.INCOMPATIBLE,
+                                        "key ($alias) is an EC key and must use the digest that matches it's key size (${SignDigest.SHA384.value})."
+                                    )
+                                }
+                                jcaAlgo = "SHA384withECDSA"
+                                algorithm = VerifyAlgorithm.ES384
+                                digest = KeyProperties.DIGEST_SHA384
+                            }
+                            SignDigest.SHA512 -> {
+                                if (fieldSize != 521) {
+                                    return SiliconResult.Failure(
+                                        SiliconErrorCode.INCOMPATIBLE,
+                                        "key ($alias) is an EC key and must use the digest that matches it's key size (${SignDigest.SHA512.value})."
+                                    )
+                                }
+                                jcaAlgo = "SHA512withECDSA"
+                                algorithm = VerifyAlgorithm.ES512
+                                digest = KeyProperties.DIGEST_SHA512
+                            }
+                        }
+
+                        // Ensure the digest is on the allowed list
+                        if (!keyInfo.digests.contains(digest)) {
+                            return SiliconResult.Failure(
+                                SiliconErrorCode.KEY_POLICY_VIOLATION,
+                                "Key with alias $alias does not allow the $digest digest. Allowed digests: ${keyInfo.digests}"
+                            )
+                        }
+                        signDigest = opts.digest as SignDigest
+
+                    } else {
+                        // Digest was not provided - Determine default based on key size
+                        when (fieldSize) {
+                            256 -> {
+                                jcaAlgo = "SHA256withECDSA"
+                                algorithm = VerifyAlgorithm.ES256
+                                digest = KeyProperties.DIGEST_SHA256
+                                signDigest = SignDigest.SHA256
+                            }
+                            384 -> {
+                                jcaAlgo = "SHA384withECDSA"
+                                algorithm = VerifyAlgorithm.ES384
+                                digest = KeyProperties.DIGEST_SHA384
+                                signDigest = SignDigest.SHA384
+                            }
+                            521 -> {
+                                jcaAlgo = "SHA512withECDSA"
+                                algorithm = VerifyAlgorithm.ES512
+                                digest = KeyProperties.DIGEST_SHA512
+                                signDigest = SignDigest.SHA512
+                            }
+                            else -> {
+                                return SiliconResult.Failure(
+                                    SiliconErrorCode.UNSUPPORTED,
+                                    "EC keys with size $fieldSize are not supported for sign."
+                                )
+                            }
+                        }
+
+                        // Ensure the digest is on the allowed list
+                        if (!keyInfo.digests.contains(digest)) {
+                            return SiliconResult.Failure(
+                                SiliconErrorCode.KEY_POLICY_VIOLATION,
+                                "Cannot use default digest ($digest) for key ($alias) as it is not in the allowed digests list (${keyInfo.digests}). Please set it explicitly in the options."
+                            )
+                        }
+                    }
+
+                }
+
+                KeyProperties.KEY_ALGORITHM_RSA -> {
+                    val rsaKey = privateKey as RSAKey
+                    val keySize = rsaKey.modulus.bitLength()
+                    val allowedPaddings: Array<String> = keyInfo.signaturePaddings
+
+                    val allowedPadding = if (allowedPaddings.contains(KeyProperties.SIGNATURE_PADDING_RSA_PSS)) {
+                        SignaturePaddingAlgorithm.PSS
+                    } else if (allowedPaddings.contains(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)) {
+                        SignaturePaddingAlgorithm.PKCS1
+                    } else {
+                        return SiliconResult.Failure(
+                            SiliconErrorCode.INTERNAL_ERROR,
+                            "RSA key with alias '$alias' did not have any allowed padding algorithms."
+                        )
+                    }
+
+                    if (opts.digest != null) {
+                        // Digest was explicitly provided
+                        when (opts.digest as SignDigest) {
+                            SignDigest.SHA256 -> {
+                                when (allowedPadding) {
+                                    SignaturePaddingAlgorithm.PSS -> {
+                                        jcaAlgo = "SHA256withRSA/PSS"
+                                        algorithm = VerifyAlgorithm.PS256
+                                    }
+                                    SignaturePaddingAlgorithm.PKCS1 -> {
+                                        jcaAlgo = "SHA256withRSA"
+                                        algorithm = VerifyAlgorithm.RS256
+                                    }
+                                }
+                                digest = KeyProperties.DIGEST_SHA256
+                            }
+                            SignDigest.SHA384 -> {
+                                when (allowedPadding) {
+                                    SignaturePaddingAlgorithm.PSS -> {
+                                        jcaAlgo = "SHA384withRSA/PSS"
+                                        algorithm = VerifyAlgorithm.PS384
+                                    }
+                                    SignaturePaddingAlgorithm.PKCS1 -> {
+                                        jcaAlgo = "SHA384withRSA"
+                                        algorithm = VerifyAlgorithm.RS384
+                                    }
+                                }
+                                digest = KeyProperties.DIGEST_SHA384
+                            }
+                            SignDigest.SHA512 -> {
+                                when (allowedPadding) {
+                                    SignaturePaddingAlgorithm.PSS -> {
+                                        jcaAlgo = "SHA512withRSA/PSS"
+                                        algorithm = VerifyAlgorithm.PS512
+                                    }
+                                    SignaturePaddingAlgorithm.PKCS1 -> {
+                                        jcaAlgo = "SHA512withRSA"
+                                        algorithm = VerifyAlgorithm.RS512
+                                    }
+                                }
+                                digest = KeyProperties.DIGEST_SHA512
+                            }
+                        }
+
+                        // Ensure the digest is on the allowed list
+                        if (!keyInfo.digests.contains(digest)) {
+                            return SiliconResult.Failure(
+                                SiliconErrorCode.KEY_POLICY_VIOLATION,
+                                "Key with alias $alias does not allow the $digest digest. Allowed digests: ${keyInfo.digests}"
+                            )
+                        }
+
+                        signDigest = opts.digest as SignDigest
+
+                    } else {
+                        // Digest was not provided - Determine default based on key size
+                        when (keySize) {
+                            2048, 2047 -> {
+                                when (allowedPadding) {
+                                    SignaturePaddingAlgorithm.PSS -> {
+                                        jcaAlgo = "SHA256withRSA/PSS"
+                                        algorithm = VerifyAlgorithm.PS256
+                                    }
+                                    SignaturePaddingAlgorithm.PKCS1 -> {
+                                        jcaAlgo = "SHA256withRSA"
+                                        algorithm = VerifyAlgorithm.RS256
+                                    }
+                                }
+                                digest = KeyProperties.DIGEST_SHA256
+                                signDigest = SignDigest.SHA256
+                            }
+                            3072, 3071 -> {
+                                when (allowedPadding) {
+                                    SignaturePaddingAlgorithm.PSS -> {
+                                        jcaAlgo = "SHA384withRSA/PSS"
+                                        algorithm = VerifyAlgorithm.PS384
+                                    }
+                                    SignaturePaddingAlgorithm.PKCS1 -> {
+                                        jcaAlgo = "SHA384withRSA"
+                                        algorithm = VerifyAlgorithm.RS384
+                                    }
+                                }
+                                digest = KeyProperties.DIGEST_SHA384
+                                signDigest = SignDigest.SHA384
+                            }
+                            4096, 4095 -> {
+                                when (allowedPadding) {
+                                    SignaturePaddingAlgorithm.PSS -> {
+                                        jcaAlgo = "SHA512withRSA/PSS"
+                                        algorithm = VerifyAlgorithm.PS512
+                                    }
+                                    SignaturePaddingAlgorithm.PKCS1 -> {
+                                        jcaAlgo = "SHA512withRSA"
+                                        algorithm = VerifyAlgorithm.RS512
+                                    }
+                                }
+                                digest = KeyProperties.DIGEST_SHA512
+                                signDigest = SignDigest.SHA512
+                            }
+                            else -> {
+                                return SiliconResult.Failure(
+                                    SiliconErrorCode.UNSUPPORTED,
+                                    "RSA keys with size $keySize are not supported for sign."
+                                )
+                            }
+                        }
+
+                        // Ensure the digest is on the allowed list
+                        if (!keyInfo.digests.contains(digest)) {
+                            return SiliconResult.Failure(
+                                SiliconErrorCode.KEY_POLICY_VIOLATION,
+                                "Cannot use default digest ($digest) for key ($alias) as it is not in the allowed digests list (${keyInfo.digests}). Please set it explicitly in the options."
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    return SiliconResult.Failure(
                         SiliconErrorCode.UNSUPPORTED,
-                        "Key algorithm $keyAlgorithm is not supported for this function"
+                        "Key family (${privateKey.algorithm}) is not supported for signing."
                     )
                 }
             }
 
             var signatureBytes: ByteArray
 
-            // Inspect the key and trigger the user auth flow if auth is required for every use
-            val factory = KeyFactory.getInstance(privateKey.algorithm, "AndroidKeyStore")
-            val keyInfo = factory.getKeySpec(privateKey, KeyInfo::class.java)
-
+            // Trigger the user auth flow if auth is required for every use
             if (keyInfo.isUserAuthenticationRequired &&
                 (keyInfo.userAuthenticationValidityDurationSeconds == -1 || keyInfo.userAuthenticationValidityDurationSeconds == 0)
             ) {
-                signatureBytes = triggerUserAuthFlow(alias, payloadBytes, opts, false).onFailure { return it }
+                signatureBytes = triggerUserAuthFlow(alias, payloadBytes, opts, false, jcaAlgo, algorithm).onFailure { return it }
 
             } else {
                 try {
-                    val algorithmResult = getSignatureAlgorithm(
-                        privateKey,
-                        opts.digest ?: throw SiliconException("DIGEST_NOT_SET", "Digest was null"),
-                        opts.format
-                    )
-                    if (algorithmResult !is SiliconResult.Success) return algorithmResult
-                    val alg = algorithmResult.data;
-
                     // Initialize the Signature Engine for ES256
-                    val signatureEngine = Signature.getInstance(alg).apply {
+                    val signatureEngine = Signature.getInstance(jcaAlgo).apply {
+                        when (algorithm) {
+                            VerifyAlgorithm.PS256 -> setParameter(
+                                PSSParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, 1)
+                            )
+                            VerifyAlgorithm.PS384 -> setParameter(
+                                PSSParameterSpec("SHA-384", "MGF1", MGF1ParameterSpec.SHA384, 48, 1)
+                            )
+                            VerifyAlgorithm.PS512 -> setParameter(
+                                PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1)
+                            )
+                            else -> {
+                                // Do nothing - RS and ES families do not require manual parameter specs
+                            }
+                        }
                         initSign(privateKey)
                     }
 
@@ -102,7 +334,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 } catch (e: Exception) {
                     if (e.isUserAuthTimeout()) {
                         // The hardware requires user authentication.
-                        signatureBytes = triggerUserAuthFlow(alias, payloadBytes, opts, true).onFailure { return it }
+                        signatureBytes = triggerUserAuthFlow(alias, payloadBytes, opts, true, jcaAlgo, algorithm).onFailure { return it }
                     } else {
                         // Re-throw if not an auth timeout
                         throw e
@@ -115,8 +347,10 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             ) {
                 signatureBytes = transcodeDerToP1363(
                     signatureBytes,
-                    opts.digest ?: throw SiliconException("DIGEST_NOT_SET", "Digest was null")
-                )
+                    signDigest
+                ).onFailure {
+                    return it
+                }
             }
 
             // Encode the raw signature bytes
@@ -138,15 +372,12 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 e.localizedMessage ?: "Key could not be used for this signing operation"
             )
 
-        } catch (e: SiliconException) {
-            throw e
-
         } catch (e: Exception) {
             return SiliconResult.Failure(SiliconErrorCode.SIGN_FAILED, e.localizedMessage ?: "Unknown signing error", e.stackTraceToString())
         }
     }
 
-    private suspend fun triggerUserAuthFlow(alias: String, payloadBytes: ByteArray, opts: SignOptions, hasTimeout: Boolean): SiliconResult<ByteArray> {
+    private suspend fun triggerUserAuthFlow(alias: String, payloadBytes: ByteArray, opts: SignOptions, hasTimeout: Boolean, jcaAlgo: String, algorithm: VerifyAlgorithm): SiliconResult<ByteArray> {
         // Grab the active UI context and cast it
         val activity = appContext.currentActivity as? FragmentActivity
             ?: return SiliconResult.Failure(
@@ -157,19 +388,11 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
         // Recreate the engine reference to pass into a fresh CryptoObject session
         val privateKey = keystore.getKey(alias, null) as PrivateKey
 
-        val algorithmResult = getSignatureAlgorithm(
-            privateKey,
-            opts.digest ?: throw SiliconException("DIGEST_NOT_SET", "Digest was null"),
-            opts.format
-        ).onFailure { return it }
-
-        val alg = algorithmResult
-
         // Delegate to the suspended UI Coroutine
         return if (hasTimeout) {
-            promptAndSignWithTimeout(payloadBytes, privateKey, alg, activity)
+            promptAndSignWithTimeout(payloadBytes, privateKey, jcaAlgo, algorithm, activity)
         } else {
-            promptAndSignWithCryptoObj(payloadBytes, privateKey, alg, activity)
+            promptAndSignWithCryptoObj(payloadBytes, privateKey, jcaAlgo, algorithm, activity)
         }
     }
 
@@ -181,7 +404,8 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
     private suspend fun promptAndSignWithCryptoObj(
         payloadBytes: ByteArray,
         privateKey: PrivateKey,
-        alg: String,
+        jcaAlgo: String,
+        algorithm: VerifyAlgorithm,
         activity: FragmentActivity
     ): SiliconResult<ByteArray> = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine { continuation ->
@@ -224,7 +448,21 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
 
             val biometricPrompt = BiometricPrompt(activity, executor, callback)
 
-            val signatureEngine = Signature.getInstance(alg).apply {
+            val signatureEngine = Signature.getInstance(jcaAlgo).apply {
+                when (algorithm) {
+                    VerifyAlgorithm.PS256 -> setParameter(
+                        PSSParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, 1)
+                    )
+                    VerifyAlgorithm.PS384 -> setParameter(
+                        PSSParameterSpec("SHA-384", "MGF1", MGF1ParameterSpec.SHA384, 48, 1)
+                    )
+                    VerifyAlgorithm.PS512 -> setParameter(
+                        PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1)
+                    )
+                    else -> {
+                        // Do nothing - RS and ES families do not require manual parameter specs
+                    }
+                }
                 initSign(privateKey)
             }
 
@@ -257,7 +495,8 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
     private suspend fun promptAndSignWithTimeout(
         payloadBytes: ByteArray,
         privateKey: PrivateKey,
-        alg: String,
+        jcaAlgo: String,
+        algorithm: VerifyAlgorithm,
         activity: FragmentActivity
     ): SiliconResult<ByteArray> = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine { continuation ->
@@ -267,7 +506,21 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             val callback = object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     try {
-                        val signatureEngine = Signature.getInstance(alg).apply {
+                        val signatureEngine = Signature.getInstance(jcaAlgo).apply {
+                            when (algorithm) {
+                                VerifyAlgorithm.PS256 -> setParameter(
+                                    PSSParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, 1)
+                                )
+                                VerifyAlgorithm.PS384 -> setParameter(
+                                    PSSParameterSpec("SHA-384", "MGF1", MGF1ParameterSpec.SHA384, 48, 1)
+                                )
+                                VerifyAlgorithm.PS512 -> setParameter(
+                                    PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1)
+                                )
+                                else -> {
+                                    // Do nothing - RS and ES families do not require manual parameter specs
+                                }
+                            }
                             initSign(privateKey)
                         }
 
@@ -341,21 +594,6 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
         }
     }
 
-    // Gets the algorithm string to use for signing
-    private fun getSignatureAlgorithm(key: PrivateKey, digest: SignDigest, format: SignFormat): SiliconResult<String> {
-        return when (key.algorithm) {
-            KeyProperties.KEY_ALGORITHM_EC -> when (digest) {
-                SignDigest.SHA256 -> SiliconResult.Success("SHA256withECDSA")
-            }
-
-            KeyProperties.KEY_ALGORITHM_RSA -> when (digest) {
-                SignDigest.SHA256 -> SiliconResult.Success("SHA256withRSA")
-            }
-
-            else -> SiliconResult.Failure(SiliconErrorCode.UNSUPPORTED, "Unsupported key family: ${key.algorithm}")
-        }
-    }
-
     // Encodes the signature with the specified encoding type
     private fun encodeSignature(bytes: ByteArray, encoding: SignEncoding): String {
         return when (encoding) {
@@ -374,17 +612,20 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
      * Parses an ASN.1 DER sequence produced by the Android Keystore and extracts
      * raw IEEE P1363 flat arrays (R || S) strictly aligned to the curve bounds.
      */
-    fun transcodeDerToP1363(derSignature: ByteArray, digest: SignDigest): ByteArray {
+    fun transcodeDerToP1363(derSignature: ByteArray, digest: SignDigest): SiliconResult<ByteArray> {
         // Resolve exact target coordinate size based on requested digest algorithm
         val coordSize = when (digest) {
-            SignDigest.SHA256 -> 32 // ES256
-            // SignDigest.SHA384 -> 48 // ES384
-            // SignDigest.SHA512 -> 66 // ES512
+            SignDigest.SHA256 -> 32
+            SignDigest.SHA384 -> 48
+            SignDigest.SHA512 -> 66
         }
 
         // If it doesn't start with the DER sequence header (0x30) treat the signature as malformed
         if (derSignature.isEmpty() || derSignature[0] != 0x30.toByte()) {
-            throw SiliconException("MALFORMED_SIGNATURE", "Expected DER signature to start with sequence header (0x30)")
+            return SiliconResult.Failure(
+                SiliconErrorCode.MALFORMED_DATA,
+                "Expected DER signature to start with sequence header (0x30)"
+            )
         }
 
         // Navigate Sequence Length Descriptors safely
@@ -396,14 +637,24 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
         }
 
         // Extract R Coordinate payload
-        if (derSignature[offset] != 0x02.toByte()) return derSignature
+        if (derSignature[offset] != 0x02.toByte()) {
+            return SiliconResult.Failure(
+                SiliconErrorCode.MALFORMED_DATA,
+                "Expected DER signature R coordinate to start with integer header (0x02)"
+            )
+        }
         val rLen = derSignature[offset + 1].toInt()
         val rStart = offset + 2
         val rBytes = derSignature.copyOfRange(rStart, rStart + rLen)
 
         // Extract S Coordinate payload
         offset = rStart + rLen
-        if (derSignature[offset] != 0x02.toByte()) return derSignature
+        if (derSignature[offset] != 0x02.toByte()) {
+            return SiliconResult.Failure(
+                SiliconErrorCode.MALFORMED_DATA,
+                "Expected DER signature S coordinate to start with integer header (0x02)"
+            )
+        }
         val sLen = derSignature[offset + 1].toInt()
         val sStart = offset + 2
         val sBytes = derSignature.copyOfRange(sStart, sStart + sLen)
@@ -413,7 +664,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
         val sAligned = alignCoordinate(sBytes, coordSize)
 
         // Concatenate flat array (R || S)
-        return rAligned + sAligned
+        return SiliconResult.Success(rAligned + sAligned)
     }
 
     /**

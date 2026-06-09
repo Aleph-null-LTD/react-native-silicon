@@ -10,7 +10,9 @@ enum class SignEncoding(val value: String) : Enumerable {
 }
 
 enum class SignDigest(val value: String) : Enumerable {
-    SHA256("SHA256")
+    SHA256("SHA256"),
+    SHA384("SHA384"),
+    SHA512("SHA512")
 }
 
 enum class SignFormat(val value: String) : Enumerable {
