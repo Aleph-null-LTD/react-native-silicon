@@ -219,6 +219,8 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 alias,
                 purpose
             ).run {
+                var isRSA = false
+
                 when (opts.android.algorithm) {
                     KeyAlgorithm.EC_P256 -> setAlgorithmParameterSpec(
                         java.security.spec.ECGenParameterSpec("secp256r1")
@@ -229,15 +231,32 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                     KeyAlgorithm.EC_P521 -> setAlgorithmParameterSpec(
                         java.security.spec.ECGenParameterSpec("secp521r1")
                     )
-                    KeyAlgorithm.RSA_2048 -> setAlgorithmParameterSpec(
-                        java.security.spec.RSAKeyGenParameterSpec(2048, java.security.spec.RSAKeyGenParameterSpec.F4)
-                    )
-                    KeyAlgorithm.RSA_3072 -> setAlgorithmParameterSpec(
-                        java.security.spec.RSAKeyGenParameterSpec(3072, java.security.spec.RSAKeyGenParameterSpec.F4)
-                    )
-                    KeyAlgorithm.RSA_4096 -> setAlgorithmParameterSpec(
-                        java.security.spec.RSAKeyGenParameterSpec(4096, java.security.spec.RSAKeyGenParameterSpec.F4)
-                    )
+                    KeyAlgorithm.RSA_2048 -> {
+                        setAlgorithmParameterSpec(
+                            java.security.spec.RSAKeyGenParameterSpec(2048, java.security.spec.RSAKeyGenParameterSpec.F4)
+                        )
+                        isRSA = true
+                    }
+                    KeyAlgorithm.RSA_3072 -> {
+                        setAlgorithmParameterSpec(
+                            java.security.spec.RSAKeyGenParameterSpec(3072, java.security.spec.RSAKeyGenParameterSpec.F4)
+                        )
+                        isRSA = true
+                    }
+                    KeyAlgorithm.RSA_4096 -> {
+                        setAlgorithmParameterSpec(
+                            java.security.spec.RSAKeyGenParameterSpec(4096, java.security.spec.RSAKeyGenParameterSpec.F4)
+                        )
+                        isRSA = true
+                    }
+                }
+
+                if (isRSA) {
+                    // Set the allowed signature padding algorithm
+                    when (opts.android.signaturePaddingAlgorithm) {
+                        SignaturePaddingAlgorithm.PSS -> setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PSS)
+                        SignaturePaddingAlgorithm.PKCS1 -> setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
+                    }
                 }
 
                 // Map the digests to an array of the relevant constants
