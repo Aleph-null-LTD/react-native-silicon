@@ -207,20 +207,21 @@ struct SiliconSigner {
             } else {
                 var defaultDigest: KeyDigests
                 
+                // RSA keys can be -1 below the expected size
                 switch keySize {
-                case 2048:
+                case 2048, 2047:
                     switch sigPaddingAlg {
                     case .PKCS1: algorithm = .rsaSignatureMessagePKCS1v15SHA256
                     case .PSS: algorithm = .rsaSignatureMessagePSSSHA256
                     }
                     defaultDigest = .SHA256
-                case 3072:
+                case 3072, 3071:
                     switch sigPaddingAlg {
                     case .PKCS1: algorithm = .rsaSignatureMessagePKCS1v15SHA256
                     case .PSS: algorithm = .rsaSignatureMessagePSSSHA256
                     }
                     defaultDigest = .SHA384
-                case 4096:
+                case 4096, 4095:
                     switch sigPaddingAlg {
                     case .PKCS1: algorithm = .rsaSignatureMessagePKCS1v15SHA256
                     case .PSS: algorithm = .rsaSignatureMessagePSSSHA256

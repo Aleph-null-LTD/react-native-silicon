@@ -15,6 +15,7 @@ enum SiliconErrorCode: String {
     case NO_PASSCODE = "NO_PASSCODE"
     case AUTH_FAILED = "AUTH_FAILED"
     case KEY_INVALIDATED = "KEY_INVALIDATED"
+    case DEVICE_NOT_SECURE = "DEVICE_NOT_SECURE"
     
     // Generate key errors
     case GENERATE_KEY_FAILED = "GENERATE_KEY_FAILED"

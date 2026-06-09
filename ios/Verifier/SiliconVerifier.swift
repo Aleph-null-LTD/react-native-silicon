@@ -242,7 +242,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
                             code: .KEY_POLICY_VIOLATION,
-                            message: "Cannot use \(VerifyAlgorithms.RS256.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.PS256.rawValue).",
+                            message: "Cannot use \(VerifyAlgorithms.RS256.rawValue) with key (\(alias)). Please use \(VerifyAlgorithms.PS256.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -251,7 +251,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
                             code: .KEY_POLICY_VIOLATION,
-                            message: "Cannot use \(VerifyAlgorithms.RS384.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.PS384.rawValue).",
+                            message: "Cannot use \(VerifyAlgorithms.RS384.rawValue) with key (\(alias)). Please use \(VerifyAlgorithms.PS384.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -260,7 +260,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PKCS1 {
                         return .failure(
                             code: .KEY_POLICY_VIOLATION,
-                            message: "Cannot use \(VerifyAlgorithms.RS512.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.ES512.rawValue).",
+                            message: "Cannot use \(VerifyAlgorithms.RS512.rawValue) with key (\(alias)). Please use \(VerifyAlgorithms.ES512.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -269,7 +269,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
                             code: .KEY_POLICY_VIOLATION,
-                            message: "Cannot use \(VerifyAlgorithms.PS256.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.RS256.rawValue).",
+                            message: "Cannot use \(VerifyAlgorithms.PS256.rawValue) with key (\(alias)). Please use \(VerifyAlgorithms.RS256.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -278,7 +278,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
                             code: .KEY_POLICY_VIOLATION,
-                            message: "Cannot use \(VerifyAlgorithms.PS384.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.RS384.rawValue).",
+                            message: "Cannot use \(VerifyAlgorithms.PS384.rawValue) with key (\(alias)). Please use \(VerifyAlgorithms.RS384.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -287,7 +287,7 @@ struct SiliconVerifier {
                     if safeSigPaddingAlg != .PSS {
                         return .failure(
                             code: .KEY_POLICY_VIOLATION,
-                            message: "Cannot use \(VerifyAlgorithms.PS512.rawValue) padding with key (\(alias)). Please use \(VerifyAlgorithms.RS512.rawValue).",
+                            message: "Cannot use \(VerifyAlgorithms.PS512.rawValue) with key (\(alias)). Please use \(VerifyAlgorithms.RS512.rawValue).",
                             nativeStack: nil
                         )
                     }
@@ -348,7 +348,7 @@ struct SiliconVerifier {
                 }
                 
                 switch keySize {
-                case 2048:
+                case 2048, 2047:
                     switch safeSigPaddingAlg {
                     case .PKCS1:
                         attemptAlgorithm = .RS256
@@ -356,7 +356,7 @@ struct SiliconVerifier {
                         attemptAlgorithm = .PS256
                     }
                     digest = .SHA256
-                case 3072:
+                case 3072, 3071:
                     switch safeSigPaddingAlg {
                     case .PKCS1:
                         attemptAlgorithm = .RS384
@@ -364,7 +364,7 @@ struct SiliconVerifier {
                         attemptAlgorithm = .PS384
                     }
                     digest = .SHA384
-                case 4096:
+                case 4096, 4095:
                     switch safeSigPaddingAlg {
                     case .PKCS1:
                         attemptAlgorithm = .RS512
@@ -381,7 +381,7 @@ struct SiliconVerifier {
                 }
                 
             } else {
-                return .failure(code: .INCOMPATIBLE, message: "Key family (\(keyType.utf8)) is not supported for Verify.", nativeStack: nil)
+                return .failure(code: .UNSUPPORTED, message: "Key family (\(keyType.utf8)) is not supported for verify.", nativeStack: nil)
             }
             
             // Check if the digest is in the list of allowed digests
@@ -389,7 +389,7 @@ struct SiliconVerifier {
                 algorithm = attemptAlgorithm
             } else {
                 return .failure(
-                    code: .UNSUPPORTED,
+                    code: .INCOMPATIBLE,
                     message: "Could not use default verify algorithm for key (\(alias)). Please set the algorithm explicitly in the options.",
                     nativeStack: nil
                 )

@@ -191,11 +191,12 @@ struct SiliconJose {
         } else {
             // Digest was not set so use the algorithm that matches the key size
             // This corresponds to the same default algorithms we use when signing/verifying
-            if keySize >= 4096 {
+            // RSA keys can be -1 below the expected size
+            if keySize >= 4095 {
                 alg = isPSS ? "PS512" : "RS512"
-            } else if keySize >= 3072 {
+            } else if keySize >= 3073 {
                 alg = isPSS ? "PS384" : "RS384"
-            } else if keySize >= 2048 {
+            } else if keySize >= 2047 {
                 alg = isPSS ? "PS256" : "RS256"
             } else {
                 return .failure(
