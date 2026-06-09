@@ -318,7 +318,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                             when (opts.userAuth.policy) {
                                 AuthPolicy.BIOMETRICS_ONLY -> {
                                     return SiliconResult.Failure(
-                                        SiliconErrorCode.BIOMERICS_NOT_ENROLLED,
+                                        SiliconErrorCode.BIOMETRICS_NOT_ENROLLED,
                                         "User has not enrolled biometrics on this device."
                                     )
                                 }
@@ -333,7 +333,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                             when (opts.userAuth.policy) {
                                 AuthPolicy.BIOMETRICS_ONLY -> {
                                     return SiliconResult.Failure(
-                                        SiliconErrorCode.BIOMERICS_NOT_AVAILABLE,
+                                        SiliconErrorCode.BIOMETRICS_NOT_AVAILABLE,
                                         "Strong biometrics are unavailable on this device."
                                     )
                                 }
@@ -347,7 +347,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                             when (opts.userAuth.policy) {
                                 AuthPolicy.BIOMETRICS_ONLY -> {
                                     return SiliconResult.Failure(
-                                        SiliconErrorCode.BIOMERICS_NOT_AVAILABLE,
+                                        SiliconErrorCode.BIOMETRICS_NOT_AVAILABLE,
                                         "The user must update their device to enable biometrics."
                                     )
                                 }
@@ -360,7 +360,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                             when (opts.userAuth.policy) {
                                 AuthPolicy.BIOMETRICS_ONLY -> {
                                     return SiliconResult.Failure(
-                                        SiliconErrorCode.BIOMERICS_NOT_AVAILABLE,
+                                        SiliconErrorCode.BIOMETRICS_NOT_AVAILABLE,
                                         "Biometrics are unavailable on this device: Code $canAuthenticateCode"
                                     )
                                 }
@@ -388,7 +388,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                     } else { // Fallback for older Android devices (API 29 and below)
                         if (opts.userAuth.policy == AuthPolicy.BIOMETRICS_ONLY) {
                             return SiliconResult.Failure(
-                                SiliconErrorCode.BIOMERICS_NOT_AVAILABLE,
+                                SiliconErrorCode.BIOMETRICS_NOT_AVAILABLE,
                                 "Device is Android SDK version is < ${Build.VERSION_CODES.R}. Policy ${AuthPolicy.BIOMETRICS_ONLY.value} cannot be enforced."
                             )
                         }
