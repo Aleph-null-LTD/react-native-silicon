@@ -319,7 +319,7 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                                 PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1)
                             )
                             else -> {
-                                // Do nothing - RS and ES families do not require manual parameter specs
+                                // Do nothing - RS and ES do not require manual parameter specs
                             }
                         }
                         initSign(privateKey)
@@ -620,51 +620,60 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
             SignDigest.SHA512 -> 66
         }
 
-        // If it doesn't start with the DER sequence header (0x30) treat the signature as malformed
-        if (derSignature.isEmpty() || derSignature[0] != 0x30.toByte()) {
+        try {
+            // If it doesn't start with the DER sequence header (0x30) treat the signature as malformed
+            if (derSignature.isEmpty() || derSignature[0] != 0x30.toByte()) {
+                return SiliconResult.Failure(
+                    SiliconErrorCode.MALFORMED_DATA,
+                    "Expected DER signature to start with sequence header (0x30)"
+                )
+            }
+
+            // Navigate Sequence Length Descriptors safely
+            var offset = 1
+            if (derSignature[offset] == 0x81.toByte()) {
+                offset += 2 // Skip 0x81 marker and subsequent length byte
+            } else {
+                offset += 1 // Skip standard short-form length byte
+            }
+
+            // Extract R Coordinate payload
+            if (derSignature[offset] != 0x02.toByte()) {
+                return SiliconResult.Failure(
+                    SiliconErrorCode.MALFORMED_DATA,
+                    "Expected DER signature R coordinate to start with integer header (0x02), but got \${derSignature[offset]}"
+                )
+            }
+            val rLen = derSignature[offset + 1].toInt()
+            val rStart = offset + 2
+            val rBytes = derSignature.copyOfRange(rStart, rStart + rLen)
+
+            // Extract S Coordinate payload
+            offset = rStart + rLen
+            if (derSignature[offset] != 0x02.toByte()) {
+                return SiliconResult.Failure(
+                    SiliconErrorCode.MALFORMED_DATA,
+                    "Expected DER signature S coordinate to start with integer header (0x02), but got \${derSignature.getOrNull(offset)}"
+                )
+            }
+            val sLen = derSignature[offset + 1].toInt()
+            val sStart = offset + 2
+            val sBytes = derSignature.copyOfRange(sStart, sStart + sLen)
+
+            // Force strict mathematical alignment
+            val rAligned = alignCoordinate(rBytes, coordSize)
+            val sAligned = alignCoordinate(sBytes, coordSize)
+
+            // Concatenate flat array (R || S)
+            return SiliconResult.Success(rAligned + sAligned)
+
+        } catch (e: IndexOutOfBoundsException) {
+            // Catch out of bounds exceptions when traversing the signature ByteArray
             return SiliconResult.Failure(
                 SiliconErrorCode.MALFORMED_DATA,
-                "Expected DER signature to start with sequence header (0x30)"
+                "The DER signature was unexpectedly truncated or contained invalid length descriptors."
             )
         }
-
-        // Navigate Sequence Length Descriptors safely
-        var offset = 1
-        if (derSignature[offset] == 0x81.toByte()) {
-            offset += 2 // Skip 0x81 marker and subsequent length byte
-        } else {
-            offset += 1 // Skip standard short-form length byte
-        }
-
-        // Extract R Coordinate payload
-        if (derSignature[offset] != 0x02.toByte()) {
-            return SiliconResult.Failure(
-                SiliconErrorCode.MALFORMED_DATA,
-                "Expected DER signature R coordinate to start with integer header (0x02)"
-            )
-        }
-        val rLen = derSignature[offset + 1].toInt()
-        val rStart = offset + 2
-        val rBytes = derSignature.copyOfRange(rStart, rStart + rLen)
-
-        // Extract S Coordinate payload
-        offset = rStart + rLen
-        if (derSignature[offset] != 0x02.toByte()) {
-            return SiliconResult.Failure(
-                SiliconErrorCode.MALFORMED_DATA,
-                "Expected DER signature S coordinate to start with integer header (0x02)"
-            )
-        }
-        val sLen = derSignature[offset + 1].toInt()
-        val sStart = offset + 2
-        val sBytes = derSignature.copyOfRange(sStart, sStart + sLen)
-
-        // Force strict mathematical alignment
-        val rAligned = alignCoordinate(rBytes, coordSize)
-        val sAligned = alignCoordinate(sBytes, coordSize)
-
-        // Concatenate flat array (R || S)
-        return SiliconResult.Success(rAligned + sAligned)
     }
 
     /**

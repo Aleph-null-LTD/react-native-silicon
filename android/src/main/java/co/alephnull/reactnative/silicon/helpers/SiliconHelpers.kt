@@ -15,7 +15,7 @@ class SiliconHelpers {
      * This will work for passing both public and private key interfaces
      * Returns (algorithm, curve)
      */
-    fun getKeyAlgorithm(key: Key): Pair<String, String?> {
+    fun getKeyVerifyAlgorithm(key: Key): Pair<String, String?> {
         when (key.algorithm) {
             KeyProperties.KEY_ALGORITHM_EC -> {
                 // Cast as ECKey to access the Elliptic Curve parameters

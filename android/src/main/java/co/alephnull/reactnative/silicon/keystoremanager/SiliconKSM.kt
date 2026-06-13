@@ -171,13 +171,7 @@ class SiliconKSM(private val appContext: AppContext, private val keystore: KeySt
         }
 
         // Initialize the Generator
-        val kpg = if (useStrongBox || useTee) {
-            KeyPairGenerator.getInstance(alg, "AndroidKeyStore")
-        } else {
-            // For software keys - we omit "AndroidKeyStore" from the generator call and let android decide the provider
-            // We need to persist the software keys ourselves
-            KeyPairGenerator.getInstance(alg)
-        }
+        val kpg = KeyPairGenerator.getInstance(alg, "AndroidKeyStore")
 
         // Iterate through purpose array and OR the values together
         var purpose = 0;
@@ -265,6 +259,8 @@ class SiliconKSM(private val appContext: AppContext, private val keystore: KeySt
                         // Should never get here, this is just a failsafe
                         return SiliconResult.Failure(SiliconErrorCode.INTERNAL_ERROR, "Attempted to use StrongBox on unsupported SDK version (${Build.VERSION.SDK_INT})")
                     }
+                } else {
+                    setIsStrongBoxBacked(false)
                 }
 
                 if (opts.attestChallenge != null) {

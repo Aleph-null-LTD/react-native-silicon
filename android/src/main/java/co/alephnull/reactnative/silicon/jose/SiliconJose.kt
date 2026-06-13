@@ -5,8 +5,6 @@ import android.util.Base64
 import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.SiliconResult
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
-import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
-import co.alephnull.reactnative.silicon.keystoremanager.SiliconKeystoreManager
 import java.math.BigInteger
 import java.security.KeyStore
 import java.security.PublicKey
@@ -73,7 +71,7 @@ class SiliconJose(private val keystore: KeyStore, private val siliconHelpers: Si
             return Base64.encodeToString(formattedBytes, Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE)
         }
 
-        val (alg, crv) = siliconHelpers.getKeyAlgorithm(publicKey)
+        val (alg, crv) = siliconHelpers.getKeyVerifyAlgorithm(publicKey)
 
         if (crv == null) throw Exception("Unsupported EC curve size for JWK: $fieldSize")
 
@@ -102,7 +100,7 @@ class SiliconJose(private val keystore: KeyStore, private val siliconHelpers: Si
         }
 
         // crv will be null (because it's not an EC key)
-        val (alg, crv) = siliconHelpers.getKeyAlgorithm(publicKey)
+        val (alg, crv) = siliconHelpers.getKeyVerifyAlgorithm(publicKey)
 
         return mapOf(
             "kty" to "RSA",
