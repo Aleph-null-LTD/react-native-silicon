@@ -12,7 +12,6 @@ import android.security.keystore.KeyProperties
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import android.util.Base64
-import android.util.Log
 import androidx.biometric.BiometricManager
 import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
@@ -20,7 +19,6 @@ import expo.modules.kotlin.AppContext
 import java.io.Serializable
 import java.security.InvalidAlgorithmParameterException
 import java.security.InvalidKeyException
-import java.security.Key
 import java.security.KeyFactory
 import java.security.KeyStore
 import java.security.PrivateKey
@@ -28,15 +26,13 @@ import java.security.Signature
 import java.security.UnrecoverableKeyException
 import java.security.cert.Certificate
 import java.security.cert.X509Certificate
-import java.security.interfaces.ECKey
-import java.security.interfaces.RSAKey
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.Mac
 import javax.crypto.SecretKey
 import javax.crypto.SecretKeyFactory
 
-class SiliconKeystoreManager(private val appContext: AppContext, private val keystore: KeyStore, private val siliconHelpers: SiliconHelpers) {
+class SiliconKSM(private val appContext: AppContext, private val keystore: KeyStore, private val siliconHelpers: SiliconHelpers) {
 
     fun generateKey(alias: String, opts: GenerateKeyOptions): SiliconResult<Unit> {
         if (keystore.containsAlias(alias)) {
@@ -169,27 +165,19 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
             }
         }
 
-        // TODO: Extract the key generation logic into genHardwareKey and genSoftwareKey then call them depending on the bools above
-        // For software keys - we omit "AndroidKeyStore" from the generator call and let android decide the provider
-        // We need to persist the software keys ourselves
-        /*
-            if (useStrongbox || useTee) {
-                genHardwareKey()
-            } else {
-                genSoftwareKey()
-            }
-         */
-
         val alg = when (opts.android.algorithm) {
             KeyAlgorithm.EC_P256, KeyAlgorithm.EC_P384, KeyAlgorithm.EC_P521 -> KeyProperties.KEY_ALGORITHM_EC
             KeyAlgorithm.RSA_2048, KeyAlgorithm.RSA_3072, KeyAlgorithm.RSA_4096 -> KeyProperties.KEY_ALGORITHM_RSA
         }
 
         // Initialize the Generator
-        val kpg = KeyPairGenerator.getInstance(
-            alg,
-            "AndroidKeyStore"
-        )
+        val kpg = if (useStrongBox || useTee) {
+            KeyPairGenerator.getInstance(alg, "AndroidKeyStore")
+        } else {
+            // For software keys - we omit "AndroidKeyStore" from the generator call and let android decide the provider
+            // We need to persist the software keys ourselves
+            KeyPairGenerator.getInstance(alg)
+        }
 
         // Iterate through purpose array and OR the values together
         var purpose = 0;
@@ -708,7 +696,7 @@ class SiliconKeystoreManager(private val appContext: AppContext, private val key
                 }
             }
 
-            var (algorithm, curve) = siliconHelpers.getKeyAlgorithm(key)
+            var (algorithm, curve) = siliconHelpers.getKeyVerifyAlgorithm(key)
             if (algorithm.startsWith("ES")) {
                 algorithm = "EC"
             } else if (algorithm.startsWith("RS")) {
