@@ -2,7 +2,6 @@
   "name": "react-native-silicon",
   "version": "0.0.0",
   "description": "Hardware-backed cryptography for React Native and Expo (WIP)",
-  "type": "module",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "packageManager": "pnpm@11.3.0",
