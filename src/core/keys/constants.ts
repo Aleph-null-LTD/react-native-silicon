@@ -70,13 +70,13 @@ export const isPubkeyFormat = createInSetGuard(pubkeyFormatSet);
 
 // Android algorithms
 export const androidAlgorithms = {
-    EC_P256: 'EC_P256'
-    /*
+    EC_P256: 'EC_P256',
     EC_P384: 'EC_P384',
     EC_P521: 'EC_P521',
     RSA_2048: 'RSA_2048', 
     RSA_3072: 'RSA_3072',
-    RSA_4096: 'RSA_4096',
+    RSA_4096: 'RSA_4096'
+    /*
     MLDSA65: 'MLDSA65',
     MLDSA87: 'MLDSA87'
     */
@@ -108,6 +108,10 @@ export const iosAlgorithms = {
     RSA_2048: 'RSA_2048', 
     RSA_3072: 'RSA_3072',
     RSA_4096: 'RSA_4096'
+    /*
+    MLDSA65: 'MLDSA65',
+    MLDSA87: 'MLDSA87'
+    */
 } as const;
 
 const iosAlgorithmSet: ReadonlySet<keyof typeof iosAlgorithms> = new Set(Object.values(iosAlgorithms));
