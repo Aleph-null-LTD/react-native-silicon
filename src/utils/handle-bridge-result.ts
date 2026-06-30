@@ -6,7 +6,7 @@ export function handleBridgeResult<T>(result: BridgeResult<T>): T {
         return result.data;
     }
     
-    let code: SiliconErrorCode | undefined = SiliconErrorCode[result.errorCode as SiliconErrorCode];
+    const code: SiliconErrorCode | undefined = SiliconErrorCode[result.errorCode as SiliconErrorCode];
     if (code === undefined) {
         throw new SiliconError(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, `${result.errorCode}: ${result.errorMessage}`, { nativeStack: result.nativeStack });
     }
