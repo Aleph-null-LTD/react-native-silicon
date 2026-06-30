@@ -1,3 +1,5 @@
+# https://pnpm.io/settings
+
 packages:
   - '.'
   - './example'
