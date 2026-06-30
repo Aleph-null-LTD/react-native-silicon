@@ -104,7 +104,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
 
             if (hasOwn(opts.userAuth, 'timeout')) {
                 if (opts.userAuth.timeout !== undefined) {
-                    if (typeof opts.userAuth.timeout !== 'number') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth.timeout must be of type number");
+                    if (typeof opts.userAuth.timeout !== 'number' || isNaN(opts.userAuth.timeout)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth.timeout must be of type number");
                     
                     if (opts.userAuth.timeout < 0 || opts.userAuth.timeout > 6000) {
                         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth.timeout must be >=0 AND <=6000");
