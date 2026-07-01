@@ -31,7 +31,7 @@ import { AttestResult, GenerateKeyOpts, KeyInfo, PubkeyFormat, PubKeyFormatTypeM
  * @returns 
  */
 export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promise<void> {
-    if (!alias || typeof alias !== 'string') {
+    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
 
@@ -221,7 +221,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
  * @returns true if the key was deleted, false if key not found
  */
 export async function deleteKey(alias: string): Promise<boolean> {
-    if (!alias || typeof alias !== 'string') {
+    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
     
@@ -242,7 +242,7 @@ export async function deleteKey(alias: string): Promise<boolean> {
  * @returns The number of keys that were deleted
  */
 export async function deleteAllKeys(prefix?: string): Promise<number> {
-    if (prefix !== undefined && typeof prefix !== 'string') {
+    if (prefix !== undefined && (typeof prefix !== 'string' || prefix.trim().length < 1)) {
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'prefix' must be of type string");
     }
 
@@ -257,7 +257,7 @@ export async function deleteAllKeys(prefix?: string): Promise<number> {
  * @returns true if the key exists
  */
 export async function keyExists(alias: string): Promise<boolean> {
-    if (!alias || typeof alias !== 'string') {
+    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 
@@ -307,14 +307,14 @@ export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 
  * @returns 
  */
 export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F): Promise<PubKeyFormatTypeMap[F]> {
-    if (!alias || typeof alias !== 'string') {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
+    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
 
     if (typeof format !== 'string' || 
         !isPubkeyFormat(format)
     ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'format' must be of type ${Object.values(pubkeyFormats).join("|")}`);
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] format must be of type ${Object.values(pubkeyFormats).join("|")}`);
     }
 
     const result = await NativeSilicon.getPubKey(alias, format);
@@ -323,7 +323,12 @@ export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F
     let ret: PubKeyFormatTypeMap[F];
     if (format == "SPKI") {
         ret = ensureUint8Array(pubKey) as PubKeyFormatTypeMap[F];
+
     } else {
+        if (typeof pubKey != 'string') {
+            throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] returned data was not of type string when format was set to ${format}`);
+        }
+
         ret = pubKey;
     }
 
@@ -354,8 +359,16 @@ export async function attestKey<F extends PubkeyFormat>(alias: string, pubKeyFor
     const result = await NativeSilicon.attestKey(alias, pubKeyFormat);
     const attestResult = handleBridgeResult(result);
 
-    if (attestResult.platform === "IOS" && pubKeyFormat === "SPKI") {
-        attestResult.signingPubKey = ensureUint8Array(attestResult.signingPubKey) as PubKeyFormatTypeMap[F];
+    if (attestResult.platform === "IOS") {
+        if (pubKeyFormat === "SPKI") {
+            attestResult.signingPubKey = ensureUint8Array(attestResult.signingPubKey) as PubKeyFormatTypeMap[F];
+
+        } else if (typeof attestResult.signingPubKey != 'string') {
+            throw new SiliconError(
+                SiliconErrorCode.INTERNAL_ERROR, 
+                `[RN-Silicon] returned data was not of type string when pubKeyFormat was set to ${pubKeyFormat}`
+            );
+        }
     }
 
     return attestResult;
@@ -368,7 +381,7 @@ export async function attestKey<F extends PubkeyFormat>(alias: string, pubKeyFor
  * @returns KeyInfo object
  */
 export async function getKeyInfo(alias: string): Promise<KeyInfo> {
-    if (!alias || typeof alias !== 'string') {
+    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 
