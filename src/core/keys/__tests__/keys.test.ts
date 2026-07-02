@@ -2,13 +2,36 @@ import { vi, describe, it, expect} from 'vitest';
 import { test } from '@fast-check/vitest';
 import fc from 'fast-check';
 import { attestKey, deleteAllKeys, deleteKey, generateKey, getKeyInfo, getPubKey, keyExists, listKeys, validateKey } from '../keys';
-import { SiliconError } from '../../../errors';
+import { SiliconError, SiliconErrorCode } from '../../../errors';
 import ReactNativeSiliconModule from '../../../module';
-import { createBridgeSuccess } from '../../../__test_utils__/factories/bridge-result';
+import { createBridgeFailure, createBridgeSuccess } from '../../../__test_utils__/factories/bridge-result';
 
 describe('generateKey()', () => {
     const mockVal = createBridgeSuccess(undefined);
     vi.mocked(ReactNativeSiliconModule.generateKey).mockResolvedValue(mockVal);
+
+    const validOpts = {
+        purposes: ['SIGN' as const, 'VERIFY' as const],
+        userAuth: {
+            require: true,
+            timeout: 10,
+            invalidateOnEnrollment: true,
+            policy: 'BIOMETRICS_OR_CREDENTIAL' as const
+        },
+        attestChallenge: new Uint8Array([10, 20, 30, 40]),
+        android: {
+            algorithm: 'EC_P256' as const,
+            digests: ['SHA256' as const],
+            signaturePaddingAlgorithm: 'PSS' as const,
+            hardwarePolicy: 'REQUIRE_STRONGBOX' as const
+        },
+        ios: {
+            algorithm: 'RSA_2048' as const,
+            digests: ['SHA256' as const, 'SHA512' as const],
+            signaturePaddingAlgorithm: 'PKCS1' as const,
+            hardwarePolicy: 'SOFTWARE_ONLY' as const
+        }
+    };
 
     it('should successfully return void when only an alias is provided', async () => {
         await expect(generateKey('some-random-alias')).resolves.toBeUndefined();
@@ -17,33 +40,26 @@ describe('generateKey()', () => {
 
     it('should successfully return void when an alias and options are provided', async () => {
         await expect(
-            generateKey(
-                'some-random-alias',
-                {
-                    purposes: ['SIGN', 'VERIFY'],
-                    userAuth: {
-                        require: true,
-                        timeout: 10,
-                        invalidateOnEnrollment: true,
-                        policy: 'BIOMETRICS_OR_CREDENTIAL'
-                    },
-                    attestChallenge: new Uint8Array([10, 20, 30, 40]),
-                    android: {
-                        algorithm: 'EC_P256',
-                        digests: ['SHA256'],
-                        signaturePaddingAlgorithm: 'PSS',
-                        hardwarePolicy: 'REQUIRE_STRONGBOX'
-                    },
-                    ios: {
-                        algorithm: 'RSA_2048',
-                        digests: ['SHA256', 'SHA512'],
-                        signaturePaddingAlgorithm: 'PKCS1',
-                        hardwarePolicy: 'SOFTWARE_ONLY'
-                    }
-                }
-            )
+            generateKey('some-random-alias', validOpts)
         ).resolves.toBeUndefined();
         
+        expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledOnce();
+    });
+
+    it('should throw when a failure is returned over the bridge', async () => {
+        const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
+        vi.mocked(ReactNativeSiliconModule.generateKey).mockResolvedValueOnce(mockFailVal);
+        
+        let didThrow = true;
+        try {
+            await generateKey('some-random-alias', validOpts);
+            didThrow = false;
+        } catch (error) {
+            expect(error).toBeInstanceOf(SiliconError);
+        }
+
+        if (!didThrow) expect.fail('Expected generateKey to throw an error, but it did not.');
+
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledOnce();
     });
 
@@ -467,6 +483,23 @@ describe('deleteKey()', () => {
         expect(ReactNativeSiliconModule.deleteKey).toHaveBeenCalledOnce();
     });
 
+    it('should throw when bridge returns failure result', async () => {
+        const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
+        vi.mocked(ReactNativeSiliconModule.deleteKey).mockResolvedValueOnce(mockFailVal);
+        
+        let didThrow = true;
+        try {
+            await deleteKey('some-random-alias');
+            didThrow = false;
+        } catch (error) {
+            expect(error).toBeInstanceOf(SiliconError);
+        }
+
+        if (!didThrow) expect.fail('Expected deleteKey to throw an error, but it did not.');
+
+        expect(ReactNativeSiliconModule.deleteKey).toHaveBeenCalledOnce();
+    });
+
     it('should throw when an alias is not provided', async () => {
         let didThrow = true;
 
@@ -531,6 +564,25 @@ describe('deleteAllKeys()', () => {
         expect(ReactNativeSiliconModule.deleteAllKeys).toHaveBeenCalledOnce();
     });
 
+    it('should throw when bridge returns failure result', async () => {
+        const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
+        vi.mocked(ReactNativeSiliconModule.deleteAllKeys).mockResolvedValueOnce(mockFailVal);
+        
+        let didThrow = true;
+        try {
+            await deleteAllKeys();
+            didThrow = false;
+        } catch (error) {
+            expect(error).toBeInstanceOf(SiliconError);
+        }
+
+        if (!didThrow) {
+            expect.fail('Expected deleteAllKeys to throw an error, but it did not.');
+        }
+
+        expect(ReactNativeSiliconModule.deleteAllKeys).toHaveBeenCalledOnce();
+    });
+
     test.prop(
         [fc.anything()]
     )('should throw when prefix is not a string or is an empty string', async (chaoticData) => {
@@ -567,6 +619,25 @@ describe('keyExists()', () => {
 
     it('should successfully return a boolean when an alias is provided', async () => {
         await expect(keyExists('some-random-alias')).resolves.toBe(true);
+        expect(ReactNativeSiliconModule.keyExists).toHaveBeenCalledOnce();
+    });
+
+    it('should throw when bridge returns failure result', async () => {
+        const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
+        vi.mocked(ReactNativeSiliconModule.keyExists).mockResolvedValueOnce(mockFailVal);
+        
+        let didThrow = true;
+        try {
+            await keyExists('some-random-alias');
+            didThrow = false;
+        } catch (error) {
+            expect(error).toBeInstanceOf(SiliconError);
+        }
+
+        if (!didThrow) {
+            expect.fail('Expected keyExists to throw an error, but it did not.');
+        }
+
         expect(ReactNativeSiliconModule.keyExists).toHaveBeenCalledOnce();
     });
 
@@ -614,6 +685,25 @@ describe('listKeys()', () => {
         expect(ReactNativeSiliconModule.listKeys).toHaveBeenCalledOnce();
     });
 
+    it('should throw when bridge returns failure result', async () => {
+        const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
+        vi.mocked(ReactNativeSiliconModule.listKeys).mockResolvedValueOnce(mockFailVal);
+        
+        let didThrow = true;
+        try {
+            await listKeys();
+            didThrow = false;
+        } catch (error) {
+            expect(error).toBeInstanceOf(SiliconError);
+        }
+
+        if (!didThrow) {
+            expect.fail('Expected listKeys to throw an error, but it did not.');
+        }
+
+        expect(ReactNativeSiliconModule.listKeys).toHaveBeenCalledOnce();
+    });
+
     test.prop(
         [fc.anything()]
     )('should throw when prefix is not a string and not undefined', async (chaoticData) => {
@@ -655,6 +745,25 @@ describe('validateKey()', () => {
         vi.mocked(ReactNativeSiliconModule.validateKey).mockResolvedValueOnce(currentMockData);
 
         await expect(validateKey('some-random-alias')).resolves.toBe(expectedStatus);
+        expect(ReactNativeSiliconModule.validateKey).toHaveBeenCalledOnce();
+    });
+
+    it('should throw when bridge returns failure result', async () => {
+        const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
+        vi.mocked(ReactNativeSiliconModule.validateKey).mockResolvedValueOnce(mockFailVal);
+        
+        let didThrow = true;
+        try {
+            await validateKey('some-random-alias');
+            didThrow = false;
+        } catch (error) {
+            expect(error).toBeInstanceOf(SiliconError);
+        }
+
+        if (!didThrow) {
+            expect.fail('Expected validateKey to throw an error, but it did not.');
+        }
+
         expect(ReactNativeSiliconModule.validateKey).toHaveBeenCalledOnce();
     });
 
@@ -842,6 +951,25 @@ describe('getPubKey()', () => {
 
         expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
     });
+
+    it('should throw when bridge returns failure result', async () => {
+        const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
+        vi.mocked(ReactNativeSiliconModule.getPubKey).mockResolvedValueOnce(mockFailVal);
+        
+        let didThrow = true;
+        try {
+            await getPubKey('some-random-alias', 'SPKI');
+            didThrow = false;
+        } catch (error) {
+            expect(error).toBeInstanceOf(SiliconError);
+        }
+
+        if (!didThrow) {
+            expect.fail('Expected getPubKey to throw an error, but it did not.');
+        }
+
+        expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
+    });
 });
 
 describe('attestKey()', () => {
@@ -867,6 +995,25 @@ describe('attestKey()', () => {
 
         return mockData;
     }
+
+    it('should throw when bridge returns failure result', async () => {
+        const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
+        vi.mocked(ReactNativeSiliconModule.attestKey).mockResolvedValueOnce(mockFailVal);
+        
+        let didThrow = true;
+        try {
+            await attestKey('some-random-alias', 'SPKI');
+            didThrow = false;
+        } catch (error) {
+            expect(error).toBeInstanceOf(SiliconError);
+        }
+
+        if (!didThrow) {
+            expect.fail('Expected attestKey to throw an error, but it did not.');
+        }
+
+        expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
+    });
 
     test.prop(
         [fc.anything()]
@@ -1010,6 +1157,25 @@ describe('getKeyInfo()', () => {
 
     it('should successfully return a KeyInfo object', async () => {
         await expect(getKeyInfo('some-random-alias')).resolves.toBe(defaultMockData);
+        expect(ReactNativeSiliconModule.getKeyInfo).toHaveBeenCalledOnce();
+    });
+
+    it('should throw when bridge returns failure result', async () => {
+        const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
+        vi.mocked(ReactNativeSiliconModule.getKeyInfo).mockResolvedValueOnce(mockFailVal);
+        
+        let didThrow = true;
+        try {
+            await getKeyInfo('some-random-alias');
+            didThrow = false;
+        } catch (error) {
+            expect(error).toBeInstanceOf(SiliconError);
+        }
+
+        if (!didThrow) {
+            expect.fail('Expected getKeyInfo to throw an error, but it did not.');
+        }
+
         expect(ReactNativeSiliconModule.getKeyInfo).toHaveBeenCalledOnce();
     });
 
