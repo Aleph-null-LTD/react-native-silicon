@@ -346,7 +346,7 @@ export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F
  * @returns The certificate chain - An array of PEM strings
  */
 export async function attestKey<F extends PubkeyFormat>(alias: string, pubKeyFormat: F): Promise<AttestResult<F>> {
-    if (!alias || typeof alias !== 'string') {
+    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
     }
 
