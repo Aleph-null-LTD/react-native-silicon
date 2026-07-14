@@ -16,9 +16,10 @@ import { SignOpts, VerifyOpts } from './types';
  * @note Will automatically prompt for user authentication if enabled on the key
  */
 export async function sign(alias: string, payload: string | Uint8Array, opts?: SignOpts): Promise<string> {
-    if (typeof alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type 'string'");
+    if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and must not be empty");
 
-    if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'payload' must be of type 'string' | 'Uint8Array'");
+    if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be of type string | Uint8Array");
+    if (typeof payload === 'string' && payload.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] string payload must not be empty");
 
     let payloadStr: string | null = null;
     let payloadByteArr: Uint8Array | null = null;
@@ -74,7 +75,7 @@ const PEM_REGEX = /(?:-----BEGIN.*?-----|-----END.*?-----|\\s+)/g;
  * @returns
  */
 export async function verify(payload: string | Uint8Array, signature: string, opts: VerifyOpts): Promise<boolean> {
-    if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'payload' must be of type 'string' | 'Uint8Array'");
+    if ((typeof payload !== 'string' || payload.trim().length < 1) && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be of type string | Uint8Array. And must not be an empty string");
 
     let payloadStr: string | null = null;
     let payloadByteArr: Uint8Array | null = null;
@@ -85,14 +86,14 @@ export async function verify(payload: string | Uint8Array, signature: string, op
         payloadByteArr = payload;
     }
 
-    if (typeof signature !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'signature' must be of type 'string'");
+    if (typeof signature !== 'string' || signature.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] signature must be of type string");
     
-    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts' must be of type 'object'");
+    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a valid options object");
 
     // TODO: Ensure that either pubkey or alias is present, but not both
     let pubkey;
     if (hasOwn(opts, 'pubkey')) {
-        if (typeof opts.pubkey !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.pubkey' must be of type 'string'");
+        if (typeof opts.pubkey !== 'string' || opts.pubkey.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.pubkey must be of type string");
 
         pubkey = opts.pubkey
             .replace(PEM_REGEX, '')
@@ -103,7 +104,7 @@ export async function verify(payload: string | Uint8Array, signature: string, op
 
     let alias: string | undefined = undefined;
     if (hasOwn(opts, 'alias')) {
-        if (typeof opts.alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.alias' must be of type 'string'");
+        if (typeof opts.alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.alias must be of type string");
 
         alias = opts.alias;
     }
