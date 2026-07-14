@@ -104,7 +104,7 @@ export async function verify(payload: string | Uint8Array, signature: string, op
 
     let alias: string | undefined = undefined;
     if (hasOwn(opts, 'alias')) {
-        if (typeof opts.alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.alias must be of type string");
+        if (typeof opts.alias !== 'string' || opts.alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.alias must be of type string and not empty");
 
         alias = opts.alias;
     }

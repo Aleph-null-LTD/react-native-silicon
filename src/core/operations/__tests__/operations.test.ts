@@ -338,8 +338,8 @@ describe('verify()', () => {
         algorithm: 'ES256'
     } as const;
 
-    it('should successfully return a boolean when valid params are provided', () => {
-        expect(verify(validPayload, validSignature, validOpts)).resolves.toBe(defaultMockData);
+    it('should successfully return a boolean when valid params are provided', async () => {
+        await expect(verify(validPayload, validSignature, validOpts)).resolves.toBe(defaultMockData);
 
         expect(ReactNativeSiliconModule.verify).toHaveBeenCalledOnce();
     });
