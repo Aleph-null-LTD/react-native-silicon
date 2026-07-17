@@ -13,17 +13,17 @@ import { GenerateDpopProofOpts } from "./types";
  * @returns the signed DPoP proof JWT
  */
 export async function generateDpopProof(alias: string, opts: GenerateDpopProofOpts): Promise<string> {
-    if (typeof alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type 'string'");
+    if (typeof alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string");
     
-    if (!hasOwn(opts, 'htu')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.htu' is required");
-    if (typeof opts.htu !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.htu' must be of type 'string'");
+    if (!hasOwn(opts, 'htu')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu is required");
+    if (typeof opts.htu !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu must be of type string");
     
     // Parse and normalize the htu
     const parsedHtu = new URL(opts.htu);
     const normalizedHtu = `${parsedHtu.protocol}//${parsedHtu.host}${parsedHtu.pathname}`;
 
-    if (!hasOwn(opts, 'htm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.htm' is required");
-    if (typeof opts.htu !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.htm' must be of type 'string'");
+    if (!hasOwn(opts, 'htm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htm is required");
+    if (typeof opts.htu !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htm must be of type string");
     
     const htmUpper = opts.htm.toUpperCase();
 
@@ -31,14 +31,14 @@ export async function generateDpopProof(alias: string, opts: GenerateDpopProofOp
         opts.digest !== undefined &&
         (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
     ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.digest' must be of type ${Object.values(signDigest).join('|')}`);
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.digest must be of type ${Object.values(signDigest).join('|')}`);
     }
 
     let jti: string;
     if (hasOwn(opts, 'jti') &&
         opts.jti !== undefined
     ) {
-        if (typeof opts.jti !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.jti' must be of type 'string'");
+        if (typeof opts.jti !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.jti must be of type string");
         jti = opts.jti;
     } else {
         // Default the jti to 16 random bytes Base64Url encoded
@@ -49,7 +49,7 @@ export async function generateDpopProof(alias: string, opts: GenerateDpopProofOp
         opts.nonce !== undefined &&
         typeof opts.nonce !== 'string'
     ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.nonce' must be of type 'string'");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.nonce must be of type string");
     }
     
     const jwk = await getJwk(alias, opts.digest);
@@ -57,7 +57,7 @@ export async function generateDpopProof(alias: string, opts: GenerateDpopProofOp
     // Strip the alg out of the JWK so we can store it in the header seperately
     const alg = jwk.alg;
     delete jwk.alg;
-    if (typeof alg !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] Internal Error: 'alg' was not of type 'string'. Please report this error at https://github.com/Aleph-null-LTD/react-native-silicon/issues")
+    if (typeof alg !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] Internal Error: alg was not of type string. Please report this error at https://github.com/Aleph-null-LTD/react-native-silicon/issues")
     
     // Generate the iat timestamp (in seconds)
     const iat = Math.floor(Date.now() / 1000);

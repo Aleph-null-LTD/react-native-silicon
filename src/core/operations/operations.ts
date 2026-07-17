@@ -31,27 +31,27 @@ export async function sign(alias: string, payload: string | Uint8Array, opts?: S
     }
 
     if (opts !== undefined) {
-        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts' must be of type 'object'");
+        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be of type object");
         
         if (hasOwn(opts, 'encoding') &&
             opts.encoding !== undefined &&
             !isSignEncoding(opts.encoding)
         ) {
-            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.encoding' must be of type ${Object.values(signEncodings).join("|")}`);
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.encoding must be of type ${Object.values(signEncodings).join("|")}`);
         }
         
         if (hasOwn(opts, 'digest') &&
             opts.digest !== undefined &&
             (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
         ) {
-            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.digest' must be of type ${Object.values(signDigest).join("|")}`);
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.digest must be of type ${Object.values(signDigest).join("|")}`);
         }
 
         if (hasOwn(opts, 'format') &&
             opts.format !== undefined &&
             !isSignFormat(opts.format)
         ) {
-            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.format' must be of type ${Object.values(signFormats).join("|")}`);
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.format must be of type ${Object.values(signFormats).join("|")}`);
         }
     } else {
         opts = {};
@@ -110,13 +110,13 @@ export async function verify(payload: string | Uint8Array, signature: string, op
     }
 
     // Ensure that only either alias or pubkey is present
-    if (alias && pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.alias' and 'opts.pubkey' are mutually exclusive");
-    if (!alias && !pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] either 'opts.alias' or 'opts.pubkey' must be supplied");
+    if (alias && pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.alias and opts.pubkey are mutually exclusive");
+    if (!alias && !pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] either opts.alias or opts.pubkey must be supplied");
 
-    if (pubkey && !hasOwn(opts, 'algorithm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts' must contain the 'algorithm' property");
+    if (pubkey && !hasOwn(opts, 'algorithm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must contain the algorithm property");
     if (pubkey || (alias && hasOwn(opts, 'algorithm') && opts.algorithm !== undefined)) {
-        if (typeof opts.algorithm !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'opts.algorithm' must be of type 'string'");
-        if (!isVerifyAlgorithm(opts.algorithm)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'opts.algorithm' must be of type ${Object.values(verifyAlgorithms).join("|")}`);
+        if (typeof opts.algorithm !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.algorithm must be of type string");
+        if (!isVerifyAlgorithm(opts.algorithm)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.algorithm must be of type ${Object.values(verifyAlgorithms).join("|")}`);
     }
 
     // Normalize all signatures to standard Base64 with padding

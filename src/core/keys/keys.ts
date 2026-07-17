@@ -99,7 +99,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
                 opts.userAuth.require !== undefined &&
                 typeof opts.userAuth.require !== 'boolean'
             ) {
-                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth.require must be of type 'boolean'");
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth.require must be of type boolean");
             }
 
             if (hasOwn(opts.userAuth, 'timeout')) {
@@ -131,7 +131,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
             opts.attestChallenge !== undefined &&
             !(opts.attestChallenge instanceof Uint8Array)
         ) {
-            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.attestChallenge must be of type 'Uint8Array'");
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.attestChallenge must be of type Uint8Array");
         }
 
         // Validate Android options
@@ -222,7 +222,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
  */
 export async function deleteKey(alias: string): Promise<boolean> {
     if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
     
     const result = await NativeSilicon.deleteKey(alias);
@@ -243,7 +243,7 @@ export async function deleteKey(alias: string): Promise<boolean> {
  */
 export async function deleteAllKeys(prefix?: string): Promise<number> {
     if (prefix !== undefined && (typeof prefix !== 'string' || prefix.trim().length < 1)) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'prefix' must be of type string");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] prefix must be of type string");
     }
 
     const result = await NativeSilicon.deleteAllKeys(prefix);
@@ -258,7 +258,7 @@ export async function deleteAllKeys(prefix?: string): Promise<number> {
  */
 export async function keyExists(alias: string): Promise<boolean> {
     if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
 
     const result = await NativeSilicon.keyExists(alias);
@@ -275,7 +275,7 @@ export async function keyExists(alias: string): Promise<boolean> {
  */
 export async function listKeys(prefix?: string): Promise<string[]> {
     if (prefix !== undefined && typeof prefix !== 'string') {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'prefix' must be of type string");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] prefix must be of type string");
     }
 
     const result = await NativeSilicon.listKeys(prefix)
@@ -293,7 +293,7 @@ export async function listKeys(prefix?: string): Promise<string[]> {
  */
 export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'> {
     if (!alias || typeof alias !== 'string') {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
 
     const result = await NativeSilicon.validateKey(alias)
@@ -347,13 +347,13 @@ export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F
  */
 export async function attestKey<F extends PubkeyFormat>(alias: string, pubKeyFormat: F): Promise<AttestResult<F>> {
     if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
 
     if (typeof pubKeyFormat !== 'string' || 
         !isPubkeyFormat(pubKeyFormat)
     ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] 'format' must be of type ${Object.values(pubkeyFormats).join("|")}`);
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] format must be of type ${Object.values(pubkeyFormats).join("|")}`);
     }
 
     const result = await NativeSilicon.attestKey(alias, pubKeyFormat);
@@ -382,7 +382,7 @@ export async function attestKey<F extends PubkeyFormat>(alias: string, pubKeyFor
  */
 export async function getKeyInfo(alias: string): Promise<KeyInfo> {
     if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
 
     const result = await NativeSilicon.getKeyInfo(alias)
@@ -397,7 +397,7 @@ export async function getKeyInfo(alias: string): Promise<KeyInfo> {
 /*
 export function isHardwareBacked(alias: string) {
     if (!alias || typeof alias !== 'string') {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type string and not empty");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
 }
 */

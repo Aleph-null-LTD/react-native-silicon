@@ -10,7 +10,7 @@ import { Jwk } from './types';
  * @returns 
  */
 export async function getJwk(alias: string, digest?: SignDigest): Promise<Jwk> {
-    if (typeof alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] 'alias' must be of type 'string'");
+    if (typeof alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string");
     
     const result = await NativeSilicon.getJwk(alias, digest);
     return handleBridgeResult(result);
