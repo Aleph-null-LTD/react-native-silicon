@@ -7,7 +7,6 @@ import fc from 'fast-check';
 import { test } from '@fast-check/vitest';
 
 describe('generateSecureRandomBytes()', () => {
-    
     const mockStringResult = () => {
         const defaultMockData = 'some-random-string';
         const defaultMockVal = createBridgeSuccess(defaultMockData);
