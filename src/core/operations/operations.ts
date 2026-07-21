@@ -31,7 +31,7 @@ export async function sign(alias: string, payload: string | Uint8Array, opts?: S
     }
 
     if (opts !== undefined) {
-        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be of type object");
+        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
         
         if (hasOwn(opts, 'encoding') &&
             opts.encoding !== undefined &&
@@ -88,7 +88,7 @@ export async function verify(payload: string | Uint8Array, signature: string, op
 
     if (typeof signature !== 'string' || signature.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] signature must be of type string");
     
-    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a valid options object");
+    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
 
     // TODO: Ensure that either pubkey or alias is present, but not both
     let pubkey;

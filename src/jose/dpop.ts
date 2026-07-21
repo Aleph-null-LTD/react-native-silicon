@@ -15,7 +15,7 @@ import { GenerateDpopProofOpts } from "./types";
 export async function generateDpopProof(alias: string, opts: GenerateDpopProofOpts): Promise<string> {
     if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     
-    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be an object");
+    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
     if (!hasOwn(opts, 'htu')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu is required");
     if (typeof opts.htu !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu must be of type string");
     if (!URL.canParse(opts.htu))  throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu must be a valid URL");

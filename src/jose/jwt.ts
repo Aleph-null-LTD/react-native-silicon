@@ -17,8 +17,8 @@ import { JwtHeader, JwtPayload } from "./types";
  */
 export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayload, digest?: SignDigest): Promise<string> {
     if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string");
-    if (!isPlainObject(header)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] header must be an object");
-    if (!isPlainObject(payload)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be an object");
+    if (!isPlainObject(header)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] header must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
+    if (!isPlainObject(payload)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
   
     if (digest !== undefined &&
       (typeof digest !== 'string' || !isSignDigest(digest))

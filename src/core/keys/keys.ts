@@ -47,7 +47,7 @@ export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promis
 
 function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKeyOpts {
     if (opts !== undefined) {
-        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be an object");
+        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
 
         if (hasOwn(opts, 'purposes') && opts.purposes !== undefined) {
             if (!Array.isArray(opts.purposes)) {
@@ -93,7 +93,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
         }
 
         if (hasOwn(opts, 'userAuth') && opts.userAuth !== undefined) {
-            if (!isPlainObject(opts.userAuth)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth must be an object");
+            if (!isPlainObject(opts.userAuth)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
 
             if (hasOwn(opts.userAuth, 'require') && 
                 opts.userAuth.require !== undefined &&
@@ -136,7 +136,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
 
         // Validate Android options
         if (hasOwn(opts, 'android') && opts.android !== undefined) {
-            if (!isPlainObject(opts.android)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "");
+            if (!isPlainObject(opts.android)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.android must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
 
             if (hasOwn(opts.android, 'algorithm') && 
                 opts.android.algorithm !== undefined &&
@@ -172,7 +172,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
 
         // Validate iOS options
         if (hasOwn(opts, 'ios')) {
-            if (!isPlainObject(opts.ios)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.ios must be an object");
+            if (!isPlainObject(opts.ios)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.ios must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
 
             if (hasOwn(opts.ios, 'algorithm') &&
                 opts.ios.algorithm !== undefined &&
