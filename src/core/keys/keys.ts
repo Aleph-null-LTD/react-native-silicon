@@ -292,7 +292,7 @@ export async function listKeys(prefix?: string): Promise<string[]> {
  * * 'UNRECOVERABLE' - If the key is in an unrecoverable state
  */
 export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'> {
-    if (!alias || typeof alias !== 'string') {
+    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
 
