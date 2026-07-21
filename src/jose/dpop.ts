@@ -1,29 +1,31 @@
 import { isSignDigest, signDigest } from "../core/operations/constants";
 import { generateSecureRandomBytes } from "../core/random-generator";
 import { SiliconError, SiliconErrorCode } from "../errors";
-import { hasOwn } from "../utils/validation";
+import { hasOwn, isPlainObject } from "../utils/validation";
 import { getJwk } from "./jwk";
 import { signJwt } from "./jwt";
 import { GenerateDpopProofOpts } from "./types";
 
 /**
- * Generates a RFC 9449 compliant, signed DPoP proof JWT using the key specified by 'alias'
+ * Generates a RFC 9449 compliant, signed DPoP proof JWT using the key specified with 'alias'
  * @param alias 
  * @param opts 
  * @returns the signed DPoP proof JWT
  */
 export async function generateDpopProof(alias: string, opts: GenerateDpopProofOpts): Promise<string> {
-    if (typeof alias !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string");
+    if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     
+    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be an object");
     if (!hasOwn(opts, 'htu')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu is required");
     if (typeof opts.htu !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu must be of type string");
-    
+    if (!URL.canParse(opts.htu))  throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu must be a valid URL");
+
     // Parse and normalize the htu
     const parsedHtu = new URL(opts.htu);
     const normalizedHtu = `${parsedHtu.protocol}//${parsedHtu.host}${parsedHtu.pathname}`;
 
     if (!hasOwn(opts, 'htm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htm is required");
-    if (typeof opts.htu !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htm must be of type string");
+    if (typeof opts.htm !== 'string' || opts.htm.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htm must be of type string");
     
     const htmUpper = opts.htm.toUpperCase();
 
@@ -38,7 +40,7 @@ export async function generateDpopProof(alias: string, opts: GenerateDpopProofOp
     if (hasOwn(opts, 'jti') &&
         opts.jti !== undefined
     ) {
-        if (typeof opts.jti !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.jti must be of type string");
+        if (typeof opts.jti !== 'string' || opts.jti.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.jti must be of type string, and not empty");
         jti = opts.jti;
     } else {
         // Default the jti to 16 random bytes Base64Url encoded
@@ -47,9 +49,9 @@ export async function generateDpopProof(alias: string, opts: GenerateDpopProofOp
 
     if (hasOwn(opts, 'nonce') &&
         opts.nonce !== undefined &&
-        typeof opts.nonce !== 'string'
+        (typeof opts.nonce !== 'string' || opts.nonce.trim().length < 1)
     ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.nonce must be of type string");
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.nonce must be of type string, and not empty");
     }
     
     const jwk = await getJwk(alias, opts.digest);
