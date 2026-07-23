@@ -31,7 +31,7 @@ export default tseslint.config(
       },
     },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'warn', // Helpful for bridging unknown native payloads
+      '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
 
