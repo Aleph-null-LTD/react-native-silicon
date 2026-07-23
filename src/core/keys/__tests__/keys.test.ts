@@ -5,6 +5,8 @@ import { attestKey, deleteAllKeys, deleteKey, generateKey, getKeyInfo, getPubKey
 import { SiliconError, SiliconErrorCode } from '../../../errors';
 import ReactNativeSiliconModule from '../../../module';
 import { createBridgeFailure, createBridgeSuccess } from '../../../__test_utils__/factories/bridge-result';
+import { fcCustomArbitraries } from '../../../__test_utils__/fast-check/arbitraries';
+import { isSafeNumber } from '../../../utils/validation';
 
 describe('generateKey()', () => {
     const mockVal = createBridgeSuccess(undefined);
@@ -49,426 +51,281 @@ describe('generateKey()', () => {
     it('should throw when a failure is returned over the bridge', async () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.generateKey).mockResolvedValueOnce(mockFailVal);
-        
-        let didThrow = true;
-        try {
-            await generateKey('some-random-alias', validOpts);
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
 
-        if (!didThrow) expect.fail('Expected generateKey to throw an error, but it did not.');
-
+        await expect(generateKey('some-random-alias', validOpts)).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledOnce();
     });
 
     it('should throw when no params are provided', async () => {    
-        try {
-            // @ts-expect-error - Intentionally passing nothing
-            await generateKey();
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Intentionally passing nothing
+        await expect(generateKey()).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     test.prop(
         [fc.anything()]
     )('should throw when alias is not a string', async (chaoticData) => {
-        
-        const isValid = typeof chaoticData == 'string' && chaoticData.trim().length > 0;
-
-        if (isValid) {
+        if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(generateKey(chaoticData)).resolves.toBeUndefined();
             expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledOnce();
+
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error - Intentionally passing incorrect type
-                await generateKey(chaoticData);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) {
-                expect.fail('Expected generateKey to throw an error, but it did not.');
-            }
-
+            // @ts-expect-error - Intentionally passing incorrect type
+            await expect(generateKey(chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
         }
 
         vi.clearAllMocks();
     });
 
-    it('should throw when opts is not an object', async () => {    
-        try {
-            // @ts-expect-error - Intentionally passing incorrect type
-            await generateKey('some-random-alias', 10);
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [
+            fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)
+        ]
+    )('should throw when opts is not an object', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing incorrect type
+        await expect(generateKey('some-random-alias', chaoticData)).rejects.instanceOf(SiliconError);
+        expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
+    });
+    
+    test.prop(
+        [
+            fcCustomArbitraries.anything.nonArray().filter((v) => v !== undefined)
+        ]
+    )('should throw when opts.purposes is not an array', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing incorrect type
+        await expect(generateKey('some-random-alias', { purposes: chaoticData })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.purposes is not an array', async () => {    
-        try {
-            // @ts-expect-error - Intentionally passing incorrect type
-            await generateKey('some-random-alias', { purposes: 10 });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-        expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
-    });
-
-    it('should throw when opts.purposes an empty array', async () => {    
-        try {
-            await generateKey('some-random-alias', { purposes: [] });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    it('should throw when opts.purposes is an empty array', async () => {    
+        await expect(generateKey('some-random-alias', { purposes: [] })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.purposes contains an invalid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { purposes: ['INVALID_VALUE'] });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Passing invalid string literal
+        await expect(generateKey('some-random-alias', { purposes: ['INVALID_VALUE'] })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.purposes contains conflicting purposes', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { purposes: ['SIGN', 'ENCRYPT'] });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Conflicting purposes
+        await expect(generateKey('some-random-alias', { purposes: ['SIGN', 'ENCRYPT'] })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.userAuth is not an object', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { userAuth: 10 });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [
+            fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)
+        ]
+    )('should throw when opts.userAuth is not an object', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing incorrect type
+        await expect(generateKey('some-random-alias', { userAuth: chaoticData })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.userAuth.require is not boolean', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { userAuth: { require: 10 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [
+            fc.anything().filter((v) => typeof v !== 'boolean' && v !== undefined)
+        ]
+    )('should throw when opts.userAuth.require is not boolean', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing incorrect type
+        await expect(generateKey('some-random-alias', { userAuth: { require: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.userAuth.timeout is not a number', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { userAuth: { timeout: 'random-string' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [
+            fc.anything().filter((v) => !isSafeNumber(v) && v !== undefined)
+        ]
+    )('should throw when opts.userAuth.timeout is not type number', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing incorrect type
+        await expect(generateKey('some-random-alias', { userAuth: { timeout: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.userAuth.timeout is < 0', async () => {    
-        try {
-            await generateKey('some-random-alias', { userAuth: { timeout: -1 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fcCustomArbitraries.number.negative()]
+    )('should throw when opts.userAuth.timeout is < 0', async (negativeNumber) => {    
+        await expect(generateKey('some-random-alias', { userAuth: { timeout: negativeNumber } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.userAuth.timeout is > 6000', async () => {    
-        try {
-            await generateKey('some-random-alias', { userAuth: { timeout: 6001 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fcCustomArbitraries.number.positive().filter((v) => v > 6000)]
+    )('should throw when opts.userAuth.timeout is > 6000', async (numberGt6000) => {    
+        await expect(generateKey('some-random-alias', { userAuth: { timeout: numberGt6000 } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.userAuth.invalidateOnEnrollment is not boolean', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { userAuth: { invalidateOnEnrollment: 10 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fc.anything().filter((v) => typeof v !== 'boolean' && v !== undefined)]
+    )('should throw when opts.userAuth.invalidateOnEnrollment is not boolean', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { userAuth: { invalidateOnEnrollment: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.userAuth.policy is not a string', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { userAuth: { policy: 10 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+    )('should throw when opts.userAuth.policy is not a string', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { userAuth: { policy: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.userAuth.policy is an invalid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { userAuth: { policy: 'BAD_VALUE' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Intentionally passing invalid string literal
+        await expect(generateKey('some-random-alias', { userAuth: { policy: 'BAD_VALUE' } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.attestChallenge is not a Uint8Array', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { attestChallenge: 'random-string' });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fc.anything().filter((v) => !(v instanceof Uint8Array) && v !== undefined)]
+    )('should throw when opts.attestChallenge is not a Uint8Array', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { attestChallenge: chaoticData })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.android is not an object', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { android: 10 });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)]
+    )('should throw when opts.android is not an object', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { android: chaoticData })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.android.algorithm is not a string', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { android: { algorithm: 10 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+    )('should throw when opts.android.algorithm is not a string', async (chaoticData) => {
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { android: { algorithm: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.android.algorithm is not a valid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { android: { algorithm: 'INVALID' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Intentionally passing invalid string literal
+        await expect(generateKey('some-random-alias', { android: { algorithm: 'INVALID' } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.android.digests is not an array', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { android: { digests: 'INVALID' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [
+            fcCustomArbitraries.anything.nonArray().filter((v) => v !== undefined)
+        ]
+    )('should throw when opts.android.digests is not an array', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { android: { digests: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.android.digests is an empty array', async () => {    
-        try {
-            await generateKey('some-random-alias', { android: { digests: [] } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        await expect(generateKey('some-random-alias', { android: { digests: [] } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.android.digests contains an invalid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { android: { digests: ['INVALID'] } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Intentionally passing invalid string literal
+        await expect(generateKey('some-random-alias', { android: { digests: ['INVALID'] } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.android.signaturePaddingAlgorithm is not a string', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { android: { signaturePaddingAlgorithm: 10 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+    )('should throw when opts.android.signaturePaddingAlgorithm is not a string', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { android: { signaturePaddingAlgorithm: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.android.signaturePaddingAlgorithm contains an invalid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { android: { signaturePaddingAlgorithm: 'INVALID' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Intentionally passing invalid string literal
+        await expect(generateKey('some-random-alias', { android: { signaturePaddingAlgorithm: 'INVALID' } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.android.hardwarePolicy is not a string', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { android: { hardwarePolicy: 10 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+    )('should throw when opts.android.hardwarePolicy is not a string', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { android: { hardwarePolicy: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.android.hardwarePolicy contains an invalid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { android: { hardwarePolicy: 'INVALID' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Intentionally passing invalid string literal
+        await expect(generateKey('some-random-alias', { android: { hardwarePolicy: 'INVALID' } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.ios is not an object', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { ios: 10 });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)]
+    )('should throw when opts.ios is not an object', async (chaoticData) => {
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { ios: chaoticData })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.ios.algorithm is not a string', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { ios: { algorithm: 10 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+    )('should throw when opts.ios.algorithm is not a string', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { ios: { algorithm: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.ios.algorithm is not a valid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { ios: { algorithm: 'INVALID' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Intentionally passing invalid string literal
+        await expect(generateKey('some-random-alias', { ios: { algorithm: 'INVALID' } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.ios.digests is not an array', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { ios: { digests: 'INVALID' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fcCustomArbitraries.anything.nonArray().filter((v) => v !== undefined)]
+    )('should throw when opts.ios.digests is not an array', async (chaoticData) => {    
+        // @ts-expect-error - intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { ios: { digests: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.ios.digests is an empty array', async () => {    
-        try {
-            await generateKey('some-random-alias', { ios: { digests: [] } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        await expect(generateKey('some-random-alias', { ios: { digests: [] } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.ios.digests contains an invalid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { ios: { digests: ['INVALID'] } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Intentionally passing invalid string literal
+        await expect(generateKey('some-random-alias', { ios: { digests: ['INVALID'] } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.ios.signaturePaddingAlgorithm is not a string', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { ios: { signaturePaddingAlgorithm: 10 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+    )('should throw when opts.ios.signaturePaddingAlgorithm is not a string', async (chaoticData) => {    
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { ios: { signaturePaddingAlgorithm: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.ios.signaturePaddingAlgorithm contains an invalid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { ios: { signaturePaddingAlgorithm: 'INVALID' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - Intentionally passing invalid string literal
+        await expect(generateKey('some-random-alias', { ios: { signaturePaddingAlgorithm: 'INVALID' } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
-    it('should throw when opts.ios.hardwarePolicy is not a string', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { ios: { hardwarePolicy: 10 } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+    test.prop(
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+    )('should throw when opts.ios.hardwarePolicy is not a string', async (chaoticData) => {
+        // @ts-expect-error - Intentionally passing wrong type
+        await expect(generateKey('some-random-alias', { ios: { hardwarePolicy: chaoticData } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     it('should throw when opts.ios.hardwarePolicy contains an invalid string literal', async () => {    
-        try {
-            // @ts-expect-error
-            await generateKey('some-random-alias', { ios: { hardwarePolicy: 'INVALID' } });
-            expect.fail('Expected generateKey to throw an error, but it did not.');
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
+        // @ts-expect-error - intentionally pass invalid string literal
+        await expect(generateKey('some-random-alias', { ios: { hardwarePolicy: 'INVALID' } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 });
@@ -487,61 +344,25 @@ describe('deleteKey()', () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.deleteKey).mockResolvedValueOnce(mockFailVal);
         
-        let didThrow = true;
-        try {
-            await deleteKey('some-random-alias');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) expect.fail('Expected deleteKey to throw an error, but it did not.');
-
+        await expect(deleteKey('some-random-alias')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.deleteKey).toHaveBeenCalledOnce();
     });
 
     it('should throw when an alias is not provided', async () => {
-        let didThrow = true;
-
-        try {
-            // @ts-expect-error
-            await deleteKey();
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('Expected deleteKey to throw an error, but it did not.');
-        }
-
+        // @ts-expect-error - no alias provided
+        await expect(deleteKey()).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.deleteKey).toHaveBeenCalledTimes(0);
     });
 
     test.prop(
         [fc.anything()]
     )('should throw when an alias is not a string', async (chaoticData) => {
-
-        const isValid = typeof chaoticData == 'string' && chaoticData.trim().length > 0;
-
-        if (isValid) {
+        if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(deleteKey(chaoticData)).resolves.toBe(defaultMockData);
             expect(ReactNativeSiliconModule.deleteKey).toHaveBeenCalledOnce();
         } else {
-            let didThrow = true;
-
-            try {
-                // @ts-expect-error
-                await deleteKey(chaoticData);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) {
-                expect.fail('Expected deleteKey to throw an error, but it did not.');
-            }
-
+            // @ts-expect-error - intentionally passed incorrect type
+            await expect(deleteKey(chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.deleteKey).toHaveBeenCalledTimes(0);
         }
 
@@ -568,44 +389,19 @@ describe('deleteAllKeys()', () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.deleteAllKeys).mockResolvedValueOnce(mockFailVal);
         
-        let didThrow = true;
-        try {
-            await deleteAllKeys();
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('Expected deleteAllKeys to throw an error, but it did not.');
-        }
-
+        await expect(deleteAllKeys()).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.deleteAllKeys).toHaveBeenCalledOnce();
     });
 
     test.prop(
         [fc.anything()]
     )('should throw when prefix is not a string or is an empty string', async (chaoticData) => {
-        // Must be a non-empty string, or undefined to be valid
-        const isValid = (typeof chaoticData === 'string' && chaoticData.trim().length > 0) || chaoticData === undefined;
-
-        if (isValid) {
+        if ((typeof chaoticData === 'string' && chaoticData.trim().length > 0) || chaoticData === undefined) {
             await expect(deleteAllKeys(chaoticData)).resolves.toBe(defaultMockData);
             expect(ReactNativeSiliconModule.deleteAllKeys).toHaveBeenCalledOnce();
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await deleteAllKeys(chaoticData);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) {
-                expect.fail('Expected deleteAllKeys to throw an error, but it did not.');
-            }
-
+            // @ts-expect-error - intentionally passed incorrect type
+            await expect(deleteAllKeys(chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.deleteAllKeys).toHaveBeenCalledTimes(0);
         }
 
@@ -626,43 +422,19 @@ describe('keyExists()', () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.keyExists).mockResolvedValueOnce(mockFailVal);
         
-        let didThrow = true;
-        try {
-            await keyExists('some-random-alias');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('Expected keyExists to throw an error, but it did not.');
-        }
-
+        await expect(keyExists('some-random-alias')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.keyExists).toHaveBeenCalledOnce();
     });
 
     test.prop(
         [fc.anything()]
     )('should throw when alias is not a string or is an empty string', async (chaoticData) => {
-        const isValid = typeof chaoticData == 'string' && chaoticData.trim().length > 0;
-
-        if (isValid) {
+        if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(keyExists(chaoticData)).resolves.toBe(true);
             expect(ReactNativeSiliconModule.keyExists).toHaveBeenCalledOnce();
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await keyExists(chaoticData);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) {
-                expect.fail('expected keyExists to throw, but it did not');
-            }
-
+            // @ts-expect-error - intentionally passed incorrect type
+            await expect(keyExists(chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.keyExists).toHaveBeenCalledTimes(0);
         }
 
@@ -689,43 +461,19 @@ describe('listKeys()', () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.listKeys).mockResolvedValueOnce(mockFailVal);
         
-        let didThrow = true;
-        try {
-            await listKeys();
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('Expected listKeys to throw an error, but it did not.');
-        }
-
+        await expect(listKeys()).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.listKeys).toHaveBeenCalledOnce();
     });
 
     test.prop(
         [fc.anything()]
     )('should throw when prefix is not a string and not undefined', async (chaoticData) => {
-        const isValid = typeof chaoticData == 'string' || chaoticData === undefined;
-
-        if (isValid) {
+        if (typeof chaoticData == 'string' || chaoticData === undefined) {
             await expect(listKeys(chaoticData)).resolves.toBe(defaultMockData);
             expect(ReactNativeSiliconModule.listKeys).toHaveBeenCalledOnce();
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await listKeys(chaoticData);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) {
-                expect.fail('expected listKeys to throw, but it did not');
-            }
-
+            // @ts-expect-error - intentionally passed incorrect type
+            await expect(listKeys(chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.listKeys).toHaveBeenCalledTimes(0);
         }
 
@@ -752,35 +500,13 @@ describe('validateKey()', () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.validateKey).mockResolvedValueOnce(mockFailVal);
         
-        let didThrow = true;
-        try {
-            await validateKey('some-random-alias');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('Expected validateKey to throw an error, but it did not.');
-        }
-
+        await expect(validateKey('some-random-alias')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.validateKey).toHaveBeenCalledOnce();
     });
 
     it('should throw when an alias is not provided', async () => {
-        let didThrow = true;
-        try {
-            // @ts-expect-error
-            await validateKey();
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('expected validateKey to throw, but it did not');
-        }
-
+        // @ts-expect-error - alias not provided
+        await expect(validateKey()).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.validateKey).toHaveBeenCalledTimes(0);
     });
 
@@ -793,19 +519,8 @@ describe('validateKey()', () => {
             await expect(validateKey(chaoticData)).resolves.toBe(defaultMockData);
             expect(ReactNativeSiliconModule.validateKey).toHaveBeenCalledOnce();
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await validateKey(chaoticData);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) {
-                expect.fail('expected validateKey to throw, but it did not');
-            }
-
+            // @ts-expect-error - intentionally passed incorrect type
+            await expect(validateKey(chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.validateKey).toHaveBeenCalledTimes(0);
         }
 
@@ -814,32 +529,31 @@ describe('validateKey()', () => {
 });
 
 describe('getPubKey()', () => {
-    const defaultMockData = new Uint8Array([10, 20, 30]);
-    const mockVal = createBridgeSuccess(defaultMockData);
-    vi.mocked(ReactNativeSiliconModule.getPubKey).mockResolvedValue(mockVal);
+    const mockUint8Array = () => {
+        const mockData = new Uint8Array([10, 20, 30]);
+        const mockVal = createBridgeSuccess(mockData);
+        vi.mocked(ReactNativeSiliconModule.getPubKey).mockResolvedValue(mockVal);
+        return mockData;
+    };
+
+    const mockStr = () => {
+        const mockData = 'some-random-public-key';
+        const mockVal = createBridgeSuccess(mockData);
+        vi.mocked(ReactNativeSiliconModule.getPubKey).mockResolvedValue(mockVal);
+        return mockData;
+    };
 
     test.prop(
         [fc.anything()]
     )('should throw when alias is not a string or is an empty string', async (chaoticData) => {
-        const isValid = typeof chaoticData == 'string' && chaoticData.trim().length > 0;
-
-        if (isValid) {
-            await expect(getPubKey(chaoticData, 'SPKI')).resolves.toBe(defaultMockData);
+        const mockData = mockUint8Array();
+        
+        if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
+            await expect(getPubKey(chaoticData, 'SPKI')).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await getPubKey(chaoticData, 'SPKI');
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) {
-                expect.fail('expected getPubKey to throw, but it did not');
-            }
-
+            // @ts-expect-error
+            await expect(getPubKey(chaoticData, 'SPKI')).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledTimes(0);
         }
 
@@ -847,27 +561,32 @@ describe('getPubKey()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [
+            fc.oneof(
+                fc.constant('PEM'),
+                fc.constant('B64'),
+                fc.constant('B64URL'),
+                fc.constant('SPKI'),
+                fc.anything()
+            )
+        ]
     )('should throw when format is not a valid string literal', async (chaoticData) => {
-        const isValid = chaoticData === 'PEM' || chaoticData === 'B64' || chaoticData === 'B64URL' || chaoticData === 'SPKI';
+        if (chaoticData === 'PEM' || chaoticData === 'B64' || chaoticData === 'B64URL' || chaoticData === 'SPKI') {
+            let mockData; 
+            if (chaoticData === 'SPKI') {
+                mockData = mockUint8Array();
+            } else {
+                mockData = mockStr();
+            }
 
-        if (isValid) {
-            await expect(getPubKey('some-random-alias', chaoticData)).resolves.toBe(defaultMockData);
+            await expect(getPubKey('some-random-alias', chaoticData)).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
+
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await getPubKey('some-random-alias', chaoticData);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
+            mockUint8Array();
 
-            if (!didThrow) {
-                expect.fail('expected getPubKey to throw, but it did not');
-            }
-
+            // @ts-expect-error - intentionally passed incorrect type
+            await expect(getPubKey('some-random-alias', chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledTimes(0);
         }
 
@@ -877,32 +596,23 @@ describe('getPubKey()', () => {
     const strFormatsArr = ['PEM' as const, 'B64' as const, 'B64URL' as const];
     
     it.each(strFormatsArr)("should successfully return a string for '%s' format", async (format) => {
-        const mockData = "some-random-public-key";
-        const mockVal = createBridgeSuccess(mockData);
-        vi.mocked(ReactNativeSiliconModule.getPubKey).mockResolvedValueOnce(mockVal);
+        const mockData = mockStr();
 
         await expect(getPubKey('some-random-alias', format)).resolves.toBe(mockData);
         expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
     });
 
     it.each(strFormatsArr)("should throw if bridge returns a Uint8Array for '%s' format", async (format) => {
-        let didThrow = true;
-        try {
-            await getPubKey('some-random-alias', format);
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('expected getPubKey to throw, but it did not');
-        }
-
+        const mockData = mockUint8Array();
+        
+        await expect(getPubKey('some-random-alias', format)).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
     });
 
     it("should successfully return a Uint8Array for 'SPKI' format", async () => {
-        await expect(getPubKey('some-random-alias', "SPKI")).resolves.toBe(defaultMockData);
+        const mockData = mockUint8Array();
+        
+        await expect(getPubKey('some-random-alias', "SPKI")).resolves.toBe(mockData);
         expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
     });
 
@@ -937,18 +647,7 @@ describe('getPubKey()', () => {
         const mockVal = createBridgeSuccess(mockData);
         vi.mocked(ReactNativeSiliconModule.getPubKey).mockResolvedValueOnce(mockVal);
         
-        let didThrow = true;
-        try {
-            await getPubKey('some-random-alias', 'SPKI');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('expected getPubKey to throw, but it did not');
-        }
-
+        await expect(getPubKey('some-random-alias', 'SPKI')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
     });
 
@@ -956,36 +655,25 @@ describe('getPubKey()', () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.getPubKey).mockResolvedValueOnce(mockFailVal);
         
-        let didThrow = true;
-        try {
-            await getPubKey('some-random-alias', 'SPKI');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('Expected getPubKey to throw an error, but it did not.');
-        }
-
+        await expect(getPubKey('some-random-alias', 'SPKI')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
     });
 });
 
 describe('attestKey()', () => {
-    const mockIosAttestKeyOnce = (isPubKeyStr: boolean) => {
+    const mockIosAttestKey = (isPubKeyStr: boolean) => {
         const mockData = {
             platform: 'IOS' as const,
             signingPubKey: isPubKeyStr ? 'some-random-pubkey' : new Uint8Array([10, 20, 30]),
             attestationObject: 'some-random-attestation-object'
         };
         const mockVal = createBridgeSuccess(mockData);
-        vi.mocked(ReactNativeSiliconModule.attestKey).mockResolvedValueOnce(mockVal);
+        vi.mocked(ReactNativeSiliconModule.attestKey).mockResolvedValue(mockVal);
 
         return mockData;
     }
 
-    const mockAndroidAttestKeyOnce = () => {
+    const mockAndroidAttestKey = () => {
         const mockData = {
             platform: 'ANDROID' as const,
             certChain: ['some-random-cert-1', 'some-random-cert-2', 'some-random-cert-3']
@@ -1000,46 +688,21 @@ describe('attestKey()', () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.attestKey).mockResolvedValueOnce(mockFailVal);
         
-        let didThrow = true;
-        try {
-            await attestKey('some-random-alias', 'SPKI');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('Expected attestKey to throw an error, but it did not.');
-        }
-
+        await expect(attestKey('some-random-alias', 'SPKI')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
     });
 
     test.prop(
         [fc.anything()]
     )('should throw if alias is not a string or is an empty string', async (chaoticData) => {
-        const mockData = mockAndroidAttestKeyOnce();
+        const mockData = mockAndroidAttestKey();
 
-        const isValid = typeof chaoticData == 'string' && chaoticData.trim().length > 0;
-
-        if (isValid) {
+        if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(attestKey(chaoticData, 'SPKI')).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
-
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await attestKey(chaoticData, "SPKI");
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) {
-                expect.fail('expected attestKey to throw, but it did not');
-            }
-
+            // @ts-expect-error - intentionally pass incorrect type
+            await expect(attestKey(chaoticData, "SPKI")).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledTimes(0);
         }
 
@@ -1048,29 +711,17 @@ describe('attestKey()', () => {
 
     test.prop(
         [fc.anything()]
-    )('should throw if pubKeyFormat is not a valid string literal', async (chaoticData) => {
-        const mockData = mockAndroidAttestKeyOnce();
-
-        const isValid = chaoticData === "SPKI" || chaoticData === "PEM" || chaoticData === "B64" || chaoticData === "B64URL";
-
-        if (isValid) {
+    )('should throw if pubKeyFormat is not a valid string literal', async (chaoticData) => {        
+        if (chaoticData === "SPKI" || chaoticData === "PEM" || chaoticData === "B64" || chaoticData === "B64URL") {
+            const mockData = mockAndroidAttestKey();            
             await expect(attestKey('some-random-alias', chaoticData)).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await attestKey('some-random-alias', chaoticData);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
+            const mockData = mockAndroidAttestKey();
 
-            if (!didThrow) {
-                expect.fail('expected attestKey to throw, but it did not');
-            }
-
+            // @ts-expect-error - intentionally pass incorrect type
+            await expect(attestKey('some-random-alias', chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledTimes(0);
         }
 
@@ -1078,7 +729,7 @@ describe('attestKey()', () => {
     });
 
     it('should return a valid AttestResult for android', async () => {
-        const mockData = mockAndroidAttestKeyOnce();
+        const mockData = mockAndroidAttestKey();
 
         await expect(attestKey('some-random-alias', "SPKI")).resolves.toStrictEqual(mockData);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
@@ -1087,7 +738,7 @@ describe('attestKey()', () => {
     const iosPubKeyStrFormats = ['PEM' as const, 'B64' as const, 'B64URL' as const];
     it.each(iosPubKeyStrFormats)("should return a valid AttestResult for ios format is '%s'", async (format) => {
         // Mock a string for the pubkey
-        const mockData = mockIosAttestKeyOnce(true);
+        const mockData = mockIosAttestKey(true);
 
         await expect(attestKey('some-random-alias', format)).resolves.toStrictEqual(mockData);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
@@ -1095,25 +746,14 @@ describe('attestKey()', () => {
 
     it.each(iosPubKeyStrFormats)("should throw for ios when format is '%s' and bridge returns a pub key Uint8Array", async (format) => {
         // Mock a Uint8Array for the pubkey
-        mockIosAttestKeyOnce(false);
+        mockIosAttestKey(false);
         
-        let didThrow = true;
-        try {
-            await attestKey('some-random-alias', format);
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('expected attestKey to throw, but it did not');
-        }
-
+        await expect(attestKey('some-random-alias', format)).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
     });
 
     it("should return a valid AttestResult for ios when format is 'SPKI'", async () => {
-        const mockData = mockIosAttestKeyOnce(false);
+        const mockData = mockIosAttestKey(false);
 
         await expect(attestKey('some-random-alias', 'SPKI')).resolves.toStrictEqual(mockData);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
@@ -1121,20 +761,9 @@ describe('attestKey()', () => {
 
     it("should throw for ios when format is 'SPKI' and bridge returns a pub key string", async () => {
         // Mock a string for the pubkey
-        mockIosAttestKeyOnce(true);
+        mockIosAttestKey(true);
         
-        let didThrow = true;
-        try {
-            await attestKey('some-random-alias', 'SPKI');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('expected attestKey to throw, but it did not');
-        }
-
+        await expect(attestKey('some-random-alias', 'SPKI')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
     });
 });
@@ -1164,43 +793,19 @@ describe('getKeyInfo()', () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.getKeyInfo).mockResolvedValueOnce(mockFailVal);
         
-        let didThrow = true;
-        try {
-            await getKeyInfo('some-random-alias');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) {
-            expect.fail('Expected getKeyInfo to throw an error, but it did not.');
-        }
-
+        await expect(getKeyInfo('some-random-alias')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.getKeyInfo).toHaveBeenCalledOnce();
     });
 
     test.prop(
         [fc.anything()]
     )('should throw when alias is not a string, or is empty', async (chaoticData) => {
-        const isValid = typeof chaoticData == 'string' && chaoticData.trim().length > 0;
-
-        if (isValid) {
+        if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(getKeyInfo(chaoticData)).resolves.toBe(defaultMockData);
-            expect(ReactNativeSiliconModule.getKeyInfo).toHaveBeenCalledOnce();
+            expect(ReactNativeSiliconModule.getKeyInfo).toHaveBeenCalledOnce();            
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await getKeyInfo(chaoticData);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) {
-                expect.fail('expected getKeyInfo to throw, but it did not');
-            }
-
+            // @ts-expect-error - intentionally pass incorrect type
+            await expect(getKeyInfo(chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.getKeyInfo).toHaveBeenCalledTimes(0);
         }
 
