@@ -5,6 +5,7 @@ import { generateSecureRandomBytes } from "../random";
 import { SiliconError, SiliconErrorCode } from "../../../errors";
 import fc from 'fast-check';
 import { test } from '@fast-check/vitest';
+import { isSafeNumber } from "../../../utils/validation";
 
 describe('generateSecureRandomBytes()', () => {
     const mockStringResult = () => {
@@ -34,32 +35,14 @@ describe('generateSecureRandomBytes()', () => {
         const defaultMockVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'some random error message', 'some-random-error-stack');
         vi.mocked(ReactNativeSiliconModule.generateSecureRandomBytes).mockResolvedValueOnce(defaultMockVal);
 
-        let didThrow = true;
-        try {
-            await generateSecureRandomBytes(3, 'BYTES');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) expect.fail('expected generateSecureRandomBytes() to throw, but it did not');
-        
+        await expect(generateSecureRandomBytes(3, 'BYTES')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
     });
 
     it("should throw when bridge result contains a string but format is 'BYTES'", async () => {
         const defaultMockData = mockStringResult();
 
-        let didThrow = true;
-        try {
-            await generateSecureRandomBytes(3, 'BYTES');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) expect.fail('expected generateSecureRandomBytes() to throw, but it did not');
-        
+        await expect(generateSecureRandomBytes(3, 'BYTES')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
     });
 
@@ -73,16 +56,7 @@ describe('generateSecureRandomBytes()', () => {
     it("should throw when bridge result contains a Uint8Array but format is 'B64'", async () => {
         const defaultMockData = mockUint8ArrayResult();
 
-        let didThrow = true;
-        try {
-            await generateSecureRandomBytes(3, 'B64');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) expect.fail('expected generateSecureRandomBytes() to throw, but it did not');
-        
+        await expect(generateSecureRandomBytes(3, 'B64')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
     });
 
@@ -96,16 +70,7 @@ describe('generateSecureRandomBytes()', () => {
     it("should throw when bridge result contains a Uint8Array but format is 'B64URL'", async () => {
         const defaultMockData = mockUint8ArrayResult();
 
-        let didThrow = true;
-        try {
-            await generateSecureRandomBytes(3, 'B64URL');
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) expect.fail('expected generateSecureRandomBytes() to throw, but it did not');
-        
+        await expect(generateSecureRandomBytes(3, 'B64URL')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
     });
 
@@ -114,22 +79,12 @@ describe('generateSecureRandomBytes()', () => {
     )('should throw when length is not of type number', async (chaoticData) => {
         const defaultMockData = mockUint8ArrayResult();
         
-        if (typeof chaoticData == 'number') {
+        if (isSafeNumber(chaoticData)) {
             await expect(generateSecureRandomBytes(chaoticData, 'BYTES')).resolves.toStrictEqual(defaultMockData);
             expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
-
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await generateSecureRandomBytes(chaoticData, 'BYTES')
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected generateSecureRandomBytes() to throw, but it did not');
-
+            // @ts-expect-error - intentionally pass incorrect type
+            await expect(generateSecureRandomBytes(chaoticData, 'BYTES')).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledTimes(0);
         }
 
@@ -162,17 +117,8 @@ describe('generateSecureRandomBytes()', () => {
             expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await generateSecureRandomBytes(3, chaoticData)
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected generateSecureRandomBytes() to throw, but it did not');
-
+            // @ts-expect-error
+            await expect(generateSecureRandomBytes(3, chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledTimes(0);
         }
 

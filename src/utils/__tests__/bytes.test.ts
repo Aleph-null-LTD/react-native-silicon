@@ -3,6 +3,7 @@ import { test } from "@fast-check/vitest";
 import fc from "fast-check";
 import { ensureUint8Array } from "../bytes";
 import { SiliconError } from "../../errors";
+import { isSafeNumber } from "../validation";
 
 describe('ensureUint8Array()', () => {
     test.prop(
@@ -27,7 +28,7 @@ describe('ensureUint8Array()', () => {
     test.prop(
         [
             fc.array(
-                fc.anything().filter(data => typeof data !== 'number'), 
+                fc.anything().filter((data) => !isSafeNumber(data)), 
                 { 
                     minLength: 1 
                 }

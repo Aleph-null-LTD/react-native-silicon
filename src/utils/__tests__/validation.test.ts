@@ -2,10 +2,7 @@ import { describe, it, expect } from "vitest";
 import { test } from '@fast-check/vitest';
 import fc from "fast-check";
 import { createInSetGuard, isPlainObject } from "../validation";
-
-class CustomTestClass {
-    constructor(public id: string) {}
-}
+import { fcCustomArbitraries } from "../../__test_utils__/fast-check/arbitraries";
 
 describe('isPlainObject()', () => {
     test.prop(
@@ -15,32 +12,8 @@ describe('isPlainObject()', () => {
     });
 
     test.prop(
-        [
-            fc.oneof(
-                // Primitives & Null
-                fc.string(),
-                fc.integer(),
-                fc.boolean(),
-                fc.constant(null),
-                fc.constant(undefined),
-                
-                // Standard Arrays
-                fc.array(fc.anything()),
-                
-                // Complex Built-in Objects
-                fc.date(),
-                fc.uint8Array(),
-                fc.array(fc.string()).map(arr => new Set(arr)),
-                fc.dictionary(fc.string(), fc.string()).map(obj => new Map(Object.entries(obj))),
-                
-                // Custom Class Instances
-                fc.uuid().map(
-                    (id) => {
-                        return new CustomTestClass(id)
-                    }
-                )
-            )
-        ]
+        [fcCustomArbitraries.anything.nonPlainObj()],
+        { numRuns: 10000 }
     )('should return false when value is not a plain object', (plainObj) => {
         expect(isPlainObject(plainObj)).toBe(false);
     });
@@ -70,20 +43,21 @@ describe('createInSetGuard()', () => {
                 fc.constant(4),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 10000 }
     )('should return a function that correctly evaluates the enclosed Set', (chaoticData) => {
-        const inStrSetGuard = createInSetGuard(dummyStrSet);
-        const inNumSetGuard = createInSetGuard(dummyNumSet);
-        const inCombinedSetGuard = createInSetGuard(dummyCombinedSet);
+        const inStrSet = createInSetGuard(dummyStrSet);
+        const inNumSet = createInSetGuard(dummyNumSet);
+        const inCombinedSet = createInSetGuard(dummyCombinedSet);
         
         if (chaoticData === 'random' ||
             chaoticData === 'strings' ||
             chaoticData === 'in' ||
             chaoticData === 'here'
         ) {
-            expect(inStrSetGuard(chaoticData)).toBe(true);
-            expect(inNumSetGuard(chaoticData)).toBe(false);
-            expect(inCombinedSetGuard(chaoticData)).toBe(true);
+            expect(inStrSet(chaoticData)).toBe(true);
+            expect(inNumSet(chaoticData)).toBe(false);
+            expect(inCombinedSet(chaoticData)).toBe(true);
             
         } else if (
             chaoticData === 1 ||
@@ -91,14 +65,14 @@ describe('createInSetGuard()', () => {
             chaoticData === 3 ||
             chaoticData === 4
         ) { 
-            expect(inStrSetGuard(chaoticData)).toBe(false);
-            expect(inNumSetGuard(chaoticData)).toBe(true);
-            expect(inCombinedSetGuard(chaoticData)).toBe(true);
+            expect(inStrSet(chaoticData)).toBe(false);
+            expect(inNumSet(chaoticData)).toBe(true);
+            expect(inCombinedSet(chaoticData)).toBe(true);
 
         } else {
-            expect(inStrSetGuard(chaoticData)).toBe(false);
-            expect(inNumSetGuard(chaoticData)).toBe(false);
-            expect(inCombinedSetGuard(chaoticData)).toBe(false);
+            expect(inStrSet(chaoticData)).toBe(false);
+            expect(inNumSet(chaoticData)).toBe(false);
+            expect(inCombinedSet(chaoticData)).toBe(false);
         }
     });
 });
