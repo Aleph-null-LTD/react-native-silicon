@@ -159,7 +159,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
                 opts.android.signaturePaddingAlgorithm !== undefined &&
                 (typeof opts.android.signaturePaddingAlgorithm !== 'string' || !isSignaturePaddingAlgorithm(opts.android.signaturePaddingAlgorithm))
             ) {
-                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] value ${opts.android.signaturePaddingAlgorithm} in opts.android.signaturePaddingAlgorithm is invalid, expected ${Object.values(signaturePaddingAlgorithms).join(" | ")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.android.signaturePaddingAlgorithm is invalid, expected ${Object.values(signaturePaddingAlgorithms).join(" | ")}`);
             }
 
             if (hasOwn(opts.android, 'hardwarePolicy') &&
