@@ -40,3 +40,12 @@ export function hasOwn<T extends object, K extends PropertyKey>(
 export function createInSetGuard<T, P = unknown>(set: ReadonlySet<T>) {
     return (value: P): value is T & P => set.has(value as unknown as T);
 }
+
+/**
+ * Checks if a value is a number and the value is finite i.e. not NaN, Infinite, or -Infinite
+ * @param value 
+ * @returns 
+ */
+export function isSafeNumber(value: unknown): value is number {
+    return typeof value === 'number' && Number.isFinite(value);
+}

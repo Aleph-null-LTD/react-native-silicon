@@ -2,7 +2,7 @@ import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
 import { handleBridgeResult } from '../../utils/handle-bridge-result';
 import { ensureUint8Array } from '../../utils/bytes';
-import { hasOwn, isPlainObject } from '../../utils/validation';
+import { hasOwn, isPlainObject, isSafeNumber } from '../../utils/validation';
 import { 
     androidAlgorithms, 
     isAndroidAlgorithm, 
@@ -62,7 +62,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
             let family = null;
             for (const purpose of opts.purposes) {
                 if (!isKeyPurpose(purpose)) {
-                    throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] purpose ${purpose} is invalid, expected ${Object.values(keyPurposes).join("|")}`);
+                    throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] purpose is invalid, expected ${Object.values(keyPurposes).join("|")}`);
                 }
 
                 // Check if the purposes conflict
@@ -104,7 +104,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
 
             if (hasOwn(opts.userAuth, 'timeout')) {
                 if (opts.userAuth.timeout !== undefined) {
-                    if (typeof opts.userAuth.timeout !== 'number' || isNaN(opts.userAuth.timeout)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth.timeout must be of type number");
+                    if (!isSafeNumber(opts.userAuth.timeout)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth.timeout must be of type number");
                     
                     if (opts.userAuth.timeout < 0 || opts.userAuth.timeout > 6000) {
                         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.userAuth.timeout must be >=0 AND <=6000");
@@ -123,7 +123,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
                 opts.userAuth !== undefined &&
                 (typeof opts.userAuth.policy !== 'string' || !isUserAuthPolicy(opts.userAuth.policy)) 
             ) {
-                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.userAuth.policy '${opts.userAuth.policy}' is invalid, expected ${Object.values(userAuthPolicies).join(" | ")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.userAuth.policy is invalid, expected ${Object.values(userAuthPolicies).join(" | ")}`);
             }
         }
 
@@ -142,7 +142,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
                 opts.android.algorithm !== undefined &&
                 (typeof opts.android.algorithm !== 'string' || !isAndroidAlgorithm(opts.android.algorithm))
             ) {
-                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.android.algorithm '${opts.android.algorithm}' is invalid, expected ${Object.values(androidAlgorithms).join(" | ")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.android.algorithm is invalid, expected ${Object.values(androidAlgorithms).join(" | ")}`);
             }
 
             if (hasOwn(opts.android, 'digests') && opts.android.digests !== undefined) {
@@ -166,7 +166,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
                 opts.android.hardwarePolicy !== undefined &&
                 (typeof opts.android.hardwarePolicy !== 'string' || !isAndroidHardwarePolicy(opts.android.hardwarePolicy))
             ) {
-                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.android.hardwarePolicy '${opts.android.hardwarePolicy}' is invalid, expected ${Object.values(keyDigests).join(" | ")}`)
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.android.hardwarePolicy is invalid, expected ${Object.values(keyDigests).join(" | ")}`)
             }
         }
 
@@ -178,7 +178,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
                 opts.ios.algorithm !== undefined &&
                 (typeof opts.ios.algorithm !== 'string' || !isIosAlgorithm(opts.ios.algorithm))
             ) {
-                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.ios.algorithm '${opts.ios.algorithm}' is invalid, expected ${Object.values(androidAlgorithms).join(" | ")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.ios.algorithm is invalid, expected ${Object.values(androidAlgorithms).join(" | ")}`);
             }
 
             if (hasOwn(opts.ios, 'digests') && opts.ios.digests !== undefined) {
@@ -187,7 +187,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
                 if (opts.ios.digests.length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.ios.digests must have at least one element");
 
                 for (const digest of opts.ios.digests) {
-                    if (!isKeyDigest(digest)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] value '${digest}' in opts.ios.digests is invalid, expected ${Object.values(keyDigests).join(" | ")}`);
+                    if (!isKeyDigest(digest)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] value in opts.ios.digests is invalid, expected ${Object.values(keyDigests).join(" | ")}`);
                 }
             }
 
@@ -195,14 +195,14 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
                 opts.ios.signaturePaddingAlgorithm !== undefined &&
                 !isSignaturePaddingAlgorithm(opts.ios.signaturePaddingAlgorithm)
             ) {
-                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] value '${opts.ios.signaturePaddingAlgorithm}' in opts.ios.signaturePaddingAlgorithm is invalid, expected ${Object.values(signaturePaddingAlgorithms).join(" | ")}`);
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] value in opts.ios.signaturePaddingAlgorithm is invalid, expected ${Object.values(signaturePaddingAlgorithms).join(" | ")}`);
             }
 
             if (hasOwn(opts.ios, 'hardwarePolicy') &&
                 opts.ios.hardwarePolicy !== undefined &&
                 (typeof opts.ios.hardwarePolicy !== 'string' || !isIosHardwarePolicy(opts.ios.hardwarePolicy))
             ) {
-                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.ios.hardwarePolicy '${opts.ios.hardwarePolicy}' is invalid, expected ${Object.values(keyDigests).join(" | ")}`)
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.ios.hardwarePolicy is invalid, expected ${Object.values(keyDigests).join(" | ")}`)
             }
         }
 
