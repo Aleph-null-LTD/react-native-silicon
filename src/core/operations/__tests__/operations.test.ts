@@ -53,7 +53,8 @@ describe('sign()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when alias is not a string or is an empty string', async (chaoticData) => {
         const isValid = typeof chaoticData == 'string' && chaoticData.trim().length > 0
 
@@ -98,7 +99,8 @@ describe('sign()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when payload is not a string and not a Uint8Array', async (chaoticData) => {
         const isValid = (typeof chaoticData == 'string' && chaoticData.trim().length > 0) || chaoticData instanceof Uint8Array;
 
@@ -151,7 +153,8 @@ describe('sign()', () => {
         }
     );
     test.prop(
-        [nonObjectChaoticData]
+        [nonObjectChaoticData],
+        { numRuns: 1000 }
     )('should throw when opts is not an object', async (chaoticData) => {
         
         let didThrow = true;
@@ -182,7 +185,8 @@ describe('sign()', () => {
                 fc.constant(undefined),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.encoding is defined and not a valid string literal', async (chaoticData) => {
         if (chaoticData === 'B64' || chaoticData === 'B64URL' || chaoticData === undefined) {
             await expect(
@@ -233,7 +237,8 @@ describe('sign()', () => {
                 fc.constant(undefined),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.digest is defined and not a valid string literal', async (chaoticData) => {
         if (chaoticData === 'SHA256' || chaoticData === 'SHA384' || chaoticData === 'SHA512' || chaoticData === undefined) {
             await expect(
@@ -283,7 +288,8 @@ describe('sign()', () => {
                 fc.constant(undefined),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.format is defined and not a valid string literal', async (chaoticData) => {
         if (chaoticData === 'DER' || chaoticData === 'P1363' || chaoticData === undefined) {
             await expect(
@@ -362,7 +368,8 @@ describe('verify()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when payload is not a string and not a Uint8Array', async (chaoticData) => {
         if ((typeof chaoticData == 'string' && chaoticData.trim().length > 0) ||
             chaoticData instanceof Uint8Array
@@ -389,7 +396,8 @@ describe('verify()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when signature is not a string or is an empty string', async (chaoticData) => {
         if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(verify(validPayload, chaoticData, validOpts)).resolves.toBe(defaultMockData)
@@ -422,7 +430,8 @@ describe('verify()', () => {
                     return true;
                 }
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts is not a POJO', async (chaoticData) => {
         let didThrow = true;
         try {
@@ -441,7 +450,8 @@ describe('verify()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when opts.alias is not a string and is not empty (for internal keys)', async (chaoticData) => {
         if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(
@@ -494,7 +504,8 @@ describe('verify()', () => {
                 fc.constant(undefined),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.alorithm is not a valid string literal and not undefined (for internal keys)', async (chaoticData) => {
         if (chaoticData === "ES256" || 
             chaoticData === "ES384" || 
@@ -545,7 +556,8 @@ describe('verify()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when opts.pubkey is not a string and is not empty (for external keys)', async (chaoticData) => {
         if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(
@@ -599,7 +611,8 @@ describe('verify()', () => {
                 fc.constant('PS512'),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.alorithm is not a valid string literal (for external keys)', async (chaoticData) => {
         if (chaoticData === "ES256" || 
             chaoticData === "ES384" || 

@@ -7,7 +7,8 @@ import { isSafeNumber } from "../validation";
 
 describe('ensureUint8Array()', () => {
     test.prop(
-        [fc.uint8Array()]
+        [fc.uint8Array()],
+        { numRuns: 10000 }
     )('should successfully return the exact data when data is Uint8Array', (validData) => {
         const result = ensureUint8Array(validData);
         
@@ -16,7 +17,8 @@ describe('ensureUint8Array()', () => {
     });
     
     test.prop(
-        [fc.uint8Array()]
+        [fc.uint8Array()],
+        { numRuns: 10000 }
     )('should successfully convert arrays of valid bytes', (validData) => {
         const arr = Array.from(validData);
         const result = ensureUint8Array(arr);
@@ -33,7 +35,8 @@ describe('ensureUint8Array()', () => {
                     minLength: 1 
                 }
             )
-        ]
+        ],
+        { numRuns: 10000 }
     )('should throw when an array contains invalid data types', (invalidArray) => {
         expect(() => ensureUint8Array(invalidArray)).toThrow(SiliconError);
     });
@@ -41,7 +44,8 @@ describe('ensureUint8Array()', () => {
     test.prop(
         [
             fc.anything().filter((data) => !(data instanceof Uint8Array || Array.isArray(data) || data instanceof ArrayBuffer))
-        ]
+        ],
+        { numRuns: 10000 }
     )('should throw when data is not a Uint8Array, Array, or ArrayBuffer', (chaoticData) => {
         expect(() => ensureUint8Array(chaoticData)).toThrow(SiliconError);
     });

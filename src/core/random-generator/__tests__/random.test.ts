@@ -75,7 +75,8 @@ describe('generateSecureRandomBytes()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when length is not of type number', async (chaoticData) => {
         const defaultMockData = mockUint8ArrayResult();
         
@@ -100,7 +101,8 @@ describe('generateSecureRandomBytes()', () => {
                 fc.constant(undefined),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when format is not a valid string literal and is not undefined', async (chaoticData) => {
         if (chaoticData === 'BYTES' ||
             chaoticData === undefined

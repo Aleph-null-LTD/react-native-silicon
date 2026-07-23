@@ -7,7 +7,8 @@ import { SiliconError, SiliconErrorCode } from "../../errors";
 
 describe('handleBridgeResult()', () => {
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 10000 }
     )('should return the extracted data from BridgeResult when it is a success', (chaoticData) => {
         expect(
             handleBridgeResult(createBridgeSuccess(chaoticData))

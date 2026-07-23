@@ -35,7 +35,8 @@ describe('getJwk()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when alias is not a string, or is an empty string', async (chaoticData) => {
         const mockVal = mockSuccess();
 
@@ -60,7 +61,8 @@ describe('getJwk()', () => {
                 fc.constant(undefined),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when digest is defined but not a valid string literal', async (chaoticData) => {
         const mockVal = mockSuccess();
 

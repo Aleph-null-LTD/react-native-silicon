@@ -63,7 +63,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when alias is not a string', async (chaoticData) => {
         if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(generateKey(chaoticData)).resolves.toBeUndefined();
@@ -81,7 +82,8 @@ describe('generateKey()', () => {
     test.prop(
         [
             fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts is not an object', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing incorrect type
         await expect(generateKey('some-random-alias', chaoticData)).rejects.instanceOf(SiliconError);
@@ -91,7 +93,8 @@ describe('generateKey()', () => {
     test.prop(
         [
             fcCustomArbitraries.anything.nonArray().filter((v) => v !== undefined)
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.purposes is not an array', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing incorrect type
         await expect(generateKey('some-random-alias', { purposes: chaoticData })).rejects.instanceOf(SiliconError);
@@ -118,7 +121,8 @@ describe('generateKey()', () => {
     test.prop(
         [
             fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.userAuth is not an object', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing incorrect type
         await expect(generateKey('some-random-alias', { userAuth: chaoticData })).rejects.instanceOf(SiliconError);
@@ -128,7 +132,8 @@ describe('generateKey()', () => {
     test.prop(
         [
             fc.anything().filter((v) => typeof v !== 'boolean' && v !== undefined)
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.userAuth.require is not boolean', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing incorrect type
         await expect(generateKey('some-random-alias', { userAuth: { require: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -138,7 +143,8 @@ describe('generateKey()', () => {
     test.prop(
         [
             fc.anything().filter((v) => !isSafeNumber(v) && v !== undefined)
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.userAuth.timeout is not type number', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing incorrect type
         await expect(generateKey('some-random-alias', { userAuth: { timeout: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -146,21 +152,24 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fcCustomArbitraries.number.negative()]
+        [fcCustomArbitraries.number.negative()],
+        { numRuns: 1000 }
     )('should throw when opts.userAuth.timeout is < 0', async (negativeNumber) => {    
         await expect(generateKey('some-random-alias', { userAuth: { timeout: negativeNumber } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     test.prop(
-        [fcCustomArbitraries.number.positive().filter((v) => v > 6000)]
+        [fcCustomArbitraries.number.positive().filter((v) => v > 6000)],
+        { numRuns: 1000 }
     )('should throw when opts.userAuth.timeout is > 6000', async (numberGt6000) => {    
         await expect(generateKey('some-random-alias', { userAuth: { timeout: numberGt6000 } })).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateKey).toHaveBeenCalledTimes(0);
     });
 
     test.prop(
-        [fc.anything().filter((v) => typeof v !== 'boolean' && v !== undefined)]
+        [fc.anything().filter((v) => typeof v !== 'boolean' && v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.userAuth.invalidateOnEnrollment is not boolean', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { userAuth: { invalidateOnEnrollment: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -168,7 +177,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.userAuth.policy is not a string', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { userAuth: { policy: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -182,7 +192,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((v) => !(v instanceof Uint8Array) && v !== undefined)]
+        [fc.anything().filter((v) => !(v instanceof Uint8Array) && v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.attestChallenge is not a Uint8Array', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { attestChallenge: chaoticData })).rejects.instanceOf(SiliconError);
@@ -190,7 +201,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)]
+        [fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.android is not an object', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { android: chaoticData })).rejects.instanceOf(SiliconError);
@@ -198,7 +210,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.android.algorithm is not a string', async (chaoticData) => {
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { android: { algorithm: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -214,7 +227,8 @@ describe('generateKey()', () => {
     test.prop(
         [
             fcCustomArbitraries.anything.nonArray().filter((v) => v !== undefined)
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.android.digests is not an array', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { android: { digests: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -233,7 +247,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.android.signaturePaddingAlgorithm is not a string', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { android: { signaturePaddingAlgorithm: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -247,7 +262,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.android.hardwarePolicy is not a string', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { android: { hardwarePolicy: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -261,7 +277,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)]
+        [fcCustomArbitraries.anything.nonPlainObj().filter((v) => v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.ios is not an object', async (chaoticData) => {
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { ios: chaoticData })).rejects.instanceOf(SiliconError);
@@ -269,7 +286,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.ios.algorithm is not a string', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { ios: { algorithm: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -283,7 +301,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fcCustomArbitraries.anything.nonArray().filter((v) => v !== undefined)]
+        [fcCustomArbitraries.anything.nonArray().filter((v) => v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.ios.digests is not an array', async (chaoticData) => {    
         // @ts-expect-error - intentionally passing wrong type
         await expect(generateKey('some-random-alias', { ios: { digests: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -302,7 +321,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.ios.signaturePaddingAlgorithm is not a string', async (chaoticData) => {    
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { ios: { signaturePaddingAlgorithm: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -316,7 +336,8 @@ describe('generateKey()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)]
+        [fc.anything().filter((v) => typeof v !== 'string' && v !== undefined)],
+        { numRuns: 1000 }
     )('should throw when opts.ios.hardwarePolicy is not a string', async (chaoticData) => {
         // @ts-expect-error - Intentionally passing wrong type
         await expect(generateKey('some-random-alias', { ios: { hardwarePolicy: chaoticData } })).rejects.instanceOf(SiliconError);
@@ -355,7 +376,8 @@ describe('deleteKey()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when an alias is not a string', async (chaoticData) => {
         if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(deleteKey(chaoticData)).resolves.toBe(defaultMockData);
@@ -394,7 +416,8 @@ describe('deleteAllKeys()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when prefix is not a string or is an empty string', async (chaoticData) => {
         if ((typeof chaoticData === 'string' && chaoticData.trim().length > 0) || chaoticData === undefined) {
             await expect(deleteAllKeys(chaoticData)).resolves.toBe(defaultMockData);
@@ -427,7 +450,8 @@ describe('keyExists()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when alias is not a string or is an empty string', async (chaoticData) => {
         if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(keyExists(chaoticData)).resolves.toBe(true);
@@ -466,7 +490,8 @@ describe('listKeys()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when prefix is not a string and not undefined', async (chaoticData) => {
         if (typeof chaoticData == 'string' || chaoticData === undefined) {
             await expect(listKeys(chaoticData)).resolves.toBe(defaultMockData);
@@ -511,7 +536,8 @@ describe('validateKey()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when alias is not a string or is an empty string', async (chaoticData) => {
         const isValid = typeof chaoticData == 'string' && chaoticData.trim().length > 0;
 
@@ -544,7 +570,8 @@ describe('getPubKey()', () => {
     };
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when alias is not a string or is an empty string', async (chaoticData) => {
         const mockData = mockUint8Array();
         
@@ -569,7 +596,8 @@ describe('getPubKey()', () => {
                 fc.constant('SPKI'),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when format is not a valid string literal', async (chaoticData) => {
         if (chaoticData === 'PEM' || chaoticData === 'B64' || chaoticData === 'B64URL' || chaoticData === 'SPKI') {
             let mockData; 
@@ -693,7 +721,8 @@ describe('attestKey()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw if alias is not a string or is an empty string', async (chaoticData) => {
         const mockData = mockAndroidAttestKey();
 
@@ -710,7 +739,8 @@ describe('attestKey()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw if pubKeyFormat is not a valid string literal', async (chaoticData) => {        
         if (chaoticData === "SPKI" || chaoticData === "PEM" || chaoticData === "B64" || chaoticData === "B64URL") {
             const mockData = mockAndroidAttestKey();            
@@ -798,7 +828,8 @@ describe('getKeyInfo()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when alias is not a string, or is empty', async (chaoticData) => {
         if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(getKeyInfo(chaoticData)).resolves.toBe(defaultMockData);

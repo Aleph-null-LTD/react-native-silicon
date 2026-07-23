@@ -7,7 +7,8 @@ describe('objectToBase64Url()', () => {
     const Base64UrlRegex = /^(?:[A-Za-z0-9\-_]{4})*(?:[A-Za-z0-9\-_]{2,3})?$/;
 
     test.prop(
-        [fc.object()]
+        [fc.object()],
+        { numRuns: 10000 }
     )('Should return valid Base64Url when obj is an object', (validObj) => {
         expect(objectToBase64Url(validObj)).matches(Base64UrlRegex);
     });

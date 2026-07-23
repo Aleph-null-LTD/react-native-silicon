@@ -41,7 +41,8 @@ describe('signJwt()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )("should throw when alias is not a string, or is empty", async (chaoticData) => {
         setupMocks();
 
@@ -71,7 +72,8 @@ describe('signJwt()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when header is not a POJO', async (chaoticData) => {
         setupMocks();
         
@@ -98,7 +100,8 @@ describe('signJwt()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when payload is not a POJO', async (chaoticData) => {
         setupMocks();
 
@@ -133,7 +136,8 @@ describe('signJwt()', () => {
                 fc.constant(undefined),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when digest is defined but not a valid string literal', async (chaoticData) => {
         setupMocks();
 

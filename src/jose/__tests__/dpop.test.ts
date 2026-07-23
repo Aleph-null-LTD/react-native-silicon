@@ -95,7 +95,8 @@ describe('generateDpopProof()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when alias is not a string, or is an empty string', async (chaoticData) => {
         const mockVals = setupMocks();
 
@@ -135,7 +136,8 @@ describe('generateDpopProof()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((data) => !isPlainObject(data))]
+        [fc.anything().filter((data) => !isPlainObject(data))],
+        { numRuns: 1000 }
     )('should throw when opts is not a POJO', async (chaoticData) => {
         const mockVals = setupMocks();
         
@@ -154,7 +156,8 @@ describe('generateDpopProof()', () => {
     });
 
     test.prop(
-        [fc.anything().filter((data) => !isPlainObject(data))]
+        [fc.anything().filter((data) => !isPlainObject(data))],
+        { numRuns: 1000 }
     )('should throw when opts is not a POJO', async (chaoticData) => {
         const mockVals = setupMocks();
         
@@ -181,7 +184,8 @@ describe('generateDpopProof()', () => {
                 fc.constant(undefined),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.digest is defined and not a valid string literal', async (chaoticData) => {
         const mockVals = setupMocks();
 
@@ -232,7 +236,8 @@ describe('generateDpopProof()', () => {
                 fc.webUrl(),
                 fc.anything()
             )
-        ]
+        ],
+        { numRuns: 1000 }
     )('should throw when opts.htu is not a string, or is an empty string, or is not a valid URL', async (chaoticData) => {
         const mockVals = setupMocks();
 
@@ -272,7 +277,8 @@ describe('generateDpopProof()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when opts.htm is not a string, or is an empty string', async (chaoticData) => {
         const mockVals = setupMocks();
 
@@ -312,7 +318,8 @@ describe('generateDpopProof()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when opts.jti is defined and not a string, or is an empty string', async (chaoticData) => {
         const mockVals = setupMocks();
 
@@ -358,7 +365,8 @@ describe('generateDpopProof()', () => {
     });
 
     test.prop(
-        [fc.anything()]
+        [fc.anything()],
+        { numRuns: 1000 }
     )('should throw when opts.nonce is defined and not a string, or is an empty string', async (chaoticData) => {
         const mockVals = setupMocks();
 

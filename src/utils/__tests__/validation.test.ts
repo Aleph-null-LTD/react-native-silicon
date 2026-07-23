@@ -6,7 +6,8 @@ import { fcCustomArbitraries } from "../../__test_utils__/fast-check/arbitraries
 
 describe('isPlainObject()', () => {
     test.prop(
-        [fc.object()]
+        [fc.object()],
+        { numRuns: 10000 }
     )('should return true when value is a plain object', (plainObj) => {
         expect(isPlainObject(plainObj)).toBe(true);
     });
