@@ -23,7 +23,6 @@ export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayl
     if (digest !== undefined &&
       (typeof digest !== 'string' || !isSignDigest(digest))
     ) {
-      console.log("in here")
       throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] digest must be of type ${Object.values(signDigest).join("|")}`);
     }
   
