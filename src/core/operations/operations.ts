@@ -1,9 +1,10 @@
 import { SiliconError, SiliconErrorCode } from '../../errors';
 import NativeSilicon from '../../module';
+import { ensureUint8Array } from '../../utils/bytes';
 import { handleBridgeResult } from '../../utils/handle-bridge-result';
 import { hasOwn, isPlainObject } from '../../utils/validation';
 import { isSignDigest, isSignEncoding, isSignFormat, isVerifyAlgorithm, signDigest, signEncodings, signFormats, verifyAlgorithms } from './constants';
-import { SignOpts, VerifyOpts } from './types';
+import { SignEncodings, SignEncodingsTypeMap, SignOpts, VerifyOpts } from './types';
 
 // ---- Sign & Verify ----
 
@@ -15,7 +16,7 @@ import { SignOpts, VerifyOpts } from './types';
  * @returns 
  * @note Will automatically prompt for user authentication if enabled on the key
  */
-export async function sign(alias: string, payload: string | Uint8Array, opts?: SignOpts): Promise<string> {
+export async function sign<F extends SignEncodings = 'BYTES'>(alias: string, payload: string | Uint8Array, opts?: SignOpts<F>): Promise<SignEncodingsTypeMap[F]> {
     if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and must not be empty");
 
     if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be of type string | Uint8Array");
@@ -57,8 +58,19 @@ export async function sign(alias: string, payload: string | Uint8Array, opts?: S
         opts = {};
     }
 
+    // Set default encoding to BYTES if it is not set
+    if (!hasOwn(opts, 'encoding') || opts.encoding === undefined) {
+        opts.encoding = 'BYTES' as F;
+    }
+
     const result = await NativeSilicon.sign(alias, payloadStr, payloadByteArr, opts);
-    return handleBridgeResult(result);
+
+    const signature = handleBridgeResult(result);
+    if (opts.encoding === 'BYTES') {
+        return ensureUint8Array(signature) as SignEncodingsTypeMap[F];
+    } else {
+        return signature;
+    }
 }
 
 // Regex to match PEM headers/footers

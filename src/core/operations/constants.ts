@@ -4,6 +4,7 @@ import { createInSetGuard } from "../../utils/validation";
 
 // Encodings
 export const signEncodings = {
+    BYTES: 'BYTES',
     B64URL: 'B64URL',
     B64: 'B64'
 } as const;

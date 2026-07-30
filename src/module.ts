@@ -1,7 +1,7 @@
 import { NativeModule, requireNativeModule } from 'expo';
-import { AttestResult, GenerateKeyOpts, KeyInfo, PubkeyFormat, PubKeyFormatTypeMap } from './core/keys/types';
+import { AttestFormats, AttestResult, GenerateKeyOpts, KeyInfo, PubkeyFormat, PubKeyFormatTypeMap } from './core/keys/types';
 import { BridgeResult } from './types/bridge-result';
-import { SignDigest, SignOpts } from './core/operations/types';
+import { SignDigest, SignEncodings, SignEncodingsTypeMap, SignOpts } from './core/operations/types';
 import { BridgeVerifyOpts } from './core/operations/brige-types';
 import { Capabilities } from './core/device/types';
 import { RandomBytesFormat, RandomGenFormatTypeMap } from './core/random-generator/types';
@@ -14,10 +14,10 @@ declare class ReactNativeSiliconModule extends NativeModule {
   keyExists(alias: string): Promise<BridgeResult<boolean>>;
   listKeys(prefix?: string): Promise<BridgeResult<string[]>>;
   getPubKey<F extends PubkeyFormat>(alias: string, format: F): Promise<BridgeResult<PubKeyFormatTypeMap[F]>>;
-  attestKey<F extends PubkeyFormat>(alias: string, format: F): Promise<BridgeResult<AttestResult<F>>>;
+  attestKey<F extends AttestFormats, P extends PubkeyFormat>(alias: string, format: F, pubKeyFormat: P): Promise<BridgeResult<AttestResult<F, P>>>;
   getKeyInfo(alias: string): Promise<BridgeResult<KeyInfo>>;
   validateKey(alias: string): Promise<BridgeResult<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'>>;
-  sign(alias: string, payloadStr: string | null, payloadByteArr: Uint8Array | null, opts: SignOpts): Promise<BridgeResult<string>>;
+  sign<F extends SignEncodings = 'BYTES'>(alias: string, payloadStr: string | null, payloadByteArr: Uint8Array | null, opts?: SignOpts<F>): Promise<BridgeResult<SignEncodingsTypeMap[F]>>;
   verify(payloadStr: string | null, payloadByteArr: Uint8Array | null, signature: string, opts: BridgeVerifyOpts): Promise<BridgeResult<boolean>>;
   generateSecureRandomBytes<T extends RandomBytesFormat>(length: number, format: T): Promise<BridgeResult<RandomGenFormatTypeMap[T]>>;
   getJwk(alias: string, digest?: SignDigest): Promise<BridgeResult<Record<string, unknown>>>;

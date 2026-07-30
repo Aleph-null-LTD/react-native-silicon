@@ -3,15 +3,21 @@ import { signDigest, signEncodings, signFormats, verifyAlgorithms } from "./cons
 // ---- Sign ----
 
 export type SignEncodings = keyof typeof signEncodings;
+export type SignEncodingsTypeMap = {
+    [signEncodings.BYTES]: Uint8Array,
+    [signEncodings.B64]: string,
+    [signEncodings.B64URL]: string
+}
+
 export type SignDigest = keyof typeof signDigest;
 export type SignFormats = keyof typeof signFormats;
 
-export type SignOpts = {
+export type SignOpts<F extends SignEncodings> = {
     /**
      * The encoding to use for the signature.
-     * @default B64URL
+     * @default BYTES
      */
-    encoding?: SignEncodings | undefined,
+    encoding?: F | undefined,
     
     /**
      * The algorithm to use for the signature

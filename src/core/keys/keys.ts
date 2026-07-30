@@ -357,7 +357,7 @@ export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] format must be of type ${Object.values(pubkeyFormats).join("|")}`);
     }
 
-    const result = await NativeSilicon.attestKey(alias, pubKeyFormat);
+    const result = await NativeSilicon.attestKey(alias, format, pubKeyFormat);
     const attestResult = handleBridgeResult(result) as AttestResult<F, P>;
 
     if (attestResult.platform === "IOS") {
