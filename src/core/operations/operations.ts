@@ -82,12 +82,12 @@ const PEM_REGEX = /(?:-----BEGIN.*?-----|-----END.*?-----|\\s+)/g;
  * * The supplied public key - if pubkey is set in opts
  * 
  * @param payload The payload to verify
- * @param signature The signature to verify against - can be either Base64 or Base64Url
+ * @param signature The signature to verify against - can be either Raw bytes (Uint8Array), Base64 (string), or Base64Url (string)
  * @param opts 
  * @returns
  */
-export async function verify(payload: string | Uint8Array, signature: string, opts: VerifyOpts): Promise<boolean> {
-    if ((typeof payload !== 'string' || payload.trim().length < 1) && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be of type string | Uint8Array. And must not be an empty string");
+export async function verify(payload: string | Uint8Array, signature: string | Uint8Array, opts: VerifyOpts): Promise<boolean> {
+    if ((typeof payload !== 'string' || payload.trim().length < 1) && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be of type string | Uint8Array. And must not be an empty string.");
 
     let payloadStr: string | null = null;
     let payloadByteArr: Uint8Array | null = null;
@@ -98,14 +98,24 @@ export async function verify(payload: string | Uint8Array, signature: string, op
         payloadByteArr = payload;
     }
 
-    if (typeof signature !== 'string' || signature.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] signature must be of type string");
+    if ((typeof signature !== 'string' || signature.trim().length < 1) && !(signature instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] signature must be of type string | Uint8Array. And must not be an empty string.");
     
+    let signatureStr: string | null = null;
+    let signatureByteArr: Uint8Array | null = null;
+
+    if (typeof signature == 'string') {
+        // Normalize all signatures to standard Base64 with padding
+        signatureStr = normalizeToBase64(signature);
+    } else {
+        signatureByteArr = signature;
+    }
+
     if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
 
     // TODO: Ensure that either pubkey or alias is present, but not both
     let pubkey;
     if (hasOwn(opts, 'pubkey')) {
-        if (typeof opts.pubkey !== 'string' || opts.pubkey.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.pubkey must be of type string");
+        if (typeof opts.pubkey !== 'string' || opts.pubkey.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.pubkey must be of type string.");
 
         pubkey = opts.pubkey
             .replace(PEM_REGEX, '')
@@ -131,13 +141,11 @@ export async function verify(payload: string | Uint8Array, signature: string, op
         if (!isVerifyAlgorithm(opts.algorithm)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.algorithm must be of type ${Object.values(verifyAlgorithms).join("|")}`);
     }
 
-    // Normalize all signatures to standard Base64 with padding
-    const signatureB64 = normalizeToBase64(signature);
-
     const result = await NativeSilicon.verify(
         payloadStr, 
         payloadByteArr,
-        signatureB64,
+        signatureStr,
+        signatureByteArr,
         {
             alias: alias,
             pubkeyB64: pubkey,
