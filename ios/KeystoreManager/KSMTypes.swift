@@ -92,3 +92,8 @@ struct GenerateKeyOptions: Record {
     @Field
     var ios: IosOptions = IosOptions()
 }
+
+enum AttestFormat: String, Enumerable {
+    case BYTES = "BYTES"
+    case STRING = "STRING"
+}

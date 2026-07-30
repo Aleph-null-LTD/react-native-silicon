@@ -655,7 +655,7 @@ enum SiliconKeystoreManager {
         }
     }
     
-    static func attestKey(alias: String, pubKeyFormat: PubKeyFormat) -> SiliconResult<[String: Any]> {
+    func attestKey(alias: String, format: AttestFormat, pubKeyFormat: PubKeyFormat) async -> SiliconResult<[String: Any]> {
         // TODO: Implement guards to check that key is 1. in the secure enclave, and 2. able to be attested (a challenge was provided when it was generated)
         
         let pubKey: (rawData: Data, dict: [String : Any])
@@ -715,32 +715,16 @@ enum SiliconKeystoreManager {
         let clientDataHash = Data(SHA256.hash(data: combinedData))
         
         // Request the Apple Certificate
-        let semaphore = DispatchGroup()
-        var attestationBlob: String?
-        var nativeError: Error?
-        
-        semaphore.enter()
-        DCAppAttestService.shared.attestKey(attestKeyId, clientDataHash: clientDataHash) { attStmt, error in
-            nativeError = error
-            attestationBlob = attStmt?.base64EncodedString()
-            semaphore.leave()
-        }
-        _ = semaphore.wait(timeout: .distantFuture)
-        
-        if let error = nativeError {
+        var cborData: Data
+        do {
+            cborData = try await attestService.attestKey(attestKeyId, clientDataHash: clientDataHash)
+        } catch {
             return .failure(code: .ATTEST_KEY_FAILED, message: error.localizedDescription, nativeStack: nil)
         }
         
-        guard let validBlob = attestationBlob else {
-            return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to compile Apple certificate.", nativeStack: nil)
-        }
-        
-        var formattedPubKey: PubKeyType
-        
-        // Format the pubkey
         do {
-            // TODO: Update the types in TS to reflect that it can be string or Uint8Array
-            formattedPubKey = try pubKeyToX509(
+            // Format the pubkey
+            let formattedPubKey = try pubKeyToX509(
                 format: pubKeyFormat,
                 rawPublicKeyData: pubKey.rawData,
                 rawKeyType: pubKey.dict[kSecAttrKeyType as String],
@@ -749,17 +733,36 @@ enum SiliconKeystoreManager {
             
             switch formattedPubKey {
             case .data(let pubKeyData):
+                switch format {
+                case .BYTES:
                 return .success([
                     "platform": "IOS",
                     "signingPubKey": pubKeyData,
-                    "attestationStatement": validBlob
-                ])
+                        "attestationStatement": cborData
+                    ])
+                case .STRING:
+                    return .success([
+                        "platform": "IOS",
+                        "signingPubKey": pubKeyData,
+                        "attestationStatement": cborData.base64EncodedString()
+                    ])
+                }
+                
             case .str(let pubKeyStr):
+                switch format {
+                case .BYTES:
                 return .success([
                     "platform": "IOS",
                     "signingPubKey": pubKeyStr,
-                    "attestationStatement": validBlob
+                        "attestationStatement": cborData
+                    ])
+                case .STRING:
+                    return .success([
+                        "platform": "IOS",
+                        "signingPubKey": pubKeyStr,
+                        "attestationStatement": cborData.base64EncodedString()
                 ])
+                }
             }
             
         } catch {

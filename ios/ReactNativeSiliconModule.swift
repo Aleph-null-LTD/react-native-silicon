@@ -46,8 +46,8 @@ public class ReactNativeSiliconModule: Module {
             return SiliconKeystoreManager.getPubKey(alias: alias, format: format).toBridgeMap()
         }
         
-        AsyncFunction("attestKey") { (alias: String, pubKeyFormat: PubKeyFormat) -> [String: Any] in
-            return SiliconKeystoreManager.attestKey(alias: alias, pubKeyFormat: pubKeyFormat).toBridgeMap()
+        AsyncFunction("attestKey") { (alias: String, format: AttestFormat, pubKeyFormat: PubKeyFormat) -> [String: Any] in
+            return await siliconKSM.attestKey(alias: alias, format: format, pubKeyFormat: pubKeyFormat).toBridgeMap()
         }
         
         AsyncFunction("getKeyInfo") { (alias: String) -> [String: Any] in
