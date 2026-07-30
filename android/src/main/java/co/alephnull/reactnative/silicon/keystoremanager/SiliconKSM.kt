@@ -583,7 +583,7 @@ class SiliconKSM(private val appContext: AppContext, private val keystore: KeySt
         }
     }
 
-    fun attestKey(alias: String): SiliconResult<Map<String, Any?>> {
+    fun attestKey(alias: String, format: AttestFormat): SiliconResult<Map<String, Any?>> {
         try {
             // Ensure the key exists
             if (!keystore.containsAlias(alias)) {
@@ -598,13 +598,18 @@ class SiliconKSM(private val appContext: AppContext, private val keystore: KeySt
                 return SiliconResult.Failure(SiliconErrorCode.OPERATION_NOT_PERMITTED, "No attest challenge exists for key with alias '$alias'")
             }
 
-            // Map the raw binary certificates to an array of PEM strings
-            val pemChain = certChain.map { certificateToPem(it) }
+            val formattedChain = when (format) {
+                // Map the raw binary certificates to an array of DER bytes
+                AttestFormat.BYTES -> certChain.map { it.encoded }
+
+                // Map the raw binary certificates to an array of PEM strings
+                AttestFormat.STRING -> certChain.map { certificateToPem(it) }
+            }
 
             return SiliconResult.Success(
                 mapOf(
                     "platform" to "ANDROID",
-                    "certChain" to pemChain
+                    "certChain" to formattedChain
                 )
             )
 

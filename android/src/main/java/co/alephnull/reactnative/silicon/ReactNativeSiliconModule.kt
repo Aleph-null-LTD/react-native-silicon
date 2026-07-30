@@ -3,6 +3,7 @@ package co.alephnull.reactnative.silicon
 import co.alephnull.reactnative.silicon.device.SiliconDevice
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
 import co.alephnull.reactnative.silicon.jose.SiliconJose
+import co.alephnull.reactnative.silicon.keystoremanager.AttestFormat
 import co.alephnull.reactnative.silicon.keystoremanager.GenerateKeyOptions
 import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKSM
@@ -82,8 +83,8 @@ class ReactNativeSiliconModule : Module() {
             return@AsyncFunction result.toBridgeMap()
         }
 
-        AsyncFunction("attestKey") { alias: String ->
-            val result = keystoreManager.attestKey(alias)
+        AsyncFunction("attestKey") { alias: String, format: AttestFormat ->
+            val result = keystoreManager.attestKey(alias, format)
             return@AsyncFunction result.toBridgeMap()
         }
 

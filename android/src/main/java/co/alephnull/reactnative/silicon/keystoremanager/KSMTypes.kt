@@ -77,3 +77,8 @@ class GenerateKeyOptions : Record {
     @Field var attestChallenge: ByteArray? = null
     @Field var android: AndroidOptions = AndroidOptions()
 }
+
+enum class AttestFormat(val value: String) : Enumerable {
+    BYTES("BYTES"),
+    STRING("STRING")
+}
