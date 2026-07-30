@@ -35,7 +35,7 @@ import java.security.spec.PSSParameterSpec
 
 class SiliconSigner(private val appContext: AppContext, private val keystore: KeyStore, private val helpers: SiliconHelpers) {
 
-    suspend fun sign(alias: String, payload: PayloadType, opts: SignOptions): SiliconResult<String> {
+    suspend fun sign(alias: String, payload: PayloadType, opts: SignOptions): SiliconResult<Any> {
         try {
             // Verify that the key exists
             if (!keystore.containsAlias(alias)) {
@@ -353,10 +353,10 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
                 }
             }
 
-            // Encode the raw signature bytes
-            val base64Signature = encodeSignature(signatureBytes, opts.encoding)
+            // Encode the raw signature bytes (or leave them as raw bytes)
+            val encodedSignature = encodeSignature(signatureBytes, opts.encoding)
 
-            return SiliconResult.Success(base64Signature)
+            return SiliconResult.Success(encodedSignature)
 
         } catch (e: KeyPermanentlyInvalidatedException) {
             // Occurs if the user enrolled new biometrics and invalidateOnNewBiometrics was true
@@ -595,8 +595,11 @@ class SiliconSigner(private val appContext: AppContext, private val keystore: Ke
     }
 
     // Encodes the signature with the specified encoding type
-    private fun encodeSignature(bytes: ByteArray, encoding: SignEncoding): String {
+    private fun encodeSignature(bytes: ByteArray, encoding: SignEncoding): Any {
         return when (encoding) {
+            // Bytes - Return the raw bytes
+            SignEncoding.BYTES -> bytes
+
             // Base64Url - use URL-safe chars, disable padding and the android default wrap
             SignEncoding.B64URL -> Base64.encodeToString(
                 bytes,
