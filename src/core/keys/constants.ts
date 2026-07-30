@@ -128,3 +128,13 @@ export const iosHardwarePolicies = {
 const iosHardwarePolicySet: ReadonlySet<keyof typeof iosHardwarePolicies> = new Set(Object.values(iosHardwarePolicies));
 
 export const isIosHardwarePolicy = createInSetGuard(iosHardwarePolicySet);
+
+// Attest Formats
+export const attestFormats = {
+    BYTES: 'BYTES',
+    STRING: 'STRING'
+} as const;
+
+const attestFormatsSet: ReadonlySet<keyof typeof attestFormats> = new Set(Object.values(attestFormats));
+
+export const isAttestFormat = createInSetGuard(attestFormatsSet);

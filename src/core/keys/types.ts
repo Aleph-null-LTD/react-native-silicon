@@ -1,4 +1,4 @@
-import { androidAlgorithms, androidHardwarePolicies, iosAlgorithms, iosHardwarePolicies, keyDigests, keyPurposes, pubkeyFormats, signaturePaddingAlgorithms, userAuthPolicies } from "./constants";
+import { androidAlgorithms, androidHardwarePolicies, attestFormats, iosAlgorithms, iosHardwarePolicies, keyDigests, keyPurposes, pubkeyFormats, signaturePaddingAlgorithms, userAuthPolicies } from "./constants";
 
 type KeyDigests = keyof typeof keyDigests;
 type UserAuthPolicies = keyof typeof userAuthPolicies;
@@ -269,38 +269,55 @@ export type KeyInfo = {
     accessibleClass?: string
 };
 
+export type AttestFormats = keyof typeof attestFormats;
+export type AndroidAttestFormatsTypeMap = {
+    [attestFormats.BYTES]: Uint8Array[],
+    [attestFormats.STRING]: string[]
+}
+export type IosAttestFormatsTypeMap = {
+    [attestFormats.BYTES]: Uint8Array,
+    [attestFormats.STRING]: string
+}
+
 /**
  * The result returned when performing an attest on an Android device
  */
-type AndroidAttestResult = {
+type AndroidAttestResult<F extends AttestFormats> = {
     platform: 'ANDROID',
     
     /**
-     * An array of Base64-encoded X.509 certificates.
+     * format: 
+     * * 'STRING' - PEM-encoded X.509 Certificate Chain (string[])
+     * * 'BYTES' - DER-encoded X.509 Certificate Chain (Uint8Array[])
+     * 
      * Index 0 is the leaf certificate containing the attestation extension.
      */
-    certChain: string[]
+    certChain: AndroidAttestFormatsTypeMap[F]
 };
 
 /**
  * The result returned when performing an attest on an iOS device
  */
-type IosAttestResult<F extends PubkeyFormat> = {
+type IosAttestResult<F extends AttestFormats, P extends PubkeyFormat> = {
     platform: 'IOS',
   
     /**
-     * 
+     * Public key of the key that was used to sign the attestation
      */
-    signingPubKey: PubKeyFormatTypeMap[F],
+    signingPubKey: PubKeyFormatTypeMap[P],
 
     /**
+     * format: 
+     * * 'STRING' - Base64-encoded Apple CBOR Attestation Object (string)
+     * * 'BYTES' - Raw CBOR Attestation Object (Uint8Array)
+     * 
      * A Base64-encoded CBOR attestation object containing the 
      * 'x5c' certificate chain and the Apple authenticator data.
      */
-    attestationObject: string
+    attestationObject: IosAttestFormatsTypeMap[F]
 };
 
 /**
  * The result returned when performing an attest
  */
-export type AttestResult<F extends PubkeyFormat> = AndroidAttestResult | IosAttestResult<F>;
+export type AttestResult<F extends AttestFormats, P extends PubkeyFormat> = AndroidAttestResult<F> | IosAttestResult<F, P>;

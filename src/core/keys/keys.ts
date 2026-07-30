@@ -21,7 +21,7 @@ import {
     signaturePaddingAlgorithms, 
     userAuthPolicies 
 } from './constants';
-import { AttestResult, GenerateKeyOpts, KeyInfo, PubkeyFormat, PubKeyFormatTypeMap } from "./types";
+import { AndroidAttestFormatsTypeMap, AttestFormats, AttestResult, GenerateKeyOpts, IosAttestFormatsTypeMap, KeyInfo, PubkeyFormat, PubKeyFormatTypeMap } from "./types";
 
 /**
  * Generate a key
@@ -336,16 +336,17 @@ export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F
 }
 
 /**
- * Gets the certificate chain for attestation.
+ * Gets the certificate chain (Android), or the CBOR object (iOS), for attestation.
  * 
  * IMPORTANT: This will only work if an attestation challenge was provided when the
  * key was generated (see the generateKey options)
  * 
  * @param alias
+ * @param format The format to use for the cert chain (Android) or the CBOR object (iOS).
  * @param pubKeyFormat The format to use for the returned signingPubKey on iOS
  * @returns The certificate chain - An array of PEM strings
  */
-export async function attestKey<F extends PubkeyFormat>(alias: string, pubKeyFormat: F): Promise<AttestResult<F>> {
+export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>(alias: string, format: F, pubKeyFormat: P): Promise<AttestResult<F, P>> {
     if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
@@ -357,17 +358,35 @@ export async function attestKey<F extends PubkeyFormat>(alias: string, pubKeyFor
     }
 
     const result = await NativeSilicon.attestKey(alias, pubKeyFormat);
-    const attestResult = handleBridgeResult(result);
+    const attestResult = handleBridgeResult(result) as AttestResult<F, P>;
 
     if (attestResult.platform === "IOS") {
         if (pubKeyFormat === "SPKI") {
-            attestResult.signingPubKey = ensureUint8Array(attestResult.signingPubKey) as PubKeyFormatTypeMap[F];
+            attestResult.signingPubKey = ensureUint8Array(attestResult.signingPubKey) as PubKeyFormatTypeMap[P];
 
         } else if (typeof attestResult.signingPubKey != 'string') {
             throw new SiliconError(
                 SiliconErrorCode.INTERNAL_ERROR, 
                 `[RN-Silicon] returned data was not of type string when pubKeyFormat was set to ${pubKeyFormat}`
             );
+        }
+
+        if (format === "BYTES") {
+            attestResult.attestationObject = ensureUint8Array(attestResult.attestationObject) as IosAttestFormatsTypeMap[F];
+        }
+
+    } else { // attestResult.platform === "ANDROID"
+        if (format === "BYTES") {
+            if (Array.isArray(attestResult.certChain)) {
+                const buffer: AndroidAttestFormatsTypeMap['BYTES'] = [];
+                for (const e of attestResult.certChain) {
+                    buffer.push(ensureUint8Array(e));
+                }
+                attestResult.certChain = buffer as AndroidAttestFormatsTypeMap[F];
+
+            } else {
+                throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
+            }
         }
     }
 
