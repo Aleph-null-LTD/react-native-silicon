@@ -109,12 +109,20 @@ class ReactNativeSiliconModule : Module() {
             return@Coroutine result.toBridgeMap()
         }
 
-        AsyncFunction("verify") { payloadStr: String?, payloadByteArr: ByteArray?, signatureB64: String, opts: VerifyOptions ->
+        AsyncFunction("verify") { payloadStr: String?, payloadByteArr: ByteArray?, signatureStr: String?, signatureByteArr: ByteArray?, opts: VerifyOptions ->
             val bridgePayload = BridgePayloadRecord()
             bridgePayload.text = payloadStr
             bridgePayload.bytes = payloadByteArr
 
-            val result = verifier.verify(bridgePayload.toPayloadType(), signatureB64, opts)
+            val bridgeSignature = BridgePayloadRecord()
+            bridgePayload.text = signatureStr
+            bridgePayload.bytes = signatureByteArr
+
+            val result = verifier.verify(
+                bridgePayload.toPayloadType(),
+                bridgeSignature.toPayloadType(),
+                opts
+            )
             return@AsyncFunction result.toBridgeMap()
         }
 

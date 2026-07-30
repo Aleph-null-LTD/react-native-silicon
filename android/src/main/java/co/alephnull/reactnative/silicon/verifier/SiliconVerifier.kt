@@ -24,7 +24,7 @@ import java.security.spec.X509EncodedKeySpec
 
 class SiliconVerifier(private val keystore: KeyStore) {
 
-    fun verify(payload: PayloadType, signatureB64: String, opts: VerifyOptions): SiliconResult<Boolean> {
+    fun verify(payload: PayloadType, signature: PayloadType, opts: VerifyOptions): SiliconResult<Boolean> {
         try {
             val (algorithm, publicKey) = when {
                 // If alias was supplied, get the pubkey from the keystore
@@ -70,7 +70,11 @@ class SiliconVerifier(private val keystore: KeyStore) {
                 is PayloadText -> payload.text.toByteArray(Charsets.UTF_8)
                 is PayloadByteArr -> payload.arr
             }
-            val signatureBytes = Base64.decode(signatureB64, Base64.DEFAULT)
+
+            val signatureBytes = when (signature) {
+                is PayloadText -> Base64.decode(signature.text, Base64.DEFAULT)
+                is PayloadByteArr -> signature.arr
+            }
 
             val derSignatureBytes = ensureDerSignature(
                 signatureBytes,
