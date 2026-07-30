@@ -3,7 +3,14 @@ import Foundation
 import LocalAuthentication
 
 struct SiliconSigner {
-    static func sign(alias: String, payload: PayloadType, opts: SignOptions) async -> SiliconResult<String> {
+    var authContextCache: AuthContextCache
+    
+    init(authContextCache: AuthContextCache) {
+        self.authContextCache = authContextCache
+    }
+    
+    /// Returns either String or Data
+    func sign(alias: String, payload: PayloadType, opts: SignOptions) async -> SiliconResult<Any> {
         guard let tag = alias.data(using: .utf8) else {
             return .failure(code: .INVALID_ARGUMENT, message: "Failed to encode alias.", nativeStack: nil)
         }
@@ -35,7 +42,7 @@ struct SiliconSigner {
         }
         
         // Get the Context
-        let context = AuthContext.get(forTimeout: timeoutSecs, allowsPasscode: allowsPasscode)
+        let context = authContextCache.get(forTimeout: timeoutSecs, allowsPasscode: allowsPasscode)
         
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
@@ -280,11 +287,11 @@ struct SiliconSigner {
             return .failure(code: .SIGN_FAILED, message: err?.localizedDescription ?? "Unknown signing error", nativeStack: nil)
         }
         
-        
         var finalSignature = signatureData
         
         if isEC {
-            if opts.format == .P1363 {
+            switch opts.format {
+            case .P1363:
                 // Transcode DER to P1363
                 do {
                     // e.g., 256 bits / 8 = 32 bytes per coordinate
@@ -293,27 +300,26 @@ struct SiliconSigner {
                 } catch {
                     return .failure(code: .SIGN_FAILED, message: "Failed to transcode DER signature to P1363.", nativeStack: nil)
                 }
-            } else if opts.format == .DER {
+            case .DER:
                 // Do nothing (signature is already DER)
             }
         }
         
-        // Encode
-        let base64Signature: String
-        if opts.encoding == .B64URL {
-            base64Signature = base64URLEncode(finalSignature)
-        } else {
-            base64Signature = finalSignature.base64EncodedString()
+        switch opts.encoding {
+        case .BYTES:
+            return .success(finalSignature)
+        case .B64URL:
+            return .success(base64URLEncode(finalSignature))
+        case .B64:
+            return .success(finalSignature.base64EncodedString())
         }
-        
-        return .success(base64Signature)
     }
     
     // MARK: - Helpers
-    private static func handleAuthFailed(context: LAContext, keyMetadata: KeyMetadata) -> SiliconResult<String> {
+    private func handleAuthFailed(context: AuthContextProvider, keyMetadata: KeyMetadata) -> SiliconResult<Any> {
         var authError: NSError?
         
-        context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError)
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError)
         
         if let error = authError {
             let laError = LAError(_nsError: error)
@@ -343,7 +349,7 @@ struct SiliconSigner {
                 
             case .passcodeNotSet:
                 return .failure(
-                    code: .NO_PASSCODE,
+                    code: .DEVICE_NOT_SECURE,
                     message: "Passcode is not set on this device.",
                     nativeStack: nil
                 )
@@ -374,7 +380,7 @@ struct SiliconSigner {
     }
 
     // MARK: - DER to P1363 Transcoder
-    private static func transcodeDerToP1363(derSignature: Data, targetSize: Int) throws -> Data {
+    private func transcodeDerToP1363(derSignature: Data, targetSize: Int) throws -> Data {
         let der = [UInt8](derSignature)
         
         guard der.count > 0, der[0] == 0x30 else {
@@ -407,7 +413,7 @@ struct SiliconSigner {
         return Data(rAligned + sAligned)
     }
 
-    private static func alignCoordinate(bytes: [UInt8], targetSize: Int) -> [UInt8] {
+    private func alignCoordinate(bytes: [UInt8], targetSize: Int) -> [UInt8] {
         if bytes.count == targetSize { return bytes }
         if bytes.count > targetSize {
             // Strip leading zeros

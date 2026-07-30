@@ -1,6 +1,7 @@
 import ExpoModulesCore
 
 enum SignEncoding: String, Enumerable {
+    case BYTES = "BYTES"
     case B64 = "B64"
     case B64URL = "B64URL"
 }
@@ -12,7 +13,7 @@ enum SignFormat: String, Enumerable {
 
 struct SignOptions: Record {
     @Field
-    var encoding: SignEncoding = .B64URL
+    var encoding: SignEncoding = .BYTES
     
     @Field
     var digest: KeyDigests? = nil
