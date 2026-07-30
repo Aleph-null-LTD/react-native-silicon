@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 struct SiliconVerifier {
-    static func verify(payload: PayloadType, signatureB64: String, opts: VerifyOptions) -> SiliconResult<Bool> {
+    static func verify(payload: PayloadType, signature: PayloadType, opts: VerifyOptions) -> SiliconResult<Bool> {
         let publicKey: SecKey
         var algorithm: VerifyAlgorithms
         
@@ -45,8 +45,16 @@ struct SiliconVerifier {
                 payloadData = rawBytes
         }
         
-        guard let signatureData = Data(base64Encoded: signatureB64) else {
-            return .failure(code: .MALFORMED_DATA, message: "Failed to decode signature from Base64.", nativeStack: nil)
+        let signatureData: Data
+        switch signature {
+        case .text(let str):
+            guard let rawBytes = Data(base64Encoded: str) else {
+                return .failure(code: .MALFORMED_DATA, message: "Failed to decode signature from Base64.", nativeStack: nil)
+            }
+            signatureData = rawBytes
+            
+        case .byteArr(let rawBytes):
+            signatureData = rawBytes
         }
         
         // Determine the SecKey algorithm

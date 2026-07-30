@@ -69,6 +69,7 @@ public class ReactNativeSiliconModule: Module {
                 let payload = try bridgePayload.toPayloadType()
                 
                 return await SiliconSigner.sign(alias: alias, payload: payload, opts: opts).toBridgeMap()
+                
             } catch {
                 return SiliconResult<Never>.failure(
                     code: .INTERNAL_ERROR,
@@ -78,7 +79,7 @@ public class ReactNativeSiliconModule: Module {
             }
         }
         
-        AsyncFunction("verify") { (payloadStr: String?, payloadByteArr: Data?, signature: String, opts: VerifyOptions) -> [String: Any] in
+        AsyncFunction("verify") { (payloadStr: String?, payloadByteArr: Data?, signatureStr: String?, signatureByteArr: Data?, opts: VerifyOptions) -> [String: Any] in
             do {
                 // Convert the payload to PayloadType
                 let bridgePayload = BridgePayloadRecord()
@@ -86,7 +87,14 @@ public class ReactNativeSiliconModule: Module {
                 bridgePayload.bytes = payloadByteArr
                 let payload = try bridgePayload.toPayloadType()
                 
+                // Convert the signature to PayloadType
+                let bridgeSignature = BridgePayloadRecord()
+                bridgeSignature.text = signatureStr
+                bridgeSignature.bytes = signatureByteArr
+                let signature = try bridgeSignature.toPayloadType()
+                
                 return SiliconVerifier.verify(payload: payload, signatureB64: signature, opts: opts).toBridgeMap()
+                
             } catch {
                 return SiliconResult<Never>.failure(
                     code: .INTERNAL_ERROR,
