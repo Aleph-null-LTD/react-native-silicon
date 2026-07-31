@@ -79,19 +79,39 @@ public class ReactNativeSiliconModule: Module {
             }
         }
         
-        AsyncFunction("verify") { (payloadStr: String?, payloadByteArr: Data?, signatureStr: String?, signatureByteArr: Data?, opts: VerifyOptions) -> [String: Any] in
+        AsyncFunction("verify") { (
+            payloadStr: String?,
+            payloadByteArr: Data?,
+            signatureStr: String?,
+            signatureByteArr: Data?,
+            bridgeOpts: BridgeVerifyOptions
+        ) -> [String: Any] in
             do {
-                // Convert the payload to PayloadType
+                // Pack payload into PayloadType
                 let bridgePayload = BridgePayloadRecord()
                 bridgePayload.text = payloadStr
                 bridgePayload.bytes = payloadByteArr
                 let payload = try bridgePayload.toPayloadType()
                 
-                // Convert the signature to PayloadType
+                // Pack signature into PayloadType
                 let bridgeSignature = BridgePayloadRecord()
                 bridgeSignature.text = signatureStr
                 bridgeSignature.bytes = signatureByteArr
                 let signature = try bridgeSignature.toPayloadType()
+                
+                // Pack bridgeOpts.pubkeyStr and bridgeOpts.pubkeyBytes into PayloadType
+                var pubkey: PayloadType?
+                if bridgeOpts.pubkeyBytes != nil || bridgeOpts.pubkeyStr != nil {
+                    let bridgePubkey = BridgePayloadRecord()
+                    bridgePubkey.text = bridgeOpts.pubkeyStr
+                    bridgePubkey.bytes = bridgeOpts.pubkeyBytes
+                    pubkey = bridgePubkey.toPayloadType()
+                }
+                let opts = VerifyOptions(
+                    alias: bridgeOpts.alias,
+                    pubkey: pubkey,
+                    algorithm: bridgeOpts.algorithm
+                )
                 
                 return SiliconVerifier.verify(payload: payload, signatureB64: signature, opts: opts).toBridgeMap()
                 

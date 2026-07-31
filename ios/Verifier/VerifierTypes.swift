@@ -12,12 +12,21 @@ enum VerifyAlgorithms: String, Enumerable {
     case PS512 = "PS512"
 }
 
-struct VerifyOptions: Record {
+struct VerifyOptions {
+    var alias: String? = nil
+    var pubkey: PayloadType? = nil
+    var algorithm: VerifyAlgorithms?
+}
+
+struct BridgeVerifyOptions: Record {
     @Field
     var alias: String? = nil
     
     @Field
-    var pubkey: String? = nil
+    var pubkeyStr: String? = nil
+    
+    @Field
+    var pubkeyBytes: Data? = nil
     
     @Field
     var algorithm: VerifyAlgorithms?

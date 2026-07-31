@@ -18,8 +18,8 @@ struct SiliconVerifier {
                 return .failure(code: code, message: message, nativeStack: nativeStack)
             }
             
-        } else if let pubkeyB64 = opts.pubkey, !pubkeyB64.isEmpty { // External key was supplied
-            let externalKeyResult = extractExternalKey(pubkeyB64: pubkeyB64, opts: opts)
+        } else if let pubk = opts.pubkey { // External key was supplied
+            let externalKeyResult = extractExternalKey(pubkey: pubk, opts: opts)
             
             switch externalKeyResult {
             case .success(let externalKey):
@@ -408,12 +408,19 @@ struct SiliconVerifier {
     }
     
     // MARK: - External Keys
-    private static func extractExternalKey(pubkeyB64: String, opts: VerifyOptions) -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
+    private static func extractExternalKey(pubkey: PayloadType, opts: VerifyOptions) -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
         var algorithm: VerifyAlgorithms
         
-        // Parse from External X.509 Base64
-        guard let keyData = Data(base64Encoded: pubkeyB64, options: .ignoreUnknownCharacters) else {
-            return .failure(code: .MALFORMED_DATA, message: "Could not decode public key.", nativeStack: nil)
+        var keyData: Data
+        switch (pubkey) {
+        case .text(let base64Str):
+            // Parse from External X.509 Base64
+            guard let d = Data(base64Encoded: base64Str, options: .ignoreUnknownCharacters) else {
+                return .failure(code: .MALFORMED_DATA, message: "Could not decode public key.", nativeStack: nil)
+            }
+            keyData = d
+        case .byteArr(let bytes):
+            keyData = bytes
         }
         
         guard let safeAlgorithm = opts.algorithm else {
