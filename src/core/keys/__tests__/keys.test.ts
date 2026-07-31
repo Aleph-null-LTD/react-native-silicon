@@ -7,6 +7,7 @@ import ReactNativeSiliconModule from '../../../module';
 import { createBridgeFailure, createBridgeSuccess } from '../../../__test_utils__/factories/bridge-result';
 import { fcCustomArbitraries } from '../../../__test_utils__/fast-check/arbitraries';
 import { isSafeNumber } from '../../../utils/validation';
+import { cartesianProduct } from '../../../__test_utils__/utils/cartesian-product';
 
 describe('generateKey()', () => {
     const mockVal = createBridgeSuccess(undefined);
@@ -689,11 +690,34 @@ describe('getPubKey()', () => {
 });
 
 describe('attestKey()', () => {
-    const mockIosAttestKey = (isPubKeyStr: boolean) => {
+    const mockIosAttestKey = (format: 'BYTES' | 'STRING', invertFormat: boolean, pubkeyFormat: 'SPKI' | 'B64' | 'B64URL' | 'PEM', invertPubkeyFormat: boolean) => {
+        let mockIsStr;
+        switch (format) {
+            case 'BYTES': 
+                mockIsStr = invertFormat ? true : false;
+                break;
+            case 'STRING':
+                mockIsStr = invertFormat ? false : true;
+                break;
+        }
+
+        let mockIsPubKeyStr;
+        switch (pubkeyFormat) {
+            case 'SPKI':
+                mockIsPubKeyStr = invertPubkeyFormat ? true : false;
+                break;
+
+            case 'B64':
+            case 'B64URL':
+            case 'PEM':
+                mockIsPubKeyStr = invertPubkeyFormat ? false : true;
+                break;
+        }
+        
         const mockData = {
             platform: 'IOS' as const,
-            signingPubKey: isPubKeyStr ? 'some-random-pubkey' : new Uint8Array([10, 20, 30]),
-            attestationObject: 'some-random-attestation-object'
+            signingPubKey: mockIsPubKeyStr ? 'some-random-pubkey' : new Uint8Array([10, 20, 30]),
+            attestationObject: mockIsStr ? 'some-random-attestation-object' : new Uint8Array([10, 20, 30])
         };
         const mockVal = createBridgeSuccess(mockData);
         vi.mocked(ReactNativeSiliconModule.attestKey).mockResolvedValue(mockVal);
@@ -701,22 +725,38 @@ describe('attestKey()', () => {
         return mockData;
     }
 
-    const mockAndroidAttestKey = () => {
+    const mockAndroidAttestKey = (format: 'BYTES' | 'STRING', invertFormat: boolean) => {
+        let mockIsStr;
+        switch (format) {
+            case 'BYTES': 
+                mockIsStr = invertFormat ? true : false;
+                break;
+            case 'STRING':
+                mockIsStr = invertFormat ? false : true;
+                break;
+        }
+        
         const mockData = {
             platform: 'ANDROID' as const,
-            certChain: ['some-random-cert-1', 'some-random-cert-2', 'some-random-cert-3']
+            certChain: mockIsStr ? 
+                ['some-random-cert-1', 'some-random-cert-2', 'some-random-cert-3'] : 
+                [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6]), new Uint8Array([7, 8, 9])]
         };
         const mockVal = createBridgeSuccess(mockData);
         vi.mocked(ReactNativeSiliconModule.attestKey).mockResolvedValue(mockVal);
 
         return mockData;
     }
+
+    const iosPubKeyStrFormats = ['SPKI', 'PEM', 'B64', 'B64URL'] as const;
+    const attestFormats = ['STRING', 'BYTES'] as const;
+    const iosCombinations = cartesianProduct(attestFormats, iosPubKeyStrFormats);
 
     it('should throw when bridge returns failure result', async () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', "some-error-stack-trace");
         vi.mocked(ReactNativeSiliconModule.attestKey).mockResolvedValueOnce(mockFailVal);
         
-        await expect(attestKey('some-random-alias', 'SPKI')).rejects.instanceOf(SiliconError);
+        await expect(attestKey('some-random-alias', 'STRING', 'SPKI')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
     });
 
@@ -724,14 +764,32 @@ describe('attestKey()', () => {
         [fc.anything()],
         { numRuns: 1000 }
     )('should throw if alias is not a string or is an empty string', async (chaoticData) => {
-        const mockData = mockAndroidAttestKey();
+        const mockData = mockAndroidAttestKey('STRING', false);
 
         if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
-            await expect(attestKey(chaoticData, 'SPKI')).resolves.toBe(mockData);
+            await expect(attestKey(chaoticData, 'STRING', 'SPKI')).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
         } else {
             // @ts-expect-error - intentionally pass incorrect type
-            await expect(attestKey(chaoticData, "SPKI")).rejects.instanceOf(SiliconError);
+            await expect(attestKey(chaoticData,'STRING', "SPKI")).rejects.instanceOf(SiliconError);
+            expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledTimes(0);
+        }
+
+        vi.clearAllMocks();
+    });
+
+    test.prop(
+        [fc.anything()],
+        { numRuns: 1000 }
+    )('should throw if format is not a valid string literal', async (chaoticData) => {
+        if (chaoticData === "BYTES" || chaoticData === "STRING") {
+            const mockData = mockAndroidAttestKey('STRING', false);
+            await expect(attestKey('some-random-alias', chaoticData, 'SPKI')).resolves.toBe(mockData);
+            expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
+        } else {
+            const mockData = mockAndroidAttestKey('STRING', false);
+            // @ts-expect-error - Intentionally pass incorrect type
+            await expect(attestKey('some-random-alias', chaoticData, 'SPKI')).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledTimes(0);
         }
 
@@ -742,58 +800,55 @@ describe('attestKey()', () => {
         [fc.anything()],
         { numRuns: 1000 }
     )('should throw if pubKeyFormat is not a valid string literal', async (chaoticData) => {        
+        // We mock for android here so that the pubKeyFormat doesn't actually affect the returned data
+        const mockData = mockAndroidAttestKey('STRING', false);
+
         if (chaoticData === "SPKI" || chaoticData === "PEM" || chaoticData === "B64" || chaoticData === "B64URL") {
-            const mockData = mockAndroidAttestKey();            
-            await expect(attestKey('some-random-alias', chaoticData)).resolves.toBe(mockData);
+            await expect(attestKey('some-random-alias', 'STRING', chaoticData)).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
 
         } else {
-            const mockData = mockAndroidAttestKey();
-
             // @ts-expect-error - intentionally pass incorrect type
-            await expect(attestKey('some-random-alias', chaoticData)).rejects.instanceOf(SiliconError);
+            await expect(attestKey('some-random-alias', 'STRING', chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledTimes(0);
         }
 
         vi.clearAllMocks();
     });
 
-    it('should return a valid AttestResult for android', async () => {
-        const mockData = mockAndroidAttestKey();
+    it.each(attestFormats)("should return a valid AttestResult for android when format is '%s'", async (format) => {
+        const mockData = mockAndroidAttestKey(format, false);
 
-        await expect(attestKey('some-random-alias', "SPKI")).resolves.toStrictEqual(mockData);
+        await expect(
+            attestKey(
+                'some-random-alias', 
+                format, 
+                "SPKI"
+            )
+        ).resolves.toStrictEqual(mockData);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
     });
 
-    const iosPubKeyStrFormats = ['PEM' as const, 'B64' as const, 'B64URL' as const];
-    it.each(iosPubKeyStrFormats)("should return a valid AttestResult for ios format is '%s'", async (format) => {
+    it.each(attestFormats)("should throw for android when format is '%s' and bridge returns incorrect type", async (format) => {
+        // Invert the format to mock return the incorrect one
+        const mockData = mockAndroidAttestKey(format, true);
+
+        await expect(attestKey('some-random-alias', format, "SPKI")).rejects.instanceOf(SiliconError);
+        expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
+    });
+
+    it.each(iosCombinations)("should return a valid AttestResult for ios when format format is '%s' pubkeyFormat is '%s'", async (format, pubkeyFormat) => {
         // Mock a string for the pubkey
-        const mockData = mockIosAttestKey(true);
+        const mockData = mockIosAttestKey(format, false, pubkeyFormat, false);
 
-        await expect(attestKey('some-random-alias', format)).resolves.toStrictEqual(mockData);
+        await expect(attestKey('some-random-alias', format, pubkeyFormat)).resolves.toStrictEqual(mockData);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
     });
 
-    it.each(iosPubKeyStrFormats)("should throw for ios when format is '%s' and bridge returns a pub key Uint8Array", async (format) => {
-        // Mock a Uint8Array for the pubkey
-        mockIosAttestKey(false);
+    it.each(iosPubKeyStrFormats)("should throw for ios when pubkeyFormat is '%s' and bridge returns a pubkey with the incorrect type", async (pubkeyFormat) => {
+        mockIosAttestKey('STRING', false, pubkeyFormat, true);
         
-        await expect(attestKey('some-random-alias', format)).rejects.instanceOf(SiliconError);
-        expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
-    });
-
-    it("should return a valid AttestResult for ios when format is 'SPKI'", async () => {
-        const mockData = mockIosAttestKey(false);
-
-        await expect(attestKey('some-random-alias', 'SPKI')).resolves.toStrictEqual(mockData);
-        expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
-    });
-
-    it("should throw for ios when format is 'SPKI' and bridge returns a pub key string", async () => {
-        // Mock a string for the pubkey
-        mockIosAttestKey(true);
-        
-        await expect(attestKey('some-random-alias', 'SPKI')).rejects.instanceOf(SiliconError);
+        await expect(attestKey('some-random-alias', 'STRING', pubkeyFormat)).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
     });
 });
