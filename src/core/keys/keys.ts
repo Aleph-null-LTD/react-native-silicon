@@ -5,8 +5,10 @@ import { ensureUint8Array } from '../../utils/bytes';
 import { hasOwn, isPlainObject, isSafeNumber } from '../../utils/validation';
 import { 
     androidAlgorithms, 
+    attestFormats, 
     isAndroidAlgorithm, 
     isAndroidHardwarePolicy, 
+    isAttestFormat, 
     isIosAlgorithm, 
     isIosHardwarePolicy, 
     isKeyDigest, 
@@ -351,10 +353,16 @@ export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>
         throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
     }
 
+    if (typeof format !== 'string' ||
+        !isAttestFormat(format)
+    ) {
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] format must be of type ${Object.values(attestFormats).join("|")}`);
+    }
+
     if (typeof pubKeyFormat !== 'string' || 
         !isPubkeyFormat(pubKeyFormat)
     ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] format must be of type ${Object.values(pubkeyFormats).join("|")}`);
+        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] pubKeyFormat must be of type ${Object.values(pubkeyFormats).join("|")}`);
     }
 
     const result = await NativeSilicon.attestKey(alias, format, pubKeyFormat);
@@ -373,6 +381,8 @@ export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>
 
         if (format === "BYTES") {
             attestResult.attestationObject = ensureUint8Array(attestResult.attestationObject) as IosAttestFormatsTypeMap[F];
+        } else { // format === "STRING"
+            if (typeof attestResult.attestationObject !== 'string') throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return CBOR string, but got ${typeof attestResult.attestationObject}`);
         }
 
     } else { // attestResult.platform === "ANDROID"
@@ -384,6 +394,14 @@ export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>
                 }
                 attestResult.certChain = buffer as AndroidAttestFormatsTypeMap[F];
 
+            } else {
+                throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
+            }
+        } else { // format === "STRING"
+            if (Array.isArray(attestResult.certChain)) {
+                for (const i in attestResult.certChain) {
+                    if (typeof attestResult.certChain[i] !== 'string') throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return cert chain string array, but got ${typeof attestResult.certChain[i]} at index ${i}`);
+                }
             } else {
                 throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
             }
