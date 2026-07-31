@@ -155,7 +155,7 @@ describe('sign()', () => {
         { numRuns: 1000 }
     )('should throw when opts is not an object', async (chaoticData) => {
         const mockData = mockSign('B64');
-        
+
         await expect(
             sign(
                 'some-random-alias', 
@@ -263,7 +263,7 @@ describe('sign()', () => {
                     }
                 )
             ).rejects.instanceOf(SiliconError);
-
+            
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledTimes(0);
         }
 
@@ -332,7 +332,6 @@ describe('verify()', () => {
 
     it('should successfully return a boolean when valid params are provided', async () => {
         await expect(verify(validPayload, validSignature, validOpts)).resolves.toBe(defaultMockData);
-
         expect(ReactNativeSiliconModule.verify).toHaveBeenCalledOnce();
     });
 
@@ -340,16 +339,7 @@ describe('verify()', () => {
         const mockVal = createBridgeFailure(SiliconErrorCode.UNKNOWN_NATIVE_ERROR, 'some random error message', 'some-random-error-stack');
         vi.mocked(ReactNativeSiliconModule.verify).mockResolvedValueOnce(mockVal);
 
-        let didThrow = true;
-        try {
-            await verify(validPayload, validSignature, validOpts);
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) expect.fail('expected verify() to throw, but it did not');
-
+        await expect(verify(validPayload, validSignature, validOpts)).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.verify).toHaveBeenCalledOnce();
     });
 
@@ -364,17 +354,8 @@ describe('verify()', () => {
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await verify(chaoticData, validSignature, validOpts);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected verify() to throw, but it did not');
-
+            // @ts-expect-error - Intentionally pass incorrect type
+            await expect(verify(chaoticData, validSignature, validOpts)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledTimes(0);
         }
 
@@ -382,25 +363,22 @@ describe('verify()', () => {
     });
 
     test.prop(
-        [fc.anything()],
+        [
+            fc.oneof(
+                { arbitrary: fc.uint8Array(), weight: 10 },
+                { arbitrary: fc.string(), weight: 10 },
+                { arbitrary: fc.anything(), weight: 980 },
+            )
+        ],
         { numRuns: 1000 }
-    )('should throw when signature is not a string or is an empty string', async (chaoticData) => {
-        if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
+    )('should throw when signature is not a string or is an empty string and is not a Uint8Array', async (chaoticData) => {
+        if ((typeof chaoticData == 'string' && chaoticData.trim().length > 0) || chaoticData instanceof Uint8Array) {
             await expect(verify(validPayload, chaoticData, validOpts)).resolves.toBe(defaultMockData)
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                // @ts-expect-error
-                await verify(validPayload, chaoticData, validOpts);
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected verify() to throw, but it did not');
-
+            // @ts-expect-error - Intentionally pass incorrect type
+            await expect(verify(validPayload, chaoticData, validOpts)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledTimes(0);
         }
 
@@ -419,17 +397,8 @@ describe('verify()', () => {
         ],
         { numRuns: 1000 }
     )('should throw when opts is not a POJO', async (chaoticData) => {
-        let didThrow = true;
-        try {
-            // @ts-expect-error
-            await verify(validPayload, validSignature, chaoticData);
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) expect.fail('expected verify() to throw, but it did not');
-
+        // @ts-expect-error - Intentionally pass incorrect type
+        await expect(verify(validPayload, validSignature, chaoticData)).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.verify).toHaveBeenCalledTimes(0);
 
         vi.clearAllMocks();
@@ -452,23 +421,16 @@ describe('verify()', () => {
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                await verify(
+            await expect(
+                verify(
                     validPayload, 
                     validSignature, 
                     {
-                        // @ts-expect-error
+                        // @ts-expect-error - Intentionally pass incorrect type
                         alias: chaoticData
                     }
-                );
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected verify() to throw, but it did not');
-
+                )
+            ).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledTimes(0);
         }
 
@@ -517,24 +479,17 @@ describe('verify()', () => {
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                await verify(
+            await expect(
+                verify(
                     validPayload, 
                     validSignature, 
                     {
                         alias: 'some-random-alias',
-                        // @ts-expect-error
+                        // @ts-expect-error - Intentionally pass incorrect type
                         algorithm: chaoticData
                     }
-                );
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected verify() to throw, but it did not');
-
+                )
+            ).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledTimes(0);
         }
 
@@ -542,10 +497,16 @@ describe('verify()', () => {
     });
 
     test.prop(
-        [fc.anything()],
+        [
+            fc.oneof(
+                { arbitrary: fc.uint8Array(), weight: 10 },
+                { arbitrary: fc.string(), weight: 10 },
+                { arbitrary: fc.anything(), weight: 980 },
+            )
+        ],
         { numRuns: 1000 }
-    )('should throw when opts.pubkey is not a string and is not empty (for external keys)', async (chaoticData) => {
-        if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
+    )('should throw when opts.pubkey is not a string and is not empty and is not a Uint8Array (for external keys)', async (chaoticData) => {
+        if ((typeof chaoticData == 'string' && chaoticData.trim().length > 0) || chaoticData instanceof Uint8Array) {
             await expect(
                 verify(
                     validPayload, 
@@ -559,24 +520,17 @@ describe('verify()', () => {
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                await verify(
+            await expect(
+                verify(
                     validPayload, 
                     validSignature, 
                     {
-                        // @ts-expect-error
+                        // @ts-expect-error - Intentionally pass incorrect type
                         pubkey: chaoticData,
                         algorithm: 'ES256'
                     }
-                );
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected verify() to throw, but it did not');
-
+                )
+            ).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledTimes(0);
         }
 
@@ -623,24 +577,17 @@ describe('verify()', () => {
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                await verify(
+            await expect(
+                verify(
                     validPayload, 
                     validSignature, 
                     {
                         pubkey: 'some-random-pubkey',
-                        // @ts-expect-error
+                        // @ts-expect-error - Intentionally pass incorrect type
                         algorithm: chaoticData
                     }
-                );
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected verify() to throw, but it did not');
-
+                )
+            ).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.verify).toHaveBeenCalledTimes(0);
         }
 
