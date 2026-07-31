@@ -113,15 +113,21 @@ export async function verify(payload: string | Uint8Array, signature: string | U
     if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
 
     // TODO: Ensure that either pubkey or alias is present, but not both
-    let pubkey;
+    let pubkey: string | Uint8Array | undefined;
     if (hasOwn(opts, 'pubkey')) {
-        if (typeof opts.pubkey !== 'string' || opts.pubkey.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.pubkey must be of type string.");
+        if ((typeof opts.pubkey !== 'string' || opts.pubkey.trim().length < 1) && !(opts.pubkey instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.pubkey must be of type string | Uint8Array.");
 
-        pubkey = opts.pubkey
-            .replace(PEM_REGEX, '')
-            .replace('\n', '')
-            .replace('\r', '')
-            .trim();
+        if (typeof opts.pubkey == 'string') {
+            // Strip and PEM headers and normalize to standard Base64 with padding
+            pubkey = opts.pubkey
+                .replace(PEM_REGEX, '')
+                .replace('\n', '')
+                .replace('\r', '')
+                .trim();
+            pubkey = normalizeToBase64(pubkey);
+        } else {
+            pubkey = opts.pubkey;
+        }
     }
 
     let alias: string | undefined = undefined;
@@ -148,7 +154,8 @@ export async function verify(payload: string | Uint8Array, signature: string | U
         signatureByteArr,
         {
             alias: alias,
-            pubkeyB64: pubkey,
+            pubkeyBytes: pubkey instanceof Uint8Array ? pubkey : undefined,
+            pubkeyStr: typeof pubkey == "string" ? pubkey : undefined,
             algorithm: opts.algorithm
         }
     );

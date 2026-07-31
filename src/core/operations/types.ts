@@ -54,9 +54,9 @@ export type ExternalVerifyOpts = {
     /**
      * The X.509 pubkey to verify the signature against
      * 
-     * PEM, Base64, and Base64Url public keys are all accepted
+     * Raw bytes, PEM, Base64, and Base64Url public keys are all accepted
      */
-    pubkey: string,
+    pubkey: string | Uint8Array,
 
     /**
      * The algorithm to use for the verification
