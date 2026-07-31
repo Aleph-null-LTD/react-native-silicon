@@ -103,7 +103,13 @@ describe('sign()', () => {
     });
 
     test.prop(
-        [fc.anything()],
+        [
+            fc.oneof(
+                { arbitrary: fc.uint8Array(), weight: 10 },
+                { arbitrary: fc.string(), weight: 10 },
+                { arbitrary: fc.anything(), weight: 980 },
+            )
+        ],
         { numRuns: 1000 }
     )('should throw when payload is not a string and not a Uint8Array', async (chaoticData) => {
         const mockData = mockSign('B64');
