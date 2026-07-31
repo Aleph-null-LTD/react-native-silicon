@@ -1,5 +1,6 @@
 package co.alephnull.reactnative.silicon.verifier
 
+import co.alephnull.reactnative.silicon.PayloadType
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
 import expo.modules.kotlin.types.Enumerable
@@ -18,6 +19,13 @@ enum class VerifyAlgorithm(val value: String) : Enumerable {
 
 class VerifyOptions : Record {
     @Field var alias: String? = null
-    @Field var pubkeyB64: String? = null // Base64 encoded public key
+    @Field var pubkey: PayloadType? = null
+    @Field var algorithm: VerifyAlgorithm? = null
+}
+
+class BridgeVerifyOptions : Record {
+    @Field var alias: String? = null
+    @Field var pubkeyStr: String? = null // Base64 encoded public key
+    @Field var pubkeyBytes: ByteArray? = null // Raw Bytes
     @Field var algorithm: VerifyAlgorithm? = null
 }

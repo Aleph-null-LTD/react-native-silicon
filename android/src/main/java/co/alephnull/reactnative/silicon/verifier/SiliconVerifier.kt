@@ -33,13 +33,18 @@ class SiliconVerifier(private val keystore: KeyStore) {
                 }
 
                 // If a pubkey was supplied, parse it and use that
-                !opts.pubkeyB64.isNullOrBlank() -> {
+                opts.pubkey != null -> {
                     val requestedAlg = opts.algorithm
                         ?: return SiliconResult.Failure(
                             SiliconErrorCode.INVALID_ARGUMENT,
                             "opts.algorithm must be supplied when verifying with an external key"
                         )
-                    extractExternalKey(opts.pubkeyB64 as String, requestedAlg).onFailure { return it }
+                    val pubk = opts.pubkey
+                        ?: return SiliconResult.Failure(
+                            SiliconErrorCode.INTERNAL_ERROR,
+                            "opts.pubkey was null when attempting to verify with external key"
+                        )
+                    extractExternalKey(pubk, requestedAlg).onFailure { return it }
                 }
 
                 else -> return SiliconResult.Failure(
@@ -394,9 +399,12 @@ class SiliconVerifier(private val keystore: KeyStore) {
         return SiliconResult.Success(Pair(alg, publicKey))
     }
 
-    private fun extractExternalKey(pubKeyB64: String, algorithm: VerifyAlgorithm): SiliconResult<Pair<VerifyAlgorithm, PublicKey>> {
+    private fun extractExternalKey(pubKey: PayloadType, algorithm: VerifyAlgorithm): SiliconResult<Pair<VerifyAlgorithm, PublicKey>> {
         try {
-            val keyBytes = Base64.decode(pubKeyB64, Base64.NO_WRAP)
+            val keyBytes = when (pubKey) {
+                is PayloadText -> Base64.decode(pubKey.text, Base64.NO_WRAP)
+                is PayloadByteArr -> pubKey.arr
+            }
 
             val baseKeyFamily = when (algorithm) {
                 VerifyAlgorithm.ES256, VerifyAlgorithm.ES384, VerifyAlgorithm.ES512 -> KeyProperties.KEY_ALGORITHM_EC

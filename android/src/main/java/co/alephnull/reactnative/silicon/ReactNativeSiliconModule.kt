@@ -12,6 +12,7 @@ import co.alephnull.reactnative.silicon.randomgen.SiliconRandomGen
 import co.alephnull.reactnative.silicon.signer.SignOptions
 import co.alephnull.reactnative.silicon.signer.SiliconSigner
 import co.alephnull.reactnative.silicon.verifier.SiliconVerifier
+import co.alephnull.reactnative.silicon.verifier.BridgeVerifyOptions
 import co.alephnull.reactnative.silicon.verifier.VerifyOptions
 import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
@@ -109,14 +110,33 @@ class ReactNativeSiliconModule : Module() {
             return@Coroutine result.toBridgeMap()
         }
 
-        AsyncFunction("verify") { payloadStr: String?, payloadByteArr: ByteArray?, signatureStr: String?, signatureByteArr: ByteArray?, opts: VerifyOptions ->
+        AsyncFunction("verify") { payloadStr: String?, payloadByteArr: ByteArray?, signatureStr: String?, signatureByteArr: ByteArray?, bridgeOpts: BridgeVerifyOptions ->
+            // Pack payload into PayloadType
             val bridgePayload = BridgePayloadRecord()
             bridgePayload.text = payloadStr
             bridgePayload.bytes = payloadByteArr
 
+            // Pack signature into PayloadType
             val bridgeSignature = BridgePayloadRecord()
             bridgePayload.text = signatureStr
             bridgePayload.bytes = signatureByteArr
+
+            // Pack bridgeOpts.pubkeyStr and bridgeOpts.pubkeyBytes into PayloadType
+            var pubkey: BridgePayloadRecord? = null
+            if (bridgeOpts.pubkeyStr != null || bridgeOpts.pubkeyBytes != null) {
+                pubkey = BridgePayloadRecord()
+                pubkey.text = bridgeOpts.pubkeyStr
+                pubkey.bytes = bridgeOpts.pubkeyBytes
+            }
+
+            // Populate VerifyOptions
+            val opts = VerifyOptions()
+            opts.pubkey = when (pubkey) {
+                null -> null
+                else -> pubkey.toPayloadType()
+            }
+            opts.alias = bridgeOpts.alias
+            opts.algorithm = bridgeOpts.algorithm
 
             val result = verifier.verify(
                 bridgePayload.toPayloadType(),
