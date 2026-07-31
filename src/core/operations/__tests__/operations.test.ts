@@ -8,22 +8,38 @@ import { SiliconError, SiliconErrorCode } from "../../../errors";
 import { isPlainObject } from "../../../utils/validation";
 
 describe('sign()', () => {
-    const defaultMockData = "some random signature";
-    const defaultMockVal = createBridgeSuccess(defaultMockData);
-    vi.mocked(ReactNativeSiliconModule.sign).mockResolvedValue(defaultMockVal);
+    const mockSign = (encoding: 'BYTES' | 'B64' | 'B64URL') => {
+        let mockData;
+        switch (encoding) {
+            case 'BYTES':
+                mockData = new Uint8Array([10, 20, 30]);
+                break;
+            
+            case 'B64':
+            case 'B64URL':
+                mockData = "some random signature";
+                break;
+        }
+        
+        const mockVal = createBridgeSuccess(mockData);
+        vi.mocked(ReactNativeSiliconModule.sign).mockResolvedValue(mockVal);
+        return mockData;
+    }
 
-    it('should successfully return a string when valid params are provided', async () => {
+    it.each(['BYTES', 'B64', 'B64URL'] as const)('should successfully return a string | Uint8Array when valid params are provided', async (encoding) => {
+        const mockData = mockSign(encoding);
+        
         await expect(
             sign(
                 'some-random-alias', 
                 new Uint8Array([10, 20, 30]), 
                 {
-                    encoding: 'B64',
+                    encoding: encoding,
                     digest: 'SHA256',
                     format: 'DER'
                 }
             )
-        ).resolves.toBe(defaultMockData);
+        ).resolves.toBe(mockData);
         expect(ReactNativeSiliconModule.sign).toHaveBeenCalledOnce();
     });
 
@@ -31,9 +47,8 @@ describe('sign()', () => {
         const mockFailVal = createBridgeFailure(SiliconErrorCode.INTERNAL_ERROR, 'test error message', 'some-random-error-stack');
         vi.mocked(ReactNativeSiliconModule.sign).mockResolvedValueOnce(mockFailVal);
 
-        let didThrow = true;
-        try {
-            await sign(
+        await expect(
+                sign(
                 'some-random-alias',
                 new Uint8Array([10, 20, 30]), 
                 {
@@ -41,13 +56,8 @@ describe('sign()', () => {
                     digest: 'SHA256',
                     format: 'DER'
                 }
-            );
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) expect.fail('expected sign to throw, but it did not');
+            )
+        ).rejects.instanceOf(SiliconError);
 
         expect(ReactNativeSiliconModule.sign).toHaveBeenCalledOnce();
     });
@@ -56,9 +66,9 @@ describe('sign()', () => {
         [fc.anything()],
         { numRuns: 1000 }
     )('should throw when alias is not a string or is an empty string', async (chaoticData) => {
-        const isValid = typeof chaoticData == 'string' && chaoticData.trim().length > 0
+        const mockData = mockSign('B64');
 
-        if (isValid) {
+        if (typeof chaoticData == 'string' && chaoticData.trim().length > 0) {
             await expect(
                 sign(
                     chaoticData, 
@@ -69,14 +79,13 @@ describe('sign()', () => {
                         format: 'DER'
                     }
                 )
-            ).resolves.toBe(defaultMockData);
+            ).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                await sign(
-                    // @ts-expect-error
+            await expect(
+                sign(
+                    // @ts-expect-error - intentionally pass incorrect type
                     chaoticData, 
                     new Uint8Array([10, 20, 30]), 
                     {
@@ -84,13 +93,8 @@ describe('sign()', () => {
                         digest: 'SHA256',
                         format: 'DER'
                     }
-                );
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected sign to throw, but it did not');
+                )
+            ).rejects.instanceOf(SiliconError);
 
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledTimes(0);
         }
@@ -102,9 +106,9 @@ describe('sign()', () => {
         [fc.anything()],
         { numRuns: 1000 }
     )('should throw when payload is not a string and not a Uint8Array', async (chaoticData) => {
-        const isValid = (typeof chaoticData == 'string' && chaoticData.trim().length > 0) || chaoticData instanceof Uint8Array;
+        const mockData = mockSign('B64');
 
-        if (isValid) {
+        if ((typeof chaoticData == 'string' && chaoticData.trim().length > 0) || chaoticData instanceof Uint8Array) {
             await expect(
                 sign(
                     'some-random-alias', 
@@ -115,28 +119,22 @@ describe('sign()', () => {
                         format: 'DER'
                     }
                 )
-            ).resolves.toBe(defaultMockData);
+            ).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                await sign(
+            await expect(
+                sign(
                     'some-random-alias', 
-                    // @ts-expect-error
+                    // @ts-expect-error - intentionally pass incorrect type
                     chaoticData,
                     {
                         encoding: 'B64',
                         digest: 'SHA256',
                         format: 'DER'
                     }
-                );
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected sign to throw, but it did not');
+                )
+            ).rejects.instanceOf(SiliconError);
 
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledTimes(0);
         }
@@ -156,21 +154,16 @@ describe('sign()', () => {
         [nonObjectChaoticData],
         { numRuns: 1000 }
     )('should throw when opts is not an object', async (chaoticData) => {
+        const mockData = mockSign('B64');
         
-        let didThrow = true;
-        try {
-            await sign(
+        await expect(
+            sign(
                 'some-random-alias', 
                 new Uint8Array([10, 20, 30]),
-                // @ts-expect-error
+                // @ts-expect-error - intentionally pass incorrect type
                 chaoticData
-            );
-            didThrow = false;
-        } catch (error) {
-            expect(error).toBeInstanceOf(SiliconError);
-        }
-
-        if (!didThrow) expect.fail('expected sign to throw, but it did not');
+            )
+        ).rejects.instanceOf(SiliconError);
 
         expect(ReactNativeSiliconModule.sign).toHaveBeenCalledTimes(0);
 
@@ -180,6 +173,7 @@ describe('sign()', () => {
     test.prop(
         [   
             fc.oneof(
+                fc.constant('BYTES'),
                 fc.constant('B64'),
                 fc.constant('B64URL'),
                 fc.constant(undefined),
@@ -188,7 +182,11 @@ describe('sign()', () => {
         ],
         { numRuns: 1000 }
     )('should throw when opts.encoding is defined and not a valid string literal', async (chaoticData) => {
-        if (chaoticData === 'B64' || chaoticData === 'B64URL' || chaoticData === undefined) {
+        if (chaoticData === 'BYTES' || chaoticData === 'B64' || chaoticData === 'B64URL' || chaoticData === undefined) {
+            const mockData = mockSign(
+                chaoticData === undefined ? 'BYTES' : chaoticData
+            );
+            
             await expect(
                 sign(
                     'some-random-alias', 
@@ -199,28 +197,24 @@ describe('sign()', () => {
                         format: 'DER'
                     }
                 )
-            ).resolves.toBe(defaultMockData);
+            ).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                await sign(
+            const mockData = mockSign('B64');
+
+            await expect(
+                sign(
                     'some-random-alias', 
                     new Uint8Array([10, 20, 30]),
                     {
-                        // @ts-expect-error
+                        // @ts-expect-error - intentionally pass incorrect type
                         encoding: chaoticData,
                         digest: 'SHA256',
                         format: 'DER'
                     }
-                );
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected sign to throw, but it did not');
+                )
+            ).rejects.instanceOf(SiliconError);
 
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledTimes(0);
         }
@@ -240,6 +234,8 @@ describe('sign()', () => {
         ],
         { numRuns: 1000 }
     )('should throw when opts.digest is defined and not a valid string literal', async (chaoticData) => {
+        const mockData = mockSign('B64');
+        
         if (chaoticData === 'SHA256' || chaoticData === 'SHA384' || chaoticData === 'SHA512' || chaoticData === undefined) {
             await expect(
                 sign(
@@ -251,28 +247,22 @@ describe('sign()', () => {
                         format: 'DER'
                     }
                 )
-            ).resolves.toBe(defaultMockData);
+            ).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                await sign(
+            await expect(
+                sign(
                     'some-random-alias', 
                     new Uint8Array([10, 20, 30]),
                     {
                         encoding: 'B64',
-                        // @ts-expect-error
+                        // @ts-expect-error - intentionally pass incorrect type
                         digest: chaoticData,
                         format: 'DER'
                     }
-                );
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected sign to throw, but it did not');
+                )
+            ).rejects.instanceOf(SiliconError);
 
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledTimes(0);
         }
@@ -291,6 +281,8 @@ describe('sign()', () => {
         ],
         { numRuns: 1000 }
     )('should throw when opts.format is defined and not a valid string literal', async (chaoticData) => {
+        const mockData = mockSign('B64');
+        
         if (chaoticData === 'DER' || chaoticData === 'P1363' || chaoticData === undefined) {
             await expect(
                 sign(
@@ -302,28 +294,22 @@ describe('sign()', () => {
                         format: chaoticData
                     }
                 )
-            ).resolves.toBe(defaultMockData);
+            ).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledOnce();
 
         } else {
-            let didThrow = true;
-            try {
-                await sign(
+            await expect(
+                sign(
                     'some-random-alias', 
                     new Uint8Array([10, 20, 30]),
                     {
                         encoding: 'B64',
                         digest: 'SHA256',
-                        // @ts-expect-error
+                        // @ts-expect-error - intentionally pass incorrect type
                         format: chaoticData
                     }
-                );
-                didThrow = false;
-            } catch (error) {
-                expect(error).toBeInstanceOf(SiliconError);
-            }
-
-            if (!didThrow) expect.fail('expected sign to throw, but it did not');
+                )
+            ).rejects.instanceOf(SiliconError);
 
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledTimes(0);
         }
