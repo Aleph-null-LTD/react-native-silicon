@@ -1,32 +1,54 @@
-struct KeychainHelper {
-    enum KeychainHelperError: Error {
-        case saveFailed(message: String)
-        case readFailed(message: String)
-        case deleteFailed(message: String)
-        case listAllFailed(message: String)
-        case existsFailed(message: String)
-        
-        var errorDescription: String {
-            switch self {
-            case .saveFailed(let message): return message
-            case .readFailed(let message): return message
-            case .deleteFailed(let message): return message
-            case .listAllFailed(let message): return message
-            case .existsFailed(let message): return message
-            }
+enum KeychainHelperError: Error {
+    case saveFailed(message: String)
+    case readFailed(message: String)
+    case deleteFailed(message: String)
+    case listAllFailed(message: String)
+    case existsFailed(message: String)
+    
+    var errorDescription: String {
+        switch self {
+        case .saveFailed(let message): return message
+        case .readFailed(let message): return message
+        case .deleteFailed(let message): return message
+        case .listAllFailed(let message): return message
+        case .existsFailed(let message): return message
         }
     }
+}
+
+protocol KeychainHelping {
+    func saveStr(key: String, value: String) throws -> Void
+    func saveData(key: String, data: Data) throws -> Void
+    func readStr(key: String) throws -> String?
+    func readData(key: String) throws -> Data?
+    func delete(key: String) throws -> Bool
+    func exists(key: String) throws -> Bool
+    func listAll() throws -> [String]?
+}
+
+// TODO: Use the injected secItems rather than raw functions
+struct KeychainHelper: KeychainHelping {
+    //  -- Dependencies --
+    private let secItems: SecItemsProvider
     
+    // -- State --
     // All internal data is stored with this service
-    private static let service = "co.alephnull.reactnative.silicon"
-    private static let prefix = "\(service)."
+    private let service = "co.alephnull.reactnative.silicon"
+    private let prefix: String
     
-    static func saveStr(key: String, value: String) throws -> Void {
+    // -- Init --
+    init(secItems: SecItemsProvider) {
+        self.secItems = secItems
+        prefix = "\(service)."
+    }
+    
+    // -- Methods --
+    func saveStr(key: String, value: String) throws -> Void {
         let data = value.data(using: .utf8)!
         try saveData(key: key, data: data)
     }
     
-    static func saveData(key: String, data: Data) throws -> Void {
+    func saveData(key: String, data: Data) throws -> Void {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: "\(prefix)\(key)",
@@ -36,16 +58,16 @@ struct KeychainHelper {
         
         // Delete any existing item to avoid duplicate key errors
         // We know at this point, if the data exists, it is orphaned and safe to delete
-        SecItemDelete(query as CFDictionary)
+        _ = secItems.delete(query as CFDictionary)
         
-        let status = SecItemAdd(query as CFDictionary, nil)
+        let status = secItems.add(query as CFDictionary, nil)
         
         guard status == errSecSuccess else {
             throw KeychainHelperError.saveFailed(message: "Failed to save key '\(key)' in keychain. OSStatus: \(status)")
         }
     }
     
-    static func readStr(key: String) throws -> String? {
+    func readStr(key: String) throws -> String? {
         guard let data = try readData(key: key) else {
             return nil
         }
@@ -53,7 +75,7 @@ struct KeychainHelper {
         return String(data: data, encoding: .utf8)
     }
     
-    static func readData(key: String) throws -> Data? {
+    func readData(key: String) throws -> Data? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: "\(prefix)\(key)",
@@ -63,7 +85,7 @@ struct KeychainHelper {
         ]
         
         var dataTypeRef: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+        let status = secItems.copyMatching(query as CFDictionary, &dataTypeRef)
         
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainHelperError.readFailed(message: "Failed to read data from key '\(key)' on keychain. OSStatus: \(status)")
@@ -80,14 +102,14 @@ struct KeychainHelper {
         return data
     }
     
-    static func delete(key: String) throws -> Bool {
+    func delete(key: String) throws -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: "\(prefix)\(key)",
             kSecAttrService as String: service,
         ]
         
-        let status = SecItemDelete(query as CFDictionary)
+        let status = secItems.delete(query as CFDictionary)
         
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainHelperError.deleteFailed(message: "Failed to delete key '\(key)' from keychain. OSStatus: \(status)")
@@ -96,7 +118,7 @@ struct KeychainHelper {
         return status == errSecSuccess
     }
     
-    static func exists(key: String) throws -> Bool {
+    func exists(key: String) throws -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: "\(prefix)\(key)",
@@ -108,7 +130,7 @@ struct KeychainHelper {
         ]
         
         // Pass 'nil' for the result. We only care about the status code.
-        let status = SecItemCopyMatching(query as CFDictionary, nil)
+        let status = secItems.copyMatching(query as CFDictionary, nil)
         
         switch status {
         case errSecSuccess:
@@ -130,7 +152,7 @@ struct KeychainHelper {
     }
     
     // Lists all our internal keys that are stored in keychain (our internal prefix will be trimmed)
-    static func listAll() throws -> [String]? {
+    func listAll() throws -> [String]? {
         var keyList: [String] = []
         
         let passQuery: [String: Any] = [
@@ -143,7 +165,7 @@ struct KeychainHelper {
         ]
         
         var passResult: AnyObject?
-        let passStatus = SecItemCopyMatching(passQuery as CFDictionary, &passResult)
+        let passStatus = secItems.copyMatching(passQuery as CFDictionary, &passResult)
         
         if passStatus == errSecSuccess, let passItems = passResult as? [[String: Any]] {
             for item in passItems {

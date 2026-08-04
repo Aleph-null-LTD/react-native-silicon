@@ -45,14 +45,26 @@ struct KeyMetadata: Codable {
     let userAuthDomainState: Data?
 }
 
-struct KeyMetadataStore {
+protocol KeyMetadataStoring: AnyObject {
+    func store(alias: String, opts: GenerateKeyOptions, isHardwareBacked: Bool, domainState: Data?) throws -> Void
+    func delete(alias: String) throws -> Bool
+    func get(alias: String) throws -> KeyMetadata
+}
+
+final class KeyMetadataStore: KeyMetadataStoring {
+    private let keychainHelper: KeychainHelping
+    
+    init(keychainHelper: KeychainHelping) {
+        self.keychainHelper = keychainHelper
+    }
+    
     // Caching layer for faster retrieval
-    private static var cache: [String: KeyMetadata] = [:]
+    private var cache: [String: KeyMetadata] = [:]
     
-    // Mutex used for protecting the cache from race conditions
-    private static let mutex = NSLock()
+    // Mutex used for preventing cache race conditions
+    private let mutex = NSLock()
     
-    static func store(alias: String, opts: GenerateKeyOptions, isHardwareBacked: Bool, domainState: Data?) throws -> Void {
+    func store(alias: String, opts: GenerateKeyOptions, isHardwareBacked: Bool, domainState: Data?) throws -> Void {
         mutex.lock()
         defer { mutex.unlock() }
         
@@ -73,7 +85,7 @@ struct KeyMetadataStore {
             
             // Store the metadata as JSON in the keychain
             do {
-                try KeychainHelper.saveData(key: "\(alias)_metadata", data: jsonData)
+                try keychainHelper.saveData(key: "\(alias)_metadata", data: jsonData)
             } catch {
                 throw KeyMetaDataStoreError.failedSave(message: "Failed to save key metadata to keychain")
             }
@@ -86,7 +98,7 @@ struct KeyMetadataStore {
         }
     }
     
-    static func delete(alias: String) throws -> Bool {
+    func delete(alias: String) throws -> Bool {
         mutex.lock()
         defer { mutex.unlock() }
         
@@ -95,16 +107,16 @@ struct KeyMetadataStore {
         
         do {
             // Delete it from the keychain
-            let isDeleted = try KeychainHelper.delete(key: "\(alias)_metadata")
+            let isDeleted = try keychainHelper.delete(key: "\(alias)_metadata")
             return isDeleted
-        } catch let error as KeychainHelper.KeychainHelperError {
+        } catch let error as KeychainHelperError {
             throw KeyMetaDataDeleteError.failedDelete(message: error.errorDescription)
         } catch {
             throw KeyMetaDataDeleteError.failedDelete(message: error.localizedDescription)
         }
     }
     
-    static func get(alias: String) throws -> KeyMetadata {
+    func get(alias: String) throws -> KeyMetadata {
         mutex.lock()
         defer { mutex.unlock() }
         
@@ -117,8 +129,8 @@ struct KeyMetadataStore {
         
         do {
             // If not cached, read it from keychain and parse the JSON
-            let jsonData = try KeychainHelper.readData(key: "\(alias)_metadata")
-        } catch let error as KeychainHelper.KeychainHelperError {
+            jsonData = try keychainHelper.readData(key: "\(alias)_metadata")
+        } catch let error as KeychainHelperError {
             throw KeyMetaDataReadError.failedRead(message: "Failed to read key metadata from keychain: \(error.errorDescription)")
         } catch {
             throw KeyMetaDataReadError.failedRead(message: "Failed to read key metadata from keychain.")

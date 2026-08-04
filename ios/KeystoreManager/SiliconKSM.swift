@@ -4,21 +4,59 @@ import LocalAuthentication
 import DeviceCheck
 import CryptoKit
 
-enum SiliconKeystoreManager {
+struct SiliconKeystoreManager {
+    // MARK: - Dependencies
+    // Providers
+    private let attestService: AttestServiceProvider
+    private let secItems: SecItemsProvider
+    private let secAccessControls: SecAccessControlsProvider
+    private let secureEnclave: SecureEnclaveProvider
+    private let authContextSession: AuthContextSessionProvider
     
-    static func generateKey(alias: String, opts: GenerateKeyOptions) -> SiliconResult<Void> {
+    // Internal
+    private let pubKeyData: PubKeyData
+    private let keyGenerator: KeyGenerating
+    private let keychainHelper: KeychainHelping
+    private let keyMetadataStore: KeyMetadataStoring
+    
+    // MARK: - init()
+    init(attestService: AttestServiceProvider,
+         secItems: SecItemsProvider,
+         secAccessControls: SecAccessControlsProvider,
+         secureEnclave: SecureEnclaveProvider,
+         authContextSession: AuthContextSessionProvider,
+         pubKeyData: PubKeyData,
+         keyGenerator: KeyGenerating,
+         keychainHelper: KeychainHelping,
+         keyMetadataStore: KeyMetadataStoring
+    ) {
+        self.attestService = attestService
+        self.secItems = secItems
+        self.secAccessControls = secAccessControls
+        self.secureEnclave = secureEnclave
+        self.authContextSession = authContextSession
+        self.pubKeyData = pubKeyData
+        self.keyGenerator = keyGenerator
+        self.keychainHelper = keychainHelper
+        self.keyMetadataStore = keyMetadataStore
+    }
+    
+    // MARK: - generateKey()
+    mutating func generateKey(alias: String, opts: GenerateKeyOptions) async -> SiliconResult<Void> {
         // Fail-fast if attest challenge is provided but attest is not supported
         if opts.attestChallenge != nil {
             if (opts.ios.hardwarePolicy != .REQUIRE_SECURE_ENCLAVE) {
                 return .failure(code: .INVALID_ARGUMENT, message: "Hardware attestation cannot be performed on a software key. Set the hardware policy to \(HardwarePolicy.REQUIRE_SECURE_ENCLAVE) to enable it.", nativeStack: nil)
             }
             
-            guard DCAppAttestService.shared.isSupported else {
+            guard attestService.isSupported else {
                 return .failure(code: .ATTEST_NOT_AVAILABLE, message: "Hardware attestation is unavailable on this device", nativeStack: nil)
             }
         }
         
-        let tag = alias.data(using: .utf8)!
+        guard let tag = alias.data(using: .utf8) else {
+            return .failure(code: SiliconErrorCode.INVALID_ARGUMENT, message: "alias is not valid UTF-8", nativeStack: nil)
+        }
         
         // Alias Collision Check
         let existenceQuery: [String: Any] = [
@@ -27,7 +65,7 @@ enum SiliconKeystoreManager {
             kSecReturnRef as String: true
         ]
         
-        let status = SecItemCopyMatching(existenceQuery as CFDictionary, nil)
+        let status = secItems.copyMatching(existenceQuery as CFDictionary, nil)
         if status == errSecSuccess {
             return .failure(code: .ALIAS_IN_USE, message: "A key with alias '\(alias)' already exists", nativeStack: nil)
         }
@@ -37,7 +75,7 @@ enum SiliconKeystoreManager {
         var useHardware = false
         switch opts.ios.hardwarePolicy {
         case .REQUIRE_SECURE_ENCLAVE:
-            if !SecureEnclaveSupport.isAvailable() {
+            if !secureEnclave.isAvailable() {
                 return .failure(code: .HARDWARE_NOT_AVAILABLE, message: "Secure Enclave is required but unavailable", nativeStack: nil)
             }
             hardwareRequested = true
@@ -45,7 +83,7 @@ enum SiliconKeystoreManager {
             
         case .PREFER_SECURE_ENCLAVE:
             hardwareRequested = true
-            useHardware = SecureEnclaveSupport.isAvailable()
+            useHardware = secureEnclave.isAvailable()
             
         case .SOFTWARE_ONLY:
             useHardware = false
@@ -156,7 +194,7 @@ enum SiliconKeystoreManager {
         var domainState: Data? = nil
         
         if opts.userAuth.require {
-            let context = LAContext()
+            let context = authContextSession.start()
             var deviceAuthError: NSError?
                 
             // Check if the device has ANY form of secure lock screen
@@ -210,21 +248,21 @@ enum SiliconKeystoreManager {
         
         // Store metadata
         do {
-            try KeyMetadataStore.store(alias: alias, opts: opts, isHardwareBacked: useHardware, domainState: domainState)
+            try keyMetadataStore.store(alias: alias, opts: opts, isHardwareBacked: useHardware, domainState: domainState)
         } catch {
             return SiliconResult.failure(code: .GENERATE_KEY_FAILED, message: "Failed to save metadata to keychain", nativeStack: nil)
         }
         
         var result: SiliconResult<Void>
         if useHardware {
-            result = GenerateKey.generateHardwareKey(
+            result = await keyGenerator.generateHardwareKey(
                 alias: alias,
                 tag: tag,
                 opts: opts,
                 isDomainStateStored: domainState != nil
             )
         } else {
-            result = GenerateKey.generateSoftwareKey(
+            result = keyGenerator.generateSoftwareKey(
                 alias: alias,
                 tag: tag,
                 opts: opts,
@@ -236,7 +274,7 @@ enum SiliconKeystoreManager {
         case .failure:
             // Cleanup metadata
             do {
-                _ = try KeyMetadataStore.delete(alias: alias)
+                _ = try keyMetadataStore.delete(alias: alias)
             } catch {
                 // Ignore errors from the cleanup
             }
@@ -247,7 +285,8 @@ enum SiliconKeystoreManager {
         }
     }
     
-    static func deleteKey(alias: String) -> SiliconResult<Bool> {
+    // MARK: - deleteKey()
+    mutating func deleteKey(alias: String) -> SiliconResult<Bool> {
         // TODO: Possibly implement this so that we cannot delete keys outside of our library
         /*
         do {
@@ -270,7 +309,7 @@ enum SiliconKeystoreManager {
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag
         ]
-        let secKeyStatus = SecItemDelete(secKeyQuery as CFDictionary)
+        let secKeyStatus = secItems.delete(secKeyQuery as CFDictionary)
         
         // If it's a system error (not just missing), fail-fast
         guard secKeyStatus == errSecSuccess || secKeyStatus == errSecItemNotFound else {
@@ -288,8 +327,8 @@ enum SiliconKeystoreManager {
         // Wipe the attest ID (If one exists)
         var attestIdDeleted = false
         do {
-            attestIdDeleted = try KeychainHelper.delete(key: "\(alias)_attest_id")
-        } catch let error as KeychainHelper.KeychainHelperError {
+            attestIdDeleted = try keychainHelper.delete(key: "\(alias)_attest_id")
+        } catch let error as KeychainHelperError {
             wasError = true
             errorMessages.append("Failed to delete attest ID: \(error.errorDescription)")
         } catch {
@@ -300,8 +339,8 @@ enum SiliconKeystoreManager {
         // Wipe the challenge (If one exists)
         var challengeDeleted = false
         do {
-            challengeDeleted = try KeychainHelper.delete(key: "\(alias)_challenge")
-        } catch let error as KeychainHelper.KeychainHelperError {
+            challengeDeleted = try keychainHelper.delete(key: "\(alias)_challenge")
+        } catch let error as KeychainHelperError {
             wasError = true
             errorMessages.append("Failed to delete attest challenge: \(error.errorDescription)")
         } catch {
@@ -312,7 +351,7 @@ enum SiliconKeystoreManager {
         // Wipe metadata
         var metadataDeleted = false
         do {
-            metadataDeleted = try KeyMetadataStore.delete(alias: alias)
+            metadataDeleted = try keyMetadataStore.delete(alias: alias)
         } catch let error as KeyMetaDataDeleteError {
             wasError = true
             errorMessages.append("Failed to delete key metadata: \(error.errorDescription)")
@@ -320,7 +359,6 @@ enum SiliconKeystoreManager {
             wasError = true
             errorMessages.append("Failed to delete key metadata: \(error.localizedDescription)")
         }
-        
         
         if wasError {
             let finalErrMessage = "Key (\(alias)) was deleted but failed to fully clear keychain. Errors: " + errorMessages.joined(separator: ", ")
@@ -339,7 +377,8 @@ enum SiliconKeystoreManager {
         }
     }
     
-    static func deleteAllKeys(prefix: String? = nil) -> SiliconResult<Int> {
+    // MARK: - deleteAllKeys()
+    mutating func deleteAllKeys(prefix: String? = nil) -> SiliconResult<Int> {
         var deletedCount = 0
         var uniqueAliases = Set<String>()
         
@@ -351,7 +390,7 @@ enum SiliconKeystoreManager {
         ]
         
         var keyResult: AnyObject?
-        let keyStatus = SecItemCopyMatching(keyQuery as CFDictionary, &keyResult)
+        let keyStatus = secItems.copyMatching(keyQuery as CFDictionary, &keyResult)
         
         if keyStatus == errSecSuccess, let items = keyResult as? [[String: Any]] {
             for item in items {
@@ -367,7 +406,7 @@ enum SiliconKeystoreManager {
         
         // List internal keychain data to find possible orphans
         do {
-            let internalItems = try KeychainHelper.listAll()
+            let internalItems = try keychainHelper.listAll()
             
             // If any items were found, add them to the uniqueAliases Set
             if let items = internalItems {
@@ -447,7 +486,8 @@ enum SiliconKeystoreManager {
         return .success(deletedCount)
     }
     
-    static func keyExists(alias: String) -> SiliconResult<Bool> {
+    // MARK: - keyExists()
+    func keyExists(alias: String) -> SiliconResult<Bool> {
         let tag = alias.data(using: .utf8)! // TODO: Handle this (remove the !)
         
         // We only query the primary SecKey. If it's there, the key is usable.
@@ -459,7 +499,7 @@ enum SiliconKeystoreManager {
         
         // Pass nil for the result because we don't actually need to load the key into memory,
         // we just want the OSStatus code.
-        let status = SecItemCopyMatching(query as CFDictionary, nil)
+        let status = secItems.copyMatching(query as CFDictionary, nil)
         
         if status == errSecSuccess {
             // The key was found
@@ -477,7 +517,8 @@ enum SiliconKeystoreManager {
         }
     }
     
-    static func listKeys(prefix: String?) -> SiliconResult<Any> {
+    // MARK: - listKeys()
+    func listKeys(prefix: String?) -> SiliconResult<Any> {
         // Build the Keychain search query
         let query: [String: Any] = [
             // Query keys
@@ -496,7 +537,7 @@ enum SiliconKeystoreManager {
         ]
         
         var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        let status = secItems.copyMatching(query as CFDictionary, &result)
         
         // Handle the "Empty Keystore" scenario
         // iOS treats "no items found" as an error status
@@ -547,10 +588,11 @@ enum SiliconKeystoreManager {
         return .success(filteredAliases)
     }
     
+    // MARK: - getPubKey()
     // NOTE: This should only ever return either String or Data
-    static func getPubKey(alias: String, format: PubKeyFormat) -> SiliconResult<Any> {
+    func getPubKey(alias: String, format: PubKeyFormat) -> SiliconResult<Any> {
         do {
-            let pubkey = try getPubKeyData(alias: alias)
+            let pubkey = try pubKeyData.queryKeychain(alias: alias)
             
             let x509PubKeyResult = try pubKeyToX509(
                 format: format,
@@ -600,7 +642,8 @@ enum SiliconKeystoreManager {
         }
     }
     
-    static func validateKey(alias: String) -> SiliconResult<String> {
+    // MARK: - validateKey()
+    func validateKey(alias: String) -> SiliconResult<String> {
         guard let tag = alias.data(using: .utf8) else {
             return .failure(
                 code: .INVALID_ARGUMENT,
@@ -611,7 +654,7 @@ enum SiliconKeystoreManager {
         
         // By strictly forbidding the UI, we force the Secure Enclave to evaluate
         // the key's internal state without throwing a Face ID prompt on the screen.
-        let context = LAContext()
+        var context = authContextSession.start()
         context.interactionNotAllowed = true
         
         // Query the Keychain
@@ -619,11 +662,11 @@ enum SiliconKeystoreManager {
             kSecClass as String: kSecClassKey, // Adjust to kSecClassGenericPassword if we store symmetric keys differently
             kSecAttrApplicationTag as String: tag,
             kSecReturnRef as String: true,
-            kSecUseAuthenticationContext as String: context
+            kSecUseAuthenticationContext as String: context.ref
         ]
         
         var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let status = secItems.copyMatching(query as CFDictionary, &item)
         
         // Map Apple's C-Engine OSStatus codes to SiliconResult
         switch status {
@@ -655,12 +698,13 @@ enum SiliconKeystoreManager {
         }
     }
     
+    // MARK: - attestKey()
     func attestKey(alias: String, format: AttestFormat, pubKeyFormat: PubKeyFormat) async -> SiliconResult<[String: Any]> {
         // TODO: Implement guards to check that key is 1. in the secure enclave, and 2. able to be attested (a challenge was provided when it was generated)
         
         let pubKey: (rawData: Data, dict: [String : Any])
         do {
-            pubKey = try getPubKeyData(alias: alias)
+            pubKey = try pubKeyData.queryKeychain(alias: alias)
 
         } catch let error as GetPubKeyDataError {
             var code: SiliconErrorCode
@@ -684,11 +728,11 @@ enum SiliconKeystoreManager {
         // Retrieve the stored Challenge
         var challengeData: Data
         do {
-            guard let challenge = try KeychainHelper.readData(key: "\(alias)_challenge") else {
+            guard let challenge = try keychainHelper.readData(key: "\(alias)_challenge") else {
                 return .failure(code: .OPERATION_NOT_PERMITTED, message: "No attestation challenge was provided during key generation.", nativeStack: nil)
             }
             challengeData = challenge
-        } catch let error as KeychainHelper.KeychainHelperError {
+        } catch let error as KeychainHelperError {
             return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to read attest challenge from keychain: \(error.errorDescription)", nativeStack: nil)
         } catch {
             return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to read attest challenge from keychain: \(error.localizedDescription)", nativeStack: nil)
@@ -698,11 +742,11 @@ enum SiliconKeystoreManager {
         // Retrieve the linked App Attest keyId
         var attestKeyId: String
         do {
-            guard let id = try KeychainHelper.readStr(key: "\(alias)_attest_id") else {
+            guard let id = try keychainHelper.readStr(key: "\(alias)_attest_id") else {
                 return .failure(code: .OPERATION_NOT_PERMITTED, message: "No App Attest key linked to this alias.", nativeStack: nil)
             }
             attestKeyId = id
-        } catch let error as KeychainHelper.KeychainHelperError {
+        } catch let error as KeychainHelperError {
             return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to read attest id from keychain: \(error.errorDescription)", nativeStack: nil)
         } catch {
             return .failure(code: .ATTEST_KEY_FAILED, message: "Failed to read attest id from keychain: \(error.localizedDescription)", nativeStack: nil)
@@ -735,9 +779,9 @@ enum SiliconKeystoreManager {
             case .data(let pubKeyData):
                 switch format {
                 case .BYTES:
-                return .success([
-                    "platform": "IOS",
-                    "signingPubKey": pubKeyData,
+                    return .success([
+                        "platform": "IOS",
+                        "signingPubKey": pubKeyData,
                         "attestationStatement": cborData
                     ])
                 case .STRING:
@@ -751,9 +795,9 @@ enum SiliconKeystoreManager {
             case .str(let pubKeyStr):
                 switch format {
                 case .BYTES:
-                return .success([
-                    "platform": "IOS",
-                    "signingPubKey": pubKeyStr,
+                    return .success([
+                        "platform": "IOS",
+                        "signingPubKey": pubKeyStr,
                         "attestationStatement": cborData
                     ])
                 case .STRING:
@@ -761,7 +805,7 @@ enum SiliconKeystoreManager {
                         "platform": "IOS",
                         "signingPubKey": pubKeyStr,
                         "attestationStatement": cborData.base64EncodedString()
-                ])
+                    ])
                 }
             }
             
@@ -770,7 +814,8 @@ enum SiliconKeystoreManager {
         }
     }
     
-    static func getKeyInfo(alias: String) -> SiliconResult<[String: Any?]> {
+    // MARK: - getKeyInfo()
+    mutating func getKeyInfo(alias: String) -> SiliconResult<[String: Any?]> {
         // TODO: Check the metadata on the keychain, if it exists we can use the data from there
         
         guard let tag = alias.data(using: .utf8) else {
@@ -792,7 +837,7 @@ enum SiliconKeystoreManager {
         ]
         
         var privateItem: CFTypeRef?
-        let privateStatus = SecItemCopyMatching(privateQuery as CFDictionary, &privateItem)
+        let privateStatus = secItems.copyMatching(privateQuery as CFDictionary, &privateItem)
         
         if privateStatus == errSecItemNotFound {
             return .failure(
@@ -820,7 +865,7 @@ enum SiliconKeystoreManager {
         ]
 
         var publicItem: CFTypeRef?
-        let publicStatus = SecItemCopyMatching(publicQuery as CFDictionary, &publicItem)
+        let publicStatus = secItems.copyMatching(publicQuery as CFDictionary, &publicItem)
         let publicDict = (publicStatus == errSecSuccess) ? (publicItem as? [String: Any]) : nil
         
         // Hardware Isolation Security Level
@@ -893,7 +938,7 @@ enum SiliconKeystoreManager {
         }
         
         do {
-            let metadata = try KeyMetadataStore.get(alias: alias)
+            let metadata = try keyMetadataStore.get(alias: alias)
             
             infoMap["userAuthValidityDurationSecs"] = metadata.userAuthTimeout
             infoMap["policy"] = metadata.userAuthPolicy
@@ -915,23 +960,3 @@ enum SiliconKeystoreManager {
         return .success(infoMap)
     }
 }
-
-// Internal hardware capability check utility
-enum SecureEnclaveSupport {
-    static func isAvailable() -> Bool {
-        #if targetEnvironment(simulator)
-        return false // Simulators never contain structural secure hardware environments
-        #else
-        // Evaluate real device capability flags
-        let accessControl = SecAccessControlCreateWithFlags(
-            kCFAllocatorDefault,
-            kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            .privateKeyUsage,
-            nil
-        )
-        return accessControl != nil
-        #endif
-    }
-}
-
-

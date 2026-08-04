@@ -2,10 +2,18 @@ import Security
 import Foundation
 
 struct SiliconJose {
-    static func getJwk(alias: String, digest: KeyDigests?) -> SiliconResult<[String: Any]> {
+    private var keyMetadataStore: KeyMetadataStoring
+    private var pubKeyData: PubKeyData
+    
+    init(keyMetadataStore: KeyMetadataStoring, pubKeyData: PubKeyData) {
+        self.keyMetadataStore = keyMetadataStore
+        self.pubKeyData = pubKeyData
+    }
+    
+    func getJwk(alias: String, digest: KeyDigests?) -> SiliconResult<[String: Any]> {
         do {
             // Get the pubkey
-            let pubkey = try getPubKeyData(alias: alias)
+            let pubkey = try pubKeyData.queryKeychain(alias: alias)
             
             // Get the key size in bits
             guard let keySize = pubkey.dict[kSecAttrKeySizeInBits as String] as? Int else {
@@ -46,7 +54,7 @@ struct SiliconJose {
             } else if keyType == (kSecAttrKeyTypeRSA as String) {
                 // RSA keys
                 do {
-                    let metadata = try KeyMetadataStore.get(alias: alias)
+                    let metadata = try keyMetadataStore.get(alias: alias)
                     
                     guard let sigPadAlg = metadata.signaturePaddingAlgorithm else {
                         return .failure(
@@ -100,7 +108,7 @@ struct SiliconJose {
     }
 
     // MARK: - EC Construction
-    private static func constructEcJwk(rawData: Data, keySize: Int, digest: KeyDigests?) -> SiliconResult<[String: Any]> {
+    private func constructEcJwk(rawData: Data, keySize: Int, digest: KeyDigests?) -> SiliconResult<[String: Any]> {
         // Apple's EC External Representation is ANSI X9.63 format: 0x04 || X || Y
         guard rawData.first == 0x04 else {
             return .failure(
@@ -169,7 +177,7 @@ struct SiliconJose {
     }
 
     // MARK: - RSA Construction
-    private static func constructRsaJwk(rawData: Data, keySize: Int, isPSS: Bool, digest: KeyDigests?) -> SiliconResult<[String: Any]> {
+    private func constructRsaJwk(rawData: Data, keySize: Int, isPSS: Bool, digest: KeyDigests?) -> SiliconResult<[String: Any]> {
         // rawData is ASN.1 DER encoded: SEQUENCE { INTEGER n, INTEGER e }
         guard let (nData, eData) = extractRSADerComponents(der: rawData) else {
             return .failure(
@@ -218,7 +226,7 @@ struct SiliconJose {
     // MARK: - Helpers
 
     /// ASN.1 byte scanner to extract `n` and `e` from an RSA Public Key DER structure.
-    private static func extractRSADerComponents(der: Data) -> (n: Data, e: Data)? {
+    private func extractRSADerComponents(der: Data) -> (n: Data, e: Data)? {
         var index = 0
         func readLength() -> Int? {
             guard index < der.count else { return nil }

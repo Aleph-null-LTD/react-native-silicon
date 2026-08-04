@@ -1,8 +1,34 @@
 import DeviceCheck
 
-enum GenerateKey {
+protocol KeyGenerating {
+    func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions, isDomainStateStored: Bool) async -> SiliconResult<Void>
+    func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions, isDomainStateStored: Bool) -> SiliconResult<Void>
+}
+
+struct KeyGenerator: KeyGenerating {
+    // MARK: - Dependencies
+    let attestService: AttestServiceProvider
+    let secItems: SecItemsProvider
+    let secKeys: SecKeysProvider
+    let secAccessControls: SecAccessControlsProvider
+    let keychainHelper: KeychainHelping
+    
+    // MARK: - Init
+    init(attestService: AttestServiceProvider,
+         secItems: SecItemsProvider,
+         secKeys: SecKeysProvider,
+         secAccessControls: SecAccessControlsProvider,
+         keychainHelper: KeychainHelping
+    ){
+        self.attestService = attestService
+        self.secItems = secItems
+        self.secKeys = secKeys
+        self.secAccessControls = secAccessControls
+        self.keychainHelper = keychainHelper
+    }
+    
     // MARK: - Hardware Keys
-    static func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions, isDomainStateStored: Bool) -> SiliconResult<Void> {
+    func generateHardwareKey(alias: String, tag: Data, opts: GenerateKeyOptions, isDomainStateStored: Bool) async -> SiliconResult<Void> {
         // Initialize Core Generation Parameters
         var attributes: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom, // Matches NIST P-256 / secp256r1
@@ -64,7 +90,7 @@ enum GenerateKey {
         }
         
         var error: Unmanaged<CFError>?
-        guard let accessControl = SecAccessControlCreateWithFlags(
+        guard let accessControl = secAccessControls.createWithFlags(
             kCFAllocatorDefault,
             kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, // Cannot leave this physical device via iCloud backups
             flags,
@@ -84,7 +110,7 @@ enum GenerateKey {
         
         // Execute Key Generation
         var genError: Unmanaged<CFError>?
-        guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &genError) else {
+        guard let privateKey = secKeys.createRandomKey(attributes as CFDictionary, &genError) else {
             let err = genError?.takeRetainedValue()
             return .failure(code: .GENERATE_KEY_FAILED, message: err?.localizedDescription ?? "Unknown generation error", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
         }
@@ -100,34 +126,15 @@ enum GenerateKey {
                     kSecClass as String: kSecClassKey,
                     kSecAttrApplicationTag as String: tag
                 ]
-                let secKeyStatus = SecItemDelete(secKeyQuery as CFDictionary)
+                let secKeyStatus = secItems.delete(secKeyQuery as CFDictionary)
             }
             
-            let semaphore = DispatchGroup()
-            var nativeError: Error?
-            var generatedKeyId: String?
-            
-            semaphore.enter()
-            
-            // Generate the hardware-trapped key pair
-            DCAppAttestService.shared.generateKey { keyId, error in
-                if let error = error {
-                    nativeError = error
-                } else {
-                    generatedKeyId = keyId
-                }
-                semaphore.leave()
-            }
-            _ = semaphore.wait(timeout: .distantFuture)
-            
-            if let error = nativeError {
+            var keyId: String
+            do {
+                keyId = try await attestService.generateKey()
+            } catch {
                 cleanupSecKey();
                 return .failure(code: .GENERATE_KEY_FAILED, message: error.localizedDescription, nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
-            }
-            
-            guard let keyId = generatedKeyId else {
-                cleanupSecKey();
-                return .failure(code: .GENERATE_KEY_FAILED, message: "Failed to retrieve hardware key identifier", nativeStack: Thread.callStackSymbols.joined(separator: "\n"))
             }
             
             guard let challenge = opts.attestChallenge else {
@@ -141,8 +148,8 @@ enum GenerateKey {
             
             // Persist the alias -> keyId map locally so attestKey can find it
             do {
-                try KeychainHelper.saveStr(key: "\(alias)_attest_id", value: keyId)
-            } catch let error as KeychainHelper.KeychainHelperError {
+                try keychainHelper.saveStr(key: "\(alias)_attest_id", value: keyId)
+            } catch let error as KeychainHelperError {
                 cleanupSecKey()
                 return .failure(
                     code: .GENERATE_KEY_FAILED,
@@ -160,10 +167,10 @@ enum GenerateKey {
             
             // Persist the alias -> challenge map locally so attestKey can find it
             do {
-                try KeychainHelper.saveData(key: "\(alias)_challenge", data: challenge)
+                try keychainHelper.saveData(key: "\(alias)_challenge", data: challenge)
                 
-            } catch let error as KeychainHelper.KeychainHelperError {
-                do { _ = try KeychainHelper.delete(key: "\(alias)_attest_id") } catch {} // Ignore failed cleanup
+            } catch let error as KeychainHelperError {
+                do { _ = try keychainHelper.delete(key: "\(alias)_attest_id") } catch {} // Ignore failed cleanup
                 cleanupSecKey()
                 
                 return .failure(
@@ -173,7 +180,7 @@ enum GenerateKey {
                 )
                 
             } catch {
-                do { _ = try KeychainHelper.delete(key: "\(alias)_attest_id") } catch {} // Ignore failed cleanup
+                do { _ = try keychainHelper.delete(key: "\(alias)_attest_id") } catch {} // Ignore failed cleanup
                 cleanupSecKey()
                 
                 return .failure(
@@ -188,7 +195,7 @@ enum GenerateKey {
     }
     
     // MARK: - Software Keys
-    static func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions, isDomainStateStored: Bool) -> SiliconResult<Void> {
+    func generateSoftwareKey(alias: String, tag: Data, opts: GenerateKeyOptions, isDomainStateStored: Bool) -> SiliconResult<Void> {
         var keyType: String
         var keySize: Int
         
@@ -276,7 +283,7 @@ enum GenerateKey {
             }
             
             var error: Unmanaged<CFError>?
-            guard let accessControl = SecAccessControlCreateWithFlags(
+            guard let accessControl = secAccessControls.createWithFlags(
                 kCFAllocatorDefault,
                 kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, // Cannot leave this physical device via iCloud backups
                 flags,
@@ -343,7 +350,7 @@ enum GenerateKey {
         
         // Execute Key Generation
         var genError: Unmanaged<CFError>?
-        guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &genError) else {
+        guard let privateKey = secKeys.createRandomKey(attributes as CFDictionary, &genError) else {
             let err = genError?.takeRetainedValue()
             return .failure(
                 code: .GENERATE_KEY_FAILED,
@@ -357,7 +364,7 @@ enum GenerateKey {
     
     // MARK: - Helpers
     /*
-    private static func formatPubkey(privateKey: SecKey, opts: GenerateKeyOptions) -> SiliconResult<String?> {
+    private func formatPubkey(privateKey: SecKey, opts: GenerateKeyOptions) -> SiliconResult<String?> {
         // Extract the attributes from the SecKey
         guard let attributes = SecKeyCopyAttributes(privateKey) as? [String: Any] else {
             return .failure(code: .GENERATE_KEY_FAILED, message: "Failed to copy attributes from the generated SecKey.", nativeStack: nil)

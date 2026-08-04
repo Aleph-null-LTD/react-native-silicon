@@ -1,6 +1,56 @@
 import ExpoModulesCore
 
 public class ReactNativeSiliconModule: Module {
+    // MARK: - Providers (External dependencies)
+    private lazy var attestService: AttestServiceProvider = AttestService()
+    private lazy var secItems: SecItemsProvider = SecItems()
+    private lazy var secKeys: SecKeysProvider = SecKeys()
+    private lazy var secAccessControls: SecAccessControlsProvider = SecAccessControls()
+    private lazy var secRandom: SecRandomProvider = SecRandom()
+    private lazy var secureEnclave: SecureEnclaveProvider = SecureEnclave()
+    private lazy var authContextSession: AuthContextSessionProvider = AuthContextSession()
+    
+    // MARK: - Shared (Shared core functionality)
+    private lazy var authContextCache: AuthContextCache = AuthContextCache(authContextSession: authContextSession)
+    private lazy var keychainHelper: KeychainHelping = KeychainHelper(secItems: secItems)
+    private lazy var keyMetadataStore: KeyMetadataStoring = KeyMetadataStore(keychainHelper: keychainHelper)
+    private lazy var pubKeyData: PubKeyData = PubKeyData(secItems: secItems, secKeys: secKeys)
+    
+    // MARK: - Handlers (Handling bridge requests)
+    private lazy var siliconDevice: SiliconDevice = SiliconDevice(
+        authContextSession: authContextSession,
+        secureEnclave: secureEnclave,
+        attestService: attestService
+    )
+    
+    private lazy var keyGenerator: KeyGenerating = KeyGenerator(
+        attestService: attestService,
+        secItems: secItems,
+        secKeys: secKeys,
+        secAccessControls: secAccessControls,
+        keychainHelper: keychainHelper
+    )
+    private lazy var siliconKSM = SiliconKeystoreManager(
+        attestService: attestService,
+        secItems: secItems,
+        secAccessControls: secAccessControls,
+        secureEnclave: secureEnclave,
+        authContextSession: authContextSession,
+        pubKeyData: pubKeyData,
+        keyGenerator: keyGenerator,
+        keychainHelper: keychainHelper,
+        keyMetadataStore: keyMetadataStore
+    )
+    
+    private lazy var siliconSigner = SiliconSigner(authContextCache: authContextCache, keyMetadataStore: keyMetadataStore)
+    
+    private lazy var siliconVerifier = SiliconVerifier(secItems: secItems, secKeys: secKeys, keyMetadataStore: keyMetadataStore)
+    
+    private lazy var siliconJose = SiliconJose(keyMetadataStore: keyMetadataStore, pubKeyData: pubKeyData)
+    
+    private lazy var siliconRandomGen = SiliconRandomGen(secRandom: secRandom)
+    
+    // MARK: - Definition
     // Each module class must implement the definition function. The definition consists of components
     // that describes the module's functionality and behavior.
     // See https://docs.expo.dev/modules/module-api for more details about available components.
@@ -13,7 +63,7 @@ public class ReactNativeSiliconModule: Module {
         // ---- Device ----
         
         AsyncFunction("getCapabilities") { () -> [String: Any] in
-            return SiliconDevice.getCapabilities().toBridgeMap()
+            return siliconDevice.getCapabilities().toBridgeMap()
         }
           
         // ---- Keystore Manager ----
@@ -23,27 +73,27 @@ public class ReactNativeSiliconModule: Module {
             // so we extract it out of the options on the TS side and then inject it back in here
             opts.attestChallenge = attestChallenge
             
-            return SiliconKeystoreManager.generateKey(alias: alias, opts: opts).toBridgeMap()
+            return await siliconKSM.generateKey(alias: alias, opts: opts).toBridgeMap()
         }
         
         AsyncFunction("deleteKey") { (alias: String) -> [String: Any] in
-            return SiliconKeystoreManager.deleteKey(alias: alias).toBridgeMap()
+            return siliconKSM.deleteKey(alias: alias).toBridgeMap()
         }
         
         AsyncFunction("deleteAllKeys") { (prefix: String?) -> [String: Any] in
-            return SiliconKeystoreManager.deleteAllKeys(prefix: prefix).toBridgeMap()
+            return siliconKSM.deleteAllKeys(prefix: prefix).toBridgeMap()
         }
         
         AsyncFunction("keyExists") { (alias: String) -> [String: Any] in
-            return SiliconKeystoreManager.keyExists(alias: alias).toBridgeMap()
+            return siliconKSM.keyExists(alias: alias).toBridgeMap()
         }
         
         AsyncFunction("listKeys") { (prefix: String?) -> [String: Any] in
-            return SiliconKeystoreManager.listKeys(prefix: prefix).toBridgeMap()
+            return siliconKSM.listKeys(prefix: prefix).toBridgeMap()
         }
         
         AsyncFunction("getPubKey") { (alias: String, format: PubKeyFormat) -> [String: Any] in
-            return SiliconKeystoreManager.getPubKey(alias: alias, format: format).toBridgeMap()
+            return siliconKSM.getPubKey(alias: alias, format: format).toBridgeMap()
         }
         
         AsyncFunction("attestKey") { (alias: String, format: AttestFormat, pubKeyFormat: PubKeyFormat) -> [String: Any] in
@@ -51,11 +101,11 @@ public class ReactNativeSiliconModule: Module {
         }
         
         AsyncFunction("getKeyInfo") { (alias: String) -> [String: Any] in
-            return SiliconKeystoreManager.getKeyInfo(alias: alias).toBridgeMap()
+            return siliconKSM.getKeyInfo(alias: alias).toBridgeMap()
         }
         
         AsyncFunction("validateKey") { (alias: String) -> [String: Any] in
-            return SiliconKeystoreManager.validateKey(alias: alias).toBridgeMap()
+            return siliconKSM.validateKey(alias: alias).toBridgeMap()
         }
         
         // ---- Sign/Verify ----
@@ -68,7 +118,7 @@ public class ReactNativeSiliconModule: Module {
                 bridgePayload.bytes = payloadByteArr
                 let payload = try bridgePayload.toPayloadType()
                 
-                return await SiliconSigner.sign(alias: alias, payload: payload, opts: opts).toBridgeMap()
+                return await siliconSigner.sign(alias: alias, payload: payload, opts: opts).toBridgeMap()
                 
             } catch {
                 return SiliconResult<Never>.failure(
@@ -105,7 +155,7 @@ public class ReactNativeSiliconModule: Module {
                     let bridgePubkey = BridgePayloadRecord()
                     bridgePubkey.text = bridgeOpts.pubkeyStr
                     bridgePubkey.bytes = bridgeOpts.pubkeyBytes
-                    pubkey = bridgePubkey.toPayloadType()
+                    pubkey = try bridgePubkey.toPayloadType()
                 }
                 let opts = VerifyOptions(
                     alias: bridgeOpts.alias,
@@ -113,7 +163,7 @@ public class ReactNativeSiliconModule: Module {
                     algorithm: bridgeOpts.algorithm
                 )
                 
-                return SiliconVerifier.verify(payload: payload, signatureB64: signature, opts: opts).toBridgeMap()
+                return siliconVerifier.verify(payload: payload, signature: signature, opts: opts).toBridgeMap()
                 
             } catch {
                 return SiliconResult<Never>.failure(
@@ -127,13 +177,13 @@ public class ReactNativeSiliconModule: Module {
         // ---- Random Generator ----
         
         AsyncFunction("generateSecureRandomBytes") { (length: Int, format: RandomBytesFormat) -> [String: Any] in
-            return SiliconRandomGen.generate(length: length, format: format).toBridgeMap()
+            return siliconRandomGen.generate(length: length, format: format).toBridgeMap()
         }
 
         // ---- JOSE ----
         
         AsyncFunction("getJwk") { (alias: String, digest: KeyDigests?) -> [String: Any] in
-            return SiliconJose.getJwk(alias: alias, digest: digest).toBridgeMap()
+            return siliconJose.getJwk(alias: alias, digest: digest).toBridgeMap()
         }
     }
 }

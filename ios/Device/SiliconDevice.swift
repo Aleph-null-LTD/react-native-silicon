@@ -3,13 +3,23 @@ import LocalAuthentication
 import CryptoKit
 import DeviceCheck
 
-enum SiliconDevice {
-    static func getCapabilities() -> SiliconResult<[String: Any]> {
-            let context = LAContext()
+struct SiliconDevice {
+    private var authContextSession: AuthContextSessionProvider
+    private var secureEnclave: SecureEnclaveProvider
+    private var attestService: AttestServiceProvider
+    
+    init(authContextSession: AuthContextSessionProvider, secureEnclave: SecureEnclaveProvider, attestService: AttestServiceProvider) {
+        self.authContextSession = authContextSession
+        self.secureEnclave = secureEnclave
+        self.attestService = attestService
+    }
+    
+    func getCapabilities() -> SiliconResult<[String: Any]> {
+            let context = authContextSession.start()
             var error: NSError?
 
             // Secure Enclave
-            let securityLevel = SecureEnclave.isAvailable ? "IOS_SECURE_ENCLAVE" : "SOFTWARE"
+            let securityLevel = secureEnclave.isAvailable() ? "IOS_SECURE_ENCLAVE" : "SOFTWARE"
 
             // Biometric / Passcode Status
             let canUseBiometrics = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
@@ -25,7 +35,7 @@ enum SiliconDevice {
             }
 
             // Check for Key Attestation Support (iOS 14+)
-            let canAttest = DCAppAttestService.shared.isSupported
+            let canAttest = attestService.isSupported
 
             // Construct the payload dictionary
             let capabilities: [String: Any] = [

@@ -1,16 +1,22 @@
 import LocalAuthentication
 import Foundation
 
-struct AuthContext {
-    private static var biometricContext: LAContext?
-    private static var biometricAuthTime: Date = .distantPast
+final class AuthContextCache {
+    private var authContextSession: AuthContextSessionProvider
     
-    private static var passcodeContext: LAContext?
-    private static var passcodeAuthTime: Date = .distantPast
+    private var biometricContext: AuthContextProvider?
+    private var biometricAuthTime: Date = .distantPast
     
-    private static let mutex = NSLock()
+    private var passcodeContext: AuthContextProvider?
+    private var passcodeAuthTime: Date = .distantPast
     
-    static func get(forTimeout timeoutSecs: Double, allowsPasscode: Bool) -> LAContext {
+    private let mutex = NSLock()
+    
+    init(authContextSession: AuthContextSessionProvider) {
+        self.authContextSession = authContextSession
+    }
+    
+    func get(forTimeout timeoutSecs: Double, allowsPasscode: Bool) -> AuthContextProvider {
         // Lock the mutex to prevent race conditions
         mutex.lock()
         defer { mutex.unlock() }
@@ -22,7 +28,7 @@ struct AuthContext {
         }
     }
     
-    private static func handleContext(context: inout LAContext?, authTime: inout Date, timeoutSecs: Double) -> LAContext {
+    private func handleContext(context: inout AuthContextProvider?, authTime: inout Date, timeoutSecs: Double) -> AuthContextProvider {
         let now = Date()
         
         if let ctx = context {
@@ -39,7 +45,7 @@ struct AuthContext {
         // old context will be cleaned up by ARC once no references to it are held
         
         // Create a fresh unauthenticated context
-        let newContext = LAContext()
+        var newContext = authContextSession.start()
         newContext.localizedReason = "Authenticate to continue"
         
         context = newContext

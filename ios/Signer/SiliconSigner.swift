@@ -3,10 +3,12 @@ import Foundation
 import LocalAuthentication
 
 struct SiliconSigner {
-    var authContextCache: AuthContextCache
+    private var authContextCache: AuthContextCache
+    private var keyMetadataStore: KeyMetadataStoring
     
-    init(authContextCache: AuthContextCache) {
+    init(authContextCache: AuthContextCache, keyMetadataStore: KeyMetadataStoring) {
         self.authContextCache = authContextCache
+        self.keyMetadataStore = keyMetadataStore
     }
     
     /// Returns either String or Data
@@ -16,7 +18,7 @@ struct SiliconSigner {
         }
         
         // Get the key metadata
-        guard let metadata = try? KeyMetadataStore.get(alias: alias) else {
+        guard let metadata = try? keyMetadataStore.get(alias: alias) else {
             return .failure(code: .SIGN_FAILED, message: "Failed to read key metadata.", nativeStack: nil)
         }
         
@@ -302,6 +304,7 @@ struct SiliconSigner {
                 }
             case .DER:
                 // Do nothing (signature is already DER)
+                break
             }
         }
         

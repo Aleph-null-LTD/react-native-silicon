@@ -2,7 +2,23 @@ import Foundation
 import Security
 
 struct SiliconVerifier {
-    static func verify(payload: PayloadType, signature: PayloadType, opts: VerifyOptions) -> SiliconResult<Bool> {
+    // MARK: - Dependencies
+    // Providers
+    private var secItems: SecItemsProvider
+    private var secKeys: SecKeysProvider
+    
+    // Internal
+    private var keyMetadataStore: KeyMetadataStoring
+    
+    // MARK: init()
+    init(secItems: SecItemsProvider, secKeys: SecKeysProvider, keyMetadataStore: KeyMetadataStoring) {
+        self.secItems = secItems
+        self.secKeys = secKeys
+        self.keyMetadataStore = keyMetadataStore
+    }
+    
+    // MARK: - verify()
+    func verify(payload: PayloadType, signature: PayloadType, opts: VerifyOptions) -> SiliconResult<Bool> {
         let publicKey: SecKey
         var algorithm: VerifyAlgorithms
         
@@ -103,7 +119,7 @@ struct SiliconVerifier {
         
         // Hardware/OS Verification
         var verifyError: Unmanaged<CFError>?
-        let isValid = SecKeyVerifySignature(
+        let isValid = secKeys.verifySignature(
             publicKey,
             secKeyAlg,
             payloadData as CFData,
@@ -114,8 +130,8 @@ struct SiliconVerifier {
         return .success(isValid)
     }
     
-    // MARK: - Internal Keys
-    private static func extractInternalKey(alias: String, opts: VerifyOptions) -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
+    // MARK: - extractInternalKey()
+    private func extractInternalKey(alias: String, opts: VerifyOptions) -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
         var algorithm: VerifyAlgorithms
         
         // Fetch from local Keychain
@@ -131,7 +147,7 @@ struct SiliconVerifier {
         */
         
         var metadata: KeyMetadata
-        let metadataResult = Result { try KeyMetadataStore.get(alias: alias) }
+        let metadataResult = Result { try keyMetadataStore.get(alias: alias) }
         
         switch metadataResult {
         case .success(let md):
@@ -158,7 +174,7 @@ struct SiliconVerifier {
         ]
         
         var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let status = secItems.copyMatching(query as CFDictionary, &item)
         
         guard status == errSecSuccess else {
             return .failure(code: .KEY_NOT_FOUND, message: "No key with alias '\(alias)'.", nativeStack: nil)
@@ -175,7 +191,7 @@ struct SiliconVerifier {
         let keyRef = rawRef as! SecKey
         
         // Extract the public key from the SecKey reference
-        guard let publicKey = SecKeyCopyPublicKey(keyRef) else {
+        guard let publicKey = secKeys.copyPublicKey(keyRef) else {
             return .failure(code: .VERIFY_FAILED, message: "Could not extract public key from Keychain.", nativeStack: nil)
         }
         
@@ -407,8 +423,8 @@ struct SiliconVerifier {
         return .success((algorithm: algorithm, publicKey: publicKey))
     }
     
-    // MARK: - External Keys
-    private static func extractExternalKey(pubkey: PayloadType, opts: VerifyOptions) -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
+    // MARK: - extractExternalKey()
+    private func extractExternalKey(pubkey: PayloadType, opts: VerifyOptions) -> SiliconResult<(algorithm: VerifyAlgorithms, publicKey: SecKey)> {
         var algorithm: VerifyAlgorithms
         
         var keyData: Data
@@ -466,7 +482,7 @@ struct SiliconVerifier {
         
         // Create the SecKey
         var error: Unmanaged<CFError>?
-        guard let publicKey = SecKeyCreateWithData(keyData as CFData, attributes as CFDictionary, &error) else {
+        guard let publicKey = secKeys.createWithData(keyData as CFData, attributes as CFDictionary, &error) else {
             let errStr = error?.takeRetainedValue().localizedDescription ?? "Unknown parse error"
             return .failure(code: .MALFORMED_DATA, message: "Could not parse X.509 key: \(errStr)", nativeStack: nil)
         }
@@ -477,7 +493,7 @@ struct SiliconVerifier {
     // MARK: - ASN.1 DER Transcoder
     
     // Evaluates EC signatures and converts raw IEEE P1363 arrays into standard ASN.1 DER sequences.
-    private static func ensureDerSignature(signatureData: Data, algorithm: VerifyAlgorithms) -> SiliconResult<Data> {
+    private func ensureDerSignature(signatureData: Data, algorithm: VerifyAlgorithms) -> SiliconResult<Data> {
         var expectedP1363DataCount: Int
         
         switch algorithm {
@@ -540,7 +556,7 @@ struct SiliconVerifier {
     }
     
     // Strips leading zeros, but prepends 0x00 if the Most Significant Bit is >= 0x80.
-    private static func encodeDerInteger(_ bytes: Data) -> Data {
+    private func encodeDerInteger(_ bytes: Data) -> Data {
         var index = 0
         
         // Find the first non-zero byte (leave at least 1 byte if all zeros)

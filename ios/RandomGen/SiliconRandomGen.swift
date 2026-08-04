@@ -1,11 +1,17 @@
 
-enum SiliconRandomGen {
-    static func generate(length: Int, format: RandomBytesFormat) -> SiliconResult<Any> {
+struct SiliconRandomGen {
+    private var secRandom: SecRandomProvider
+    
+    init(secRandom: SecRandomProvider) {
+        self.secRandom = secRandom
+    }
+    
+    func generate(length: Int, format: RandomBytesFormat) -> SiliconResult<Any> {
         // Allocate an empty array of 8-bit unsigned integers (bytes)
         var randomBytes = [UInt8](repeating: 0, count: length)
         
         // Fill the array with secure random bytes
-        let status = SecRandomCopyBytes(kSecRandomDefault, length, &randomBytes)
+        let status = secRandom.copyBytes(kSecRandomDefault, length, &randomBytes)
         
         guard status == errSecSuccess else {
             return .failure(
