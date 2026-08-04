@@ -81,9 +81,13 @@
   "files": [
     "lib",
     "src",
+    "!**/__tests__",
+    "!**/__test_utils__",
     "android",
     "ios",
+    "!ios/Tests",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "!*.ignore*"
   ]
 }
