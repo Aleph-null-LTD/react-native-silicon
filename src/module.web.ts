@@ -1,7 +1,7 @@
 import { registerWebModule, NativeModule } from 'expo';
-import { GenerateKeyOpts} from './core/keys/types';
+import { AttestFormats, GenerateKeyOpts, PubkeyFormat} from './core/keys/types';
 import { SiliconError, SiliconErrorCode } from './errors';
-import { SignOpts } from './core/operations/types';
+import { SignEncodings, SignOpts } from './core/operations/types';
 import { BridgeVerifyOpts } from './core/operations/brige-types';
 import { RandomBytesFormat } from './core/random-generator';
 
@@ -35,7 +35,7 @@ class ReactNativeSiliconModule extends NativeModule {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
   
-  public async attestKey(alias: string): Promise<undefined> {
+  public async attestKey<F extends AttestFormats, P extends PubkeyFormat>(alias: string, format: F, pubKeyFormat: P): Promise<undefined> {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
   
@@ -47,11 +47,11 @@ class ReactNativeSiliconModule extends NativeModule {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
 
-  public async sign(alias: string, payload: string | Uint8Array, opts: SignOpts): Promise<undefined> {
+  public async sign<F extends SignEncodings = 'BYTES'>(alias: string, payloadStr: string | null, payloadByteArr: Uint8Array | null, opts?: SignOpts<F>): Promise<undefined> {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
 
-  public async verify(payload: string | Uint8Array, signature: string, opts: BridgeVerifyOpts): Promise<undefined> {
+  public async verify(payloadStr: string | null, payloadByteArr: Uint8Array | null, signatureStr: string | null, signatureByteArr: Uint8Array | null, bridgeOpts: BridgeVerifyOpts): Promise<undefined> {
     throw new SiliconError(SiliconErrorCode.PLATFORM_NOT_SUPPORTED, "This feature is not available for web");
   }
 
