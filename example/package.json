@@ -11,13 +11,13 @@
     "prebuild:android": "expo prebuild --platform android --clean"
   },
   "dependencies": {
-    "expo": "54.0.33",
+    "expo": "54.0.36",
     "react": "19.1.0",
     "react-native": "0.81.5"
   },
   "devDependencies": {
-    "@types/react": "~19.1.0",
-    "typescript": "~5.9.2"
+    "@types/react": "19.1.10",
+    "typescript": "5.9.2"
   },
   "private": true,
   "expo": {
