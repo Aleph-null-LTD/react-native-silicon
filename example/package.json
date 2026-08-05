@@ -4,11 +4,15 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start --clear",
+    "start:debug": "EXPO_DEBUG=true DEBUG=metro:* expo start",
     "android": "expo run:android --device",
     "ios": "expo run:ios --device",
     "web": "expo start --web",
     "prebuild": "expo prebuild --clean",
-    "prebuild:android": "expo prebuild --platform android --clean"
+    "prebuild:android": "expo prebuild --platform android --clean",
+    "prebuild:ios": "expo prebuild --platform ios --clean",
+    "get-bundle:ios": "curl \"http://localhost:8081/.expo/.virtual-metro-entry.bundle?platform=ios&dev=true\" -o ios-bundle.ignore.js",
+    "get-bundle:android": "curl \"http://localhost:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true\" -o android-bundle.ignore.js"
   },
   "dependencies": {
     "expo": "54.0.36",
