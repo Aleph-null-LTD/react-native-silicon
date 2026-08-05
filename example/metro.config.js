@@ -4,13 +4,18 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
-// npm v7+ will install ../node_modules/react and ../node_modules/react-native because of peerDependencies.
-// To prevent the incompatible react-native between ./node_modules/react-native and ../node_modules/react-native,
-// excludes the one from the parent folder when bundling.
 config.resolver.blockList = [
   ...Array.from(config.resolver.blockList ?? []),
+  // npm v7+ will install ../node_modules/react and ../node_modules/react-native because of peerDependencies.
+  // To prevent the incompatible react-native between ./node_modules/react-native and ../node_modules/react-native,
+  // excludes the one from the parent folder when bundling.
   new RegExp(path.resolve('..', 'node_modules', 'react')),
   new RegExp(path.resolve('..', 'node_modules', 'react-native')),
+
+  // Ignore tests when bundling
+  /.*__tests__.*/,
+  /.*__mocks__.*/,
+  /.*__test_utils__.*/,
 ];
 
 config.resolver.nodeModulesPaths = [
