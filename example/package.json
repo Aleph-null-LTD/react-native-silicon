@@ -13,7 +13,10 @@
   "dependencies": {
     "expo": "54.0.36",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-devtools-core": "7.0.1",
+    "react-is": "19.2.8",
+    "react-native": "0.81.5",
+    "react-refresh": "0.18.0"
   },
   "devDependencies": {
     "@types/react": "19.1.10",
