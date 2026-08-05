@@ -7,6 +7,7 @@ packages:
 storeDir: ./.pnpm-store
 autoInstallPeers: true
 strictPeerDependencies: true
+nodeLinker: hoisted
 allowBuilds:
   msgpackr-extract: true
   unrs-resolver: true
