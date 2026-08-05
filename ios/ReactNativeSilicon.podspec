@@ -26,4 +26,12 @@ Pod::Spec.new do |s|
   }
 
   s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
+
+  # Exclude tests
+  s.exclude_files = 'Tests/**/*.{swift}'
+
+  # Auto-generate a Test Target for this module
+  s.test_spec 'Tests' do |test_spec|
+    test_spec.source_files = 'Tests/**/*.{swift}'
+  end
 end
