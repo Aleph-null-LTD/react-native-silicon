@@ -782,13 +782,13 @@ struct SiliconKeystoreManager {
                     return .success([
                         "platform": "IOS",
                         "signingPubKey": pubKeyData,
-                        "attestationStatement": cborData
+                        "attestationObject": cborData
                     ])
                 case .STRING:
                     return .success([
                         "platform": "IOS",
                         "signingPubKey": pubKeyData,
-                        "attestationStatement": cborData.base64EncodedString()
+                        "attestationObject": cborData.base64EncodedString()
                     ])
                 }
                 
@@ -798,13 +798,13 @@ struct SiliconKeystoreManager {
                     return .success([
                         "platform": "IOS",
                         "signingPubKey": pubKeyStr,
-                        "attestationStatement": cborData
+                        "attestationObject": cborData
                     ])
                 case .STRING:
                     return .success([
                         "platform": "IOS",
                         "signingPubKey": pubKeyStr,
-                        "attestationStatement": cborData.base64EncodedString()
+                        "attestationObject": cborData.base64EncodedString()
                     ])
                 }
             }
