@@ -9,6 +9,7 @@ import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKSM
 import co.alephnull.reactnative.silicon.randomgen.RandomBytesFormat
 import co.alephnull.reactnative.silicon.randomgen.SiliconRandomGen
+import co.alephnull.reactnative.silicon.signer.SignDigest
 import co.alephnull.reactnative.silicon.signer.SignOptions
 import co.alephnull.reactnative.silicon.signer.SiliconSigner
 import co.alephnull.reactnative.silicon.verifier.SiliconVerifier
@@ -84,7 +85,8 @@ class ReactNativeSiliconModule : Module() {
             return@AsyncFunction result.toBridgeMap()
         }
 
-        AsyncFunction("attestKey") { alias: String, format: AttestFormat ->
+        // We ignore pubKeyFormat (ios only)
+        AsyncFunction("attestKey") { alias: String, format: AttestFormat, pubKeyFormat: String ->
             val result = keystoreManager.attestKey(alias, format)
             return@AsyncFunction result.toBridgeMap()
         }
