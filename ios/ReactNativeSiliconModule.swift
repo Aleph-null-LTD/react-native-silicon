@@ -42,7 +42,7 @@ public class ReactNativeSiliconModule: Module {
         keyMetadataStore: keyMetadataStore
     )
     
-    private lazy var siliconSigner = SiliconSigner(authContextCache: authContextCache, keyMetadataStore: keyMetadataStore)
+    private lazy var siliconSigner = SiliconSigner(secItems: secItems, authContextCache: authContextCache, keyMetadataStore: keyMetadataStore)
     
     private lazy var siliconVerifier = SiliconVerifier(secItems: secItems, secKeys: secKeys, keyMetadataStore: keyMetadataStore)
     

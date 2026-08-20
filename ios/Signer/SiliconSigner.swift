@@ -3,10 +3,12 @@ import Foundation
 import LocalAuthentication
 
 struct SiliconSigner {
+    private var secItems: SecItemsProvider
     private var authContextCache: AuthContextCache
     private var keyMetadataStore: KeyMetadataStoring
     
-    init(authContextCache: AuthContextCache, keyMetadataStore: KeyMetadataStoring) {
+    init(secItems: SecItemsProvider, authContextCache: AuthContextCache, keyMetadataStore: KeyMetadataStoring) {
+        self.secItems = secItems
         self.authContextCache = authContextCache
         self.keyMetadataStore = keyMetadataStore
     }
@@ -51,12 +53,12 @@ struct SiliconSigner {
             kSecAttrApplicationTag as String: tag,
             kSecReturnRef as String: true,
             kSecReturnAttributes as String: true,
-            kSecUseAuthenticationContext as String: context, // Bind the context
+            kSecUseAuthenticationContext as String: context.ref, // Bind the context
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
         
         var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let status = secItems.copyMatching(query as CFDictionary, &item)
         
         if status == errSecItemNotFound {
             return .failure(code: .KEY_NOT_FOUND, message: "No key found for alias \(alias)", nativeStack: nil)
