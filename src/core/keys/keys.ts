@@ -42,6 +42,7 @@ export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promis
     // Uint8Array fails to map correctly when passed over the bridge if it is nested inside an object
     // so we extract the attest challenge (if provided) and pass it as a top level parameter so it can be correctly mapped on the native side
     const attestChallenge = opts.attestChallenge;
+    opts.attestChallenge = undefined;
 
     const result = await NativeSilicon.generateKey(alias, opts ?? {}, attestChallenge);
     handleBridgeResult(result);
@@ -382,7 +383,7 @@ export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>
         if (format === "BYTES") {
             attestResult.attestationObject = ensureUint8Array(attestResult.attestationObject) as IosAttestFormatsTypeMap[F];
         } else { // format === "STRING"
-            if (typeof attestResult.attestationObject !== 'string') throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return CBOR string, but got ${typeof attestResult.attestationObject}`);
+            if (typeof attestResult.attestationObject !== 'string') throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] Expected bridge to return CBOR string, but got ${typeof attestResult.attestationObject}`);
         }
 
     } else { // attestResult.platform === "ANDROID"
@@ -395,7 +396,7 @@ export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>
                 attestResult.certChain = buffer as AndroidAttestFormatsTypeMap[F];
 
             } else {
-                throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
+                throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
             }
         } else { // format === "STRING"
             if (Array.isArray(attestResult.certChain)) {
@@ -403,7 +404,7 @@ export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>
                     if (typeof attestResult.certChain[i] !== 'string') throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return cert chain string array, but got ${typeof attestResult.certChain[i]} at index ${i}`);
                 }
             } else {
-                throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
+                throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
             }
         }
     }
