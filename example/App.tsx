@@ -45,7 +45,7 @@ export default function App() {
             setCapabilities(JSON.stringify(caps, undefined, 4));
         } catch (error) {
             if (error instanceof SiliconError) {
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -59,13 +59,14 @@ export default function App() {
             setRandBytesStr(`Secure Random Bytes: \n${srb}`)
         } catch (error) {
             if (error instanceof SiliconError) {
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
         }
     }
 
+    const [genKeyStr, setGenKeyStr] = useState("Click the button to generate a key");
     const onGenKey = async (): Promise<void> => {
         console.log("Generating key");
         try {
@@ -83,12 +84,19 @@ export default function App() {
                     },
                     android: {
                         hardwarePolicy: 'PREFER_STRONGBOX'
+                    },
+                    ios: {
+                        algorithm: 'EC_P256',
+                        //signaturePaddingAlgorithm: 'PSS',
+                        digests: ['SHA256'],
+                        hardwarePolicy: 'REQUIRE_SECURE_ENCLAVE'
                     }
                 }
             );
+            setGenKeyStr(`Key generated ${new Date().toISOString()}`);
         } catch (error) {
             if (error instanceof SiliconError) {
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -105,7 +113,7 @@ export default function App() {
                 if (error.code == SiliconErrorCode.KEY_NOT_FOUND) {
                     setInfo("Key Not Found");
                 } else {
-                    console.error(error.serialize());
+                    console.error(error.serialize(4));
                 }
             } else {
                 console.error(error);
@@ -120,7 +128,7 @@ export default function App() {
             console.log("Key deleted")
         } catch (error) {
             if (error instanceof SiliconError) {
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -134,7 +142,7 @@ export default function App() {
             console.log(`${delKeyCount} Keys deleted`)
         } catch (error) {
             if (error instanceof SiliconError) {
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -154,7 +162,7 @@ export default function App() {
 
         } catch (error) {
             if (error instanceof SiliconError) {
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -173,7 +181,7 @@ export default function App() {
 
         } catch (error) {
             if (error instanceof SiliconError) {
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -189,7 +197,7 @@ export default function App() {
 
         } catch (error) {
             if (error instanceof SiliconError) {
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -201,14 +209,14 @@ export default function App() {
         try {
             const attestResult = await attestKey(keyAlias, "STRING", "PEM");
 
-            setAttestCerts(`Attest Result: \n${JSON.stringify(attestResult)}`);
+            setAttestCerts(`Attest Result: \n${JSON.stringify(attestResult, undefined, 4)}`);
 
         } catch (error) {
             if (error instanceof SiliconError) {
                 if (error.code == SiliconErrorCode.KEY_NOT_FOUND) {
                     setAttestCerts("Key Not Found");
                 } else {
-                    console.error(error.serialize());
+                    console.error(error.serialize(4));
                 }
             } else {
                 console.error(error);
@@ -230,7 +238,7 @@ export default function App() {
                 if (error.code == SiliconErrorCode.KEY_NOT_FOUND) {
                     setPubKeyStr("Key Not Found");
                 } else {
-                    console.error(error.serialize());
+                    console.error(error.serialize(4));
                 }
             } else {
                 console.error(error);
@@ -240,15 +248,16 @@ export default function App() {
 
     const [signature, setSignature] = useState("Click the button to sign data");
     const onSign = async (): Promise<void> => {
+        console.log("Signing");
         try {
-            const s = await sign(keyAlias, "somedatahere", { encoding: 'B64URL' });
+            const s = await sign(keyAlias, new Uint8Array([0x00, 0x01, 0x02, 0x03, 0xFF]), { encoding: 'B64URL' });
             setSignature(s);
         } catch (error) {
             if (error instanceof SiliconError) {
                 if (error.code == SiliconErrorCode.KEY_NOT_FOUND) {
                     setSignature("Key Not Found");
                 } else {
-                    console.error(error.serialize());
+                    console.error(error.serialize(4));
                 }
             } else {
                 console.error(error);
@@ -258,8 +267,9 @@ export default function App() {
 
     const [verifiedStr, setVerifiedStr] = useState("Click the button to verify signature");
     const onVerify = async (): Promise<void> => {
+        console.log("Verifying");
         try {
-            const isVerified = await verify("somedatahere", signature, { alias: keyAlias, algorithm: 'ES256' });
+            const isVerified = await verify(new Uint8Array([0x00, 0x01, 0x02, 0x03, 0xFF]), signature, { alias: keyAlias });
 
             if (isVerified) {
                 setVerifiedStr("Signature is good");
@@ -272,7 +282,7 @@ export default function App() {
                 if (error.code == SiliconErrorCode.KEY_NOT_FOUND) {
                     setVerifiedStr("Key Not Found");
                 } else {
-                    console.error(error.serialize());
+                    console.error(error.serialize(4));
                 }
             } else {
                 console.error(error);
@@ -293,7 +303,7 @@ export default function App() {
                 if (error.code === SiliconErrorCode.KEY_NOT_FOUND) {
                     setJwkStr("Key not found");
                 }
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -322,7 +332,7 @@ export default function App() {
                 if (error.code === SiliconErrorCode.KEY_NOT_FOUND) {
                     setJwtStr("Key not found");
                 }
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -350,7 +360,7 @@ export default function App() {
                 if (error.code === SiliconErrorCode.KEY_NOT_FOUND) {
                     setDpopStr("Key not found");
                 }
-                console.error(error.serialize());
+                console.error(error.serialize(4));
             } else {
                 console.error(error);
             }
@@ -390,6 +400,7 @@ export default function App() {
                             onPress={onGenKey}
                         />
                     </View>
+                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{genKeyStr}</Text>
 
                     <View
                         style={styles.buttonView}
