@@ -165,8 +165,8 @@ class ReactNativeSiliconModule : Module() {
 
         // ---- JOSE ----
 
-        AsyncFunction("getJwk") { alias: String ->
-            val result = jose.getJwk(alias)
+        AsyncFunction("getJwk") { alias: String, digest: SignDigest? ->
+            val result = jose.getJwk(alias, digest)
             return@AsyncFunction result.toBridgeMap()
         }
     }
