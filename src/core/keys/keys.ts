@@ -42,6 +42,7 @@ export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promis
     // Uint8Array fails to map correctly when passed over the bridge if it is nested inside an object
     // so we extract the attest challenge (if provided) and pass it as a top level parameter so it can be correctly mapped on the native side
     const attestChallenge = opts.attestChallenge;
+    if (opts.attestChallenge !== undefined) delete opts.attestChallenge;
 
     const result = await NativeSilicon.generateKey(alias, opts ?? {}, attestChallenge);
     handleBridgeResult(result);
