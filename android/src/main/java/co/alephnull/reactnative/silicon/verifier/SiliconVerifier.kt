@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.KeyStore
+import java.security.PrivateKey
 import java.security.PublicKey
 import java.security.Signature
 import java.security.interfaces.ECKey
@@ -135,8 +136,14 @@ class SiliconVerifier(private val keystore: KeyStore) {
                 "Missing certificate for local key"
             )
 
-        val factory = KeyFactory.getInstance(publicKey.algorithm)
-        val keyInfo: KeyInfo = factory.getKeySpec(publicKey, KeyInfo::class.java)
+        val privateKey = keystore.getKey(alias, null) as? PrivateKey
+            ?: return SiliconResult.Failure(
+                SiliconErrorCode.KEY_NOT_FOUND,
+                "Could not load private key for alias '$alias'"
+            )
+
+        val factory = KeyFactory.getInstance(privateKey.algorithm, "AndroidKeyStore")
+        val keyInfo: KeyInfo = factory.getKeySpec(privateKey, KeyInfo::class.java)
 
         var alg: VerifyAlgorithm
 
