@@ -134,6 +134,8 @@ public class ReactNativeSiliconModule: Module {
             payloadByteArr: Data?,
             signatureStr: String?,
             signatureByteArr: Data?,
+            pubkeyStr: String?,
+            pubkeyByteArr: Data?,
             bridgeOpts: BridgeVerifyOptions
         ) -> [String: Any] in
             do {
@@ -149,12 +151,12 @@ public class ReactNativeSiliconModule: Module {
                 bridgeSignature.bytes = signatureByteArr
                 let signature = try bridgeSignature.toPayloadType()
                 
-                // Pack bridgeOpts.pubkeyStr and bridgeOpts.pubkeyBytes into PayloadType
+                // Pack pubkeyStr and pubkeyBytes into PayloadType
                 var pubkey: PayloadType?
-                if bridgeOpts.pubkeyBytes != nil || bridgeOpts.pubkeyStr != nil {
+                if pubkeyBytes != nil || pubkeyStr != nil {
                     let bridgePubkey = BridgePayloadRecord()
-                    bridgePubkey.text = bridgeOpts.pubkeyStr
-                    bridgePubkey.bytes = bridgeOpts.pubkeyBytes
+                    bridgePubkey.text = pubkeyStr
+                    bridgePubkey.bytes = pubkeyBytes
                     pubkey = try bridgePubkey.toPayloadType()
                 }
                 let opts = VerifyOptions(

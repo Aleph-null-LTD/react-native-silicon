@@ -25,7 +25,5 @@ class VerifyOptions : Record {
 
 class BridgeVerifyOptions : Record {
     @Field var alias: String? = null
-    @Field var pubkeyStr: String? = null // Base64 encoded public key
-    @Field var pubkeyBytes: ByteArray? = null // Raw Bytes
     @Field var algorithm: VerifyAlgorithm? = null
 }

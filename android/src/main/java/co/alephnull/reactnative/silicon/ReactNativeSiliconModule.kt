@@ -110,7 +110,15 @@ class ReactNativeSiliconModule : Module() {
             return@Coroutine result.toBridgeMap()
         }
 
-        AsyncFunction("verify") { payloadStr: String?, payloadByteArr: ByteArray?, signatureStr: String?, signatureByteArr: ByteArray?, bridgeOpts: BridgeVerifyOptions ->
+        AsyncFunction("verify") {
+            payloadStr: String?,
+            payloadByteArr: ByteArray?,
+            signatureStr: String?,
+            signatureByteArr: ByteArray?,
+            pubkeyStr: String?,
+            pubkeyByteArr: ByteArray?,
+            bridgeOpts: BridgeVerifyOptions ->
+
             // Pack payload into PayloadType
             val bridgePayload = BridgePayloadRecord()
             bridgePayload.text = payloadStr
@@ -118,15 +126,15 @@ class ReactNativeSiliconModule : Module() {
 
             // Pack signature into PayloadType
             val bridgeSignature = BridgePayloadRecord()
-            bridgePayload.text = signatureStr
-            bridgePayload.bytes = signatureByteArr
+            bridgeSignature.text = signatureStr
+            bridgeSignature.bytes = signatureByteArr
 
-            // Pack bridgeOpts.pubkeyStr and bridgeOpts.pubkeyBytes into PayloadType
+            // Pack pubkeyStr and pubkeyBytes into PayloadType
             var pubkey: BridgePayloadRecord? = null
-            if (bridgeOpts.pubkeyStr != null || bridgeOpts.pubkeyBytes != null) {
+            if (pubkeyStr != null || pubkeyByteArr != null) {
                 pubkey = BridgePayloadRecord()
-                pubkey.text = bridgeOpts.pubkeyStr
-                pubkey.bytes = bridgeOpts.pubkeyBytes
+                pubkey.text = pubkeyStr
+                pubkey.bytes = pubkeyByteArr
             }
 
             // Populate VerifyOptions
