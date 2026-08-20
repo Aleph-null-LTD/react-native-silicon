@@ -12,6 +12,7 @@ import android.security.keystore.KeyProperties
 import co.alephnull.reactnative.silicon.SiliconResult
 import java.security.KeyPairGenerator
 import android.util.Base64
+import android.util.Log
 import androidx.biometric.BiometricManager
 import co.alephnull.reactnative.silicon.SiliconErrorCode
 import co.alephnull.reactnative.silicon.helpers.SiliconHelpers
@@ -425,14 +426,18 @@ class SiliconKSM(private val appContext: AppContext, private val keystore: KeySt
                 KeyGenParameterSpec.Builder(
                     tempAlias,
                     KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                ).setBlockModes(
+                    KeyProperties.BLOCK_MODE_GCM
+                ).setEncryptionPaddings(
+                    KeyProperties.ENCRYPTION_PADDING_NONE
                 ).build()
             )
 
             val secretKey = keyGenerator.generateKey() as SecretKey
 
             // Extract the KeyInfo to inspect where the key actually lives
-            val factory = KeyFactory.getInstance(secretKey.algorithm, "AndroidKeyStore")
-            val keyInfo = factory.getKeySpec(secretKey, KeyInfo::class.java)
+            val factory = SecretKeyFactory.getInstance(secretKey.algorithm, "AndroidKeyStore")
+            val keyInfo = factory.getKeySpec(secretKey, KeyInfo::class.java) as KeyInfo
 
             // Verify if it resides inside secure hardware (TEE or StrongBox)
             val isHardwareBacked = keyInfo.isInsideSecureHardware

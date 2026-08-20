@@ -23,11 +23,5 @@ struct BridgeVerifyOptions: Record {
     var alias: String? = nil
     
     @Field
-    var pubkeyStr: String? = nil
-    
-    @Field
-    var pubkeyBytes: Data? = nil
-    
-    @Field
     var algorithm: VerifyAlgorithms?
 }

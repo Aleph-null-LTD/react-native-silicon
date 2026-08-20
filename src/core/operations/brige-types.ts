@@ -5,8 +5,6 @@ import { VerifyAlgorithms } from "./types"
  */
 export type BridgeVerifyOpts = {
     alias: string | undefined,
-    pubkeyStr: string | undefined,
-    pubkeyBytes: Uint8Array | undefined,
     algorithm: VerifyAlgorithms | undefined
 }
 

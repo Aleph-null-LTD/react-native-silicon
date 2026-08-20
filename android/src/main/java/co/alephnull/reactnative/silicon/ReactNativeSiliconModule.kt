@@ -9,6 +9,7 @@ import co.alephnull.reactnative.silicon.keystoremanager.PubkeyFormat
 import co.alephnull.reactnative.silicon.keystoremanager.SiliconKSM
 import co.alephnull.reactnative.silicon.randomgen.RandomBytesFormat
 import co.alephnull.reactnative.silicon.randomgen.SiliconRandomGen
+import co.alephnull.reactnative.silicon.signer.SignDigest
 import co.alephnull.reactnative.silicon.signer.SignOptions
 import co.alephnull.reactnative.silicon.signer.SiliconSigner
 import co.alephnull.reactnative.silicon.verifier.SiliconVerifier
@@ -84,7 +85,8 @@ class ReactNativeSiliconModule : Module() {
             return@AsyncFunction result.toBridgeMap()
         }
 
-        AsyncFunction("attestKey") { alias: String, format: AttestFormat ->
+        // We ignore pubKeyFormat (ios only)
+        AsyncFunction("attestKey") { alias: String, format: AttestFormat, pubKeyFormat: String ->
             val result = keystoreManager.attestKey(alias, format)
             return@AsyncFunction result.toBridgeMap()
         }
@@ -110,7 +112,15 @@ class ReactNativeSiliconModule : Module() {
             return@Coroutine result.toBridgeMap()
         }
 
-        AsyncFunction("verify") { payloadStr: String?, payloadByteArr: ByteArray?, signatureStr: String?, signatureByteArr: ByteArray?, bridgeOpts: BridgeVerifyOptions ->
+        AsyncFunction("verify") {
+            payloadStr: String?,
+            payloadByteArr: ByteArray?,
+            signatureStr: String?,
+            signatureByteArr: ByteArray?,
+            pubkeyStr: String?,
+            pubkeyByteArr: ByteArray?,
+            bridgeOpts: BridgeVerifyOptions ->
+
             // Pack payload into PayloadType
             val bridgePayload = BridgePayloadRecord()
             bridgePayload.text = payloadStr
@@ -118,15 +128,15 @@ class ReactNativeSiliconModule : Module() {
 
             // Pack signature into PayloadType
             val bridgeSignature = BridgePayloadRecord()
-            bridgePayload.text = signatureStr
-            bridgePayload.bytes = signatureByteArr
+            bridgeSignature.text = signatureStr
+            bridgeSignature.bytes = signatureByteArr
 
-            // Pack bridgeOpts.pubkeyStr and bridgeOpts.pubkeyBytes into PayloadType
+            // Pack pubkeyStr and pubkeyBytes into PayloadType
             var pubkey: BridgePayloadRecord? = null
-            if (bridgeOpts.pubkeyStr != null || bridgeOpts.pubkeyBytes != null) {
+            if (pubkeyStr != null || pubkeyByteArr != null) {
                 pubkey = BridgePayloadRecord()
-                pubkey.text = bridgeOpts.pubkeyStr
-                pubkey.bytes = bridgeOpts.pubkeyBytes
+                pubkey.text = pubkeyStr
+                pubkey.bytes = pubkeyByteArr
             }
 
             // Populate VerifyOptions
@@ -155,8 +165,8 @@ class ReactNativeSiliconModule : Module() {
 
         // ---- JOSE ----
 
-        AsyncFunction("getJwk") { alias: String ->
-            val result = jose.getJwk(alias)
+        AsyncFunction("getJwk") { alias: String, digest: SignDigest? ->
+            val result = jose.getJwk(alias, digest)
             return@AsyncFunction result.toBridgeMap()
         }
     }

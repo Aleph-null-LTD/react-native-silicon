@@ -152,10 +152,10 @@ export async function verify(payload: string | Uint8Array, signature: string | U
         payloadByteArr,
         signatureStr,
         signatureByteArr,
+        typeof pubkey == "string" ? pubkey : null,
+        pubkey instanceof Uint8Array ? pubkey : null,
         {
             alias: alias,
-            pubkeyBytes: pubkey instanceof Uint8Array ? pubkey : undefined,
-            pubkeyStr: typeof pubkey == "string" ? pubkey : undefined,
             algorithm: opts.algorithm
         }
     );
