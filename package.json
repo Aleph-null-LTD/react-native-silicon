@@ -58,7 +58,7 @@
     "@eslint/js": "10.0.1",
     "@expo/config-plugins": "55.0.9",
     "@fast-check/vitest": "0.4.1",
-    "@types/react": "19.1.1",
+    "@types/react": "19.2.0",
     "@vitest/coverage-v8": "4.1.10",
     "@vitest/ui": "4.1.10",
     "babel-preset-expo": "56.0.15",
@@ -66,7 +66,7 @@
     "expo": "55.0.20",
     "expo-module-scripts": "55.0.2",
     "fast-check": "4.8.0",
-    "react-native": "0.82.1",
+    "react-native": "0.83.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.59.3",
     "vite": "8.1.0",
@@ -74,8 +74,8 @@
   },
   "peerDependencies": {
     "expo": ">=54.0.36",
-    "react": ">=19.1.1",
-    "react-native": ">=0.81.5"
+    "react": "*",
+    "react-native": "*"
   },
   "plugin": "app.plugin.js",
   "files": [

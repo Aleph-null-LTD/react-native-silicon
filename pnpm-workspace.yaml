@@ -8,6 +8,10 @@ storeDir: ./.pnpm-store
 autoInstallPeers: true
 strictPeerDependencies: true
 nodeLinker: hoisted
+#injectedDeps: 
+#  - react
+#  - react-native
+#  - expo
 allowBuilds:
   msgpackr-extract: true
   unrs-resolver: true
