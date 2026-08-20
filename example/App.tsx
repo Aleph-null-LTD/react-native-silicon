@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { Button, ScrollView, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {
     getCapabilities,
     generateKey,
@@ -368,29 +369,30 @@ export default function App() {
     }
 
     return (
-        <SafeAreaView>
-            <ScrollView>
-                <View style={{ marginBottom: 400 }}>
-                    <Text style={styles.header}>react-native-silicon</Text>
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Get Capabilities'
-                            onPress={onGetDeviceCaps}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{capabilities}</Text>
+        <SafeAreaProvider>
+            <SafeAreaView>
+                <ScrollView>
+                    <View style={{ marginBottom: 400 }}>
+                        <Text style={styles.header}>react-native-silicon</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Get Capabilities'
+                                onPress={onGetDeviceCaps}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{capabilities}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Gen Secure Random Bytes'
-                            onPress={onGenRandBytes}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{randBytesStr}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Gen Secure Random Bytes'
+                                onPress={onGenRandBytes}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{randBytesStr}</Text>
 
                     <View
                         style={styles.buttonView}
@@ -402,137 +404,138 @@ export default function App() {
                     </View>
                     <Text style={{ textAlign: "left", paddingLeft: 20 }}>{genKeyStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Del Key'
-                            onPress={onDelKey}
-                        />
-                    </View>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Del Key'
+                                onPress={onDelKey}
+                            />
+                        </View>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Del All Keys'
-                            onPress={onDeleteAllKeys}
-                        />
-                    </View>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Del All Keys'
+                                onPress={onDeleteAllKeys}
+                            />
+                        </View>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Get Key Info'
-                            onPress={onGetKeyInfo}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{info}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Get Key Info'
+                                onPress={onGetKeyInfo}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{info}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Does Key Exist'
-                            onPress={onCheckIfKeyExists}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{keyExistsStr}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Does Key Exist'
+                                onPress={onCheckIfKeyExists}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{keyExistsStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='List Keys'
-                            onPress={onListKeys}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{keyList}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='List Keys'
+                                onPress={onListKeys}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{keyList}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Validate Key'
-                            onPress={onValidateKey}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{keyValidity}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Validate Key'
+                                onPress={onValidateKey}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{keyValidity}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Attest Key'
-                            onPress={onAttestKey}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{attestCerts}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Attest Key'
+                                onPress={onAttestKey}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{attestCerts}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Get Public Key'
-                            onPress={onGetPubKey}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{pubKeyStr}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Get Public Key'
+                                onPress={onGetPubKey}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{pubKeyStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Sign Some Data'
-                            onPress={onSign}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{signature}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Sign Some Data'
+                                onPress={onSign}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{signature}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Verify Signature'
-                            onPress={onVerify}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{verifiedStr}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Verify Signature'
+                                onPress={onVerify}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{verifiedStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Get JWK'
-                            onPress={onGetJwk}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{jwkStr}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Get JWK'
+                                onPress={onGetJwk}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{jwkStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Sign JWT'
-                            onPress={onSignJwt}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{jwtStr}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Sign JWT'
+                                onPress={onSignJwt}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{jwtStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Gen DPoP'
-                            onPress={onGenerateDpop}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{dpopStr}</Text>
+                        <View
+                            style={styles.buttonView}
+                        >
+                            <Button
+                                title='Gen DPoP'
+                                onPress={onGenerateDpop}
+                            />
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{dpopStr}</Text>
 
-                </View>
-            </ScrollView>
-        </SafeAreaView>
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
 }
 
