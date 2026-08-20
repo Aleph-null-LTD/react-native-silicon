@@ -199,7 +199,7 @@ export default function App() {
     const [attestCerts, setAttestCerts] = useState("Click button to get attest certs for key")
     const onAttestKey = async () => {
         try {
-            const attestResult: AttestResult = await attestKey(keyAlias);
+            const attestResult = await attestKey(keyAlias, "STRING", "PEM");
 
             setAttestCerts(`Attest Result: \n${JSON.stringify(attestResult)}`);
 
@@ -240,7 +240,6 @@ export default function App() {
 
     const [signature, setSignature] = useState("Click the button to sign data");
     const onSign = async (): Promise<void> => {
-        console.log("Signing key");
         try {
             const s = await sign(keyAlias, "somedatahere", { encoding: 'B64URL' });
             setSignature(s);
@@ -259,7 +258,6 @@ export default function App() {
 
     const [verifiedStr, setVerifiedStr] = useState("Click the button to verify signature");
     const onVerify = async (): Promise<void> => {
-        console.log("Signing key");
         try {
             const isVerified = await verify("somedatahere", signature, { alias: keyAlias, algorithm: 'ES256' });
 
@@ -312,7 +310,7 @@ export default function App() {
                 },
                 {
                     iat: Math.floor(Date.now() / 1000),
-                    jti: await generateSecureRandomBytes(16)
+                    jti: await generateSecureRandomBytes(16, "B64URL")
                 }
             );
 
@@ -339,8 +337,8 @@ export default function App() {
                 {
                     htm: 'POST',
                     htu: 'https://some.random/endpoint/here',
-                    jti: await generateSecureRandomBytes(16),
-                    nonce: await generateSecureRandomBytes(24),
+                    jti: await generateSecureRandomBytes(16, "B64URL"),
+                    nonce: await generateSecureRandomBytes(24, "B64URL"),
                 }
             );
 
