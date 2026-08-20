@@ -12,7 +12,8 @@
     "prebuild:android": "expo prebuild --platform android --clean",
     "prebuild:ios": "expo prebuild --platform ios --clean",
     "get-bundle:ios": "curl \"http://localhost:8081/.expo/.virtual-metro-entry.bundle?platform=ios&dev=true\" -o ios-bundle.ignore.js",
-    "get-bundle:android": "curl \"http://localhost:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true\" -o android-bundle.ignore.js"
+    "get-bundle:android": "curl \"http://localhost:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true\" -o android-bundle.ignore.js",
+    "clear-metro-cache": "rm -rf $TMPDIR/metro-*"
   },
   "dependencies": {
     "expo": "54.0.36",
