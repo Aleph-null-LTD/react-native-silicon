@@ -15,7 +15,6 @@ import {
     getPubKey,
     generateSecureRandomBytes,
     attestKey,
-    AttestResult,
     verify,
     getJwk,
     signJwt,
