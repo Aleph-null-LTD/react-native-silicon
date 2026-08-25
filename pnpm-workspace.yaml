@@ -7,8 +7,13 @@ packages:
 storeDir: ./.pnpm-store
 autoInstallPeers: true
 strictPeerDependencies: true
-nodeLinker: hoisted
-#injectedDeps: 
+#nodeLinker: hoisted
+shamefullyHoist: true
+#injectWorkspacePackages: true # Hard-link ALL local workspace packages into sub-projects
+#hoistWorkspacePackages: true
+#publicHoistPattern:
+#  - '*'
+#injectedDeps:
 #  - react
 #  - react-native
 #  - expo
