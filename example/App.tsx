@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+//import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {
     getCapabilities,
     generateKey,
@@ -28,8 +29,21 @@ const styles = {
     },
     buttonView: {
         flex: 1,
-        margin: 20
-    }
+        margin: 20,
+    },
+    button: {
+        backgroundColor: '#2a7fff',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+    },
+    buttonText: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: '600' as const,
+    },
 };
 
 const keyAlias = 'silicon.testkey';
@@ -367,171 +381,125 @@ export default function App() {
     }
 
     return (
-        <SafeAreaView>
-            <ScrollView>
-                <View style={{ marginBottom: 400 }}>
-                    <Text style={styles.header}>react-native-silicon</Text>
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Get Capabilities'
-                            onPress={onGetDeviceCaps}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{capabilities}</Text>
+        //<SafeAreaProvider>
+            //<SafeAreaView>
+                <ScrollView>
+                    <View style={{ marginBottom: 400 }}>
+                        <Text style={styles.header}>react-native-silicon</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onGetDeviceCaps}>
+                                <Text style={styles.buttonText}>Get Capabilities</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{capabilities}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Gen Secure Random Bytes'
-                            onPress={onGenRandBytes}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{randBytesStr}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onGenRandBytes}>
+                                <Text style={styles.buttonText}>Gen Secure Random Bytes</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{randBytesStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Gen Key'
-                            onPress={onGenKey}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{genKeyStr}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onGenKey}>
+                                <Text style={styles.buttonText}>Gen Key</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{genKeyStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Del Key'
-                            onPress={onDelKey}
-                        />
-                    </View>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onDelKey}>
+                                <Text style={styles.buttonText}>Del Key</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Del All Keys'
-                            onPress={onDeleteAllKeys}
-                        />
-                    </View>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onDeleteAllKeys}>
+                                <Text style={styles.buttonText}>Del All Keys</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Get Key Info'
-                            onPress={onGetKeyInfo}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{info}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onGetKeyInfo}>
+                                <Text style={styles.buttonText}>Get Key Info</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{info}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Does Key Exist'
-                            onPress={onCheckIfKeyExists}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{keyExistsStr}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onCheckIfKeyExists}>
+                                <Text style={styles.buttonText}>Does Key Exist</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{keyExistsStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='List Keys'
-                            onPress={onListKeys}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{keyList}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onListKeys}>
+                                <Text style={styles.buttonText}>List Keys</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{keyList}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Validate Key'
-                            onPress={onValidateKey}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{keyValidity}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onValidateKey}>
+                                <Text style={styles.buttonText}>Validate Key</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{keyValidity}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Attest Key'
-                            onPress={onAttestKey}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{attestCerts}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onAttestKey}>
+                                <Text style={styles.buttonText}>Attest Key</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{attestCerts}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Get Public Key'
-                            onPress={onGetPubKey}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{pubKeyStr}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onGetPubKey}>
+                                <Text style={styles.buttonText}>Get Public Key</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{pubKeyStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Sign Some Data'
-                            onPress={onSign}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{signature}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onSign}>
+                                <Text style={styles.buttonText}>Sign Some Data</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{signature}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Verify Signature'
-                            onPress={onVerify}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "center" }}>{verifiedStr}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onVerify}>
+                                <Text style={styles.buttonText}>Verify Signature</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "center" }}>{verifiedStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Get JWK'
-                            onPress={onGetJwk}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{jwkStr}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onGetJwk}>
+                                <Text style={styles.buttonText}>Get JWK</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{jwkStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Sign JWT'
-                            onPress={onSignJwt}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{jwtStr}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onSignJwt}>
+                                <Text style={styles.buttonText}>Sign JWT</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{jwtStr}</Text>
 
-                    <View
-                        style={styles.buttonView}
-                    >
-                        <Button
-                            title='Gen DPoP'
-                            onPress={onGenerateDpop}
-                        />
-                    </View>
-                    <Text style={{ textAlign: "left", paddingLeft: 20 }}>{dpopStr}</Text>
+                        <View style={styles.buttonView}>
+                            <TouchableOpacity style={styles.button} onPress={onGenerateDpop}>
+                                <Text style={styles.buttonText}>Gen DPoP</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ textAlign: "left", paddingLeft: 20 }}>{dpopStr}</Text>
 
-                </View>
-            </ScrollView>
-        </SafeAreaView>
+                    </View>
+                </ScrollView>
+            //</SafeAreaView>
+        //</SafeAreaProvider>
     );
 }
 
