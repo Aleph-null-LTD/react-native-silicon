@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-//import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {
     getCapabilities,
     generateKey,
@@ -381,8 +381,8 @@ export default function App() {
     }
 
     return (
-        //<SafeAreaProvider>
-            //<SafeAreaView>
+        <SafeAreaProvider>
+            <SafeAreaView>
                 <ScrollView>
                     <View style={{ marginBottom: 400 }}>
                         <Text style={styles.header}>react-native-silicon</Text>
@@ -495,11 +495,10 @@ export default function App() {
                             </TouchableOpacity>
                         </View>
                         <Text style={{ textAlign: "left", paddingLeft: 20 }}>{dpopStr}</Text>
-
                     </View>
                 </ScrollView>
-            //</SafeAreaView>
-        //</SafeAreaProvider>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
 }
 
