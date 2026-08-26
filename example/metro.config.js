@@ -12,8 +12,8 @@ config.resolver.blockList = [
   // npm v7+ will install ../node_modules/react and ../node_modules/react-native because of peerDependencies.
   // To prevent the incompatible react-native between ./node_modules/react-native and ../node_modules/react-native,
   // excludes the one from the parent folder when bundling.
-  //new RegExp(path.resolve('..', 'node_modules', 'react')),
-  //new RegExp(path.resolve('..', 'node_modules', 'react-native')),
+  //new RegExp(path.resolve(workspaceRoot, 'node_modules', 'react')),
+  //new RegExp(path.resolve(workspaceRoot, 'node_modules', 'react-native')),
 
   // Ignore tests when bundling
   /.*__tests__.*/,
@@ -39,6 +39,10 @@ config.transformer.getTransformOptions = async () => ({
   },
 });
 
+//config.transformer.babelConfigPath = require.resolve(path.resolve(projectRoot, './babel.config.js'));
+//config.transformer.enableBabelRCLookup = false;
 //config.resolver.disableHierarchicalLookup = false;
+//config.resolver.unstable_enableSymlinks = true;
+//config.resolver.unstable_enablePackageExports = true;
 
 module.exports = config;
