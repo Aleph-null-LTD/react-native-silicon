@@ -30,6 +30,7 @@ module.exports = ({ config }) => {
     name: "react-native-silicon-example",
     slug: "react-native-silicon-example",
     version: "1.0.0",
+    jsEngine: "hermes",
     orientation: "portrait",
     icon: "./assets/icon.png",
     //userInterfaceStyle: "light",
