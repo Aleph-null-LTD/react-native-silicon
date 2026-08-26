@@ -13,20 +13,22 @@
     "prebuild:ios": "expo prebuild --platform ios --clean",
     "get-bundle:ios": "curl \"http://localhost:8081/.expo/.virtual-metro-entry.bundle?platform=ios&dev=true\" -o ios-bundle.ignore.js",
     "get-bundle:android": "curl \"http://localhost:8081/.expo/.virtual-metro-entry.bundle?platform=android&dev=true\" -o android-bundle.ignore.js",
-    "clear-metro-cache": "rm -rf $TMPDIR/metro-*"
+    "clear-cache:metro": "rm -rf /tmp/metro-*",
+    "clear-cache:watchman": "watchman watch-del-all",
+    "check-expo-deps": "expo install --check"
   },
   "dependencies": {
-    "expo": "55.0.20",
+    "expo": "55.0.30",
     "react": "19.2.0",
     "react-devtools-core": "7.0.1",
     "react-is": "19.2.0",
-    "react-native": "0.83.6",
+    "react-native": "0.83.10",
     "react-native-safe-area-context": "5.6.2",
     "react-refresh": "0.18.0"
   },
   "devDependencies": {
-    "@types/react": "~19.2.0",
-    "typescript": "6.0.3"
+    "@types/react": "~19.2.10",
+    "typescript": "5.9.2"
   },
   "private": true,
   "expo": {
