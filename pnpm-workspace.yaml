@@ -7,8 +7,8 @@ packages:
 storeDir: ./.pnpm-store
 autoInstallPeers: true
 strictPeerDependencies: true
-#nodeLinker: hoisted
-shamefullyHoist: true
+nodeLinker: hoisted
+#shamefullyHoist: true
 #injectWorkspacePackages: true # Hard-link ALL local workspace packages into sub-projects
 #hoistWorkspacePackages: true
 #publicHoistPattern:
