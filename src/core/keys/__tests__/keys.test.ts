@@ -580,7 +580,7 @@ describe('getPubKey()', () => {
             await expect(getPubKey(chaoticData, 'SPKI')).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
         } else {
-            // @ts-expect-error
+            // @ts-expect-error - intentionally passing invalid value
             await expect(getPubKey(chaoticData, 'SPKI')).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledTimes(0);
         }
@@ -632,7 +632,7 @@ describe('getPubKey()', () => {
     });
 
     it.each(strFormatsArr)("should throw if bridge returns a Uint8Array for '%s' format", async (format) => {
-        const mockData = mockUint8Array();
+        mockUint8Array();
         
         await expect(getPubKey('some-random-alias', format)).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.getPubKey).toHaveBeenCalledOnce();
@@ -787,7 +787,7 @@ describe('attestKey()', () => {
             await expect(attestKey('some-random-alias', chaoticData, 'SPKI')).resolves.toBe(mockData);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();
         } else {
-            const mockData = mockAndroidAttestKey('STRING', false);
+            mockAndroidAttestKey('STRING', false);
             // @ts-expect-error - Intentionally pass incorrect type
             await expect(attestKey('some-random-alias', chaoticData, 'SPKI')).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledTimes(0);
@@ -831,7 +831,7 @@ describe('attestKey()', () => {
 
     it.each(attestFormats)("should throw for android when format is '%s' and bridge returns incorrect type", async (format) => {
         // Invert the format to mock return the incorrect one
-        const mockData = mockAndroidAttestKey(format, true);
+        mockAndroidAttestKey(format, true);
 
         await expect(attestKey('some-random-alias', format, "SPKI")).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.attestKey).toHaveBeenCalledOnce();

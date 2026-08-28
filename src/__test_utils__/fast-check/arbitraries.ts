@@ -81,9 +81,9 @@ export const fcCustomArbitraries = {
             fc.double().filter((data) => data < 0)
         ),
         nonZero: () => fc.oneof(
-            fc.integer().filter((data) => data !== 0 && data !== -0),
-            fc.float().filter((data) => data !== 0 && data !== -0),
-            fc.double().filter((data) => data !== 0 && data !== -0)
+            fc.integer().filter((data) => !Object.is(data, 0) && !Object.is(data, -0)),
+            fc.float().filter((data) => !Object.is(data, 0) && !Object.is(data, -0)),
+            fc.double().filter((data) => !Object.is(data, 0) && !Object.is(data, -0))
         )
     }
 };

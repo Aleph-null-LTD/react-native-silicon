@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { test } from "@fast-check/vitest";
-import fc from "fast-check";
 import { generateDpopProof } from "../dpop";
-import { SiliconError } from "../../errors";
 import ReactNativeSiliconModule from "../../module";
 import { createBridgeSuccess } from "../../__test_utils__/factories/bridge-result";
 import { objectToBase64Url } from "../../utils/encoding";

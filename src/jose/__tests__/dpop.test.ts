@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { test } from "@fast-check/vitest";
 import fc from "fast-check";
 import { generateDpopProof } from "../dpop";
@@ -118,7 +118,7 @@ describe('generateDpopProof()', () => {
         } else {
             await expect(
                 generateDpopProof(
-                    // @ts-expect-error
+                    // @ts-expect-error - intentionally passing invalid value
                     chaoticData, 
                     {
                         htu: 'https://dummy.domain/some/path',
@@ -139,12 +139,12 @@ describe('generateDpopProof()', () => {
         [fc.anything().filter((data) => !isPlainObject(data))],
         { numRuns: 1000 }
     )('should throw when opts is not a POJO', async (chaoticData) => {
-        const mockVals = setupMocks();
+        setupMocks();
         
         await expect(
             generateDpopProof(
                 'some-random-alias', 
-                // @ts-expect-error
+                // @ts-expect-error - intentionally passing invalid value
                 chaoticData
             )
         ).rejects.instanceOf(SiliconError);
@@ -159,12 +159,12 @@ describe('generateDpopProof()', () => {
         [fc.anything().filter((data) => !isPlainObject(data))],
         { numRuns: 1000 }
     )('should throw when opts is not a POJO', async (chaoticData) => {
-        const mockVals = setupMocks();
+        setupMocks();
         
         await expect(
             generateDpopProof(
                 'some-random-alias', 
-                // @ts-expect-error
+                // @ts-expect-error - intentionally passing invalid value
                 chaoticData
             )
         ).rejects.instanceOf(SiliconError);
@@ -214,7 +214,7 @@ describe('generateDpopProof()', () => {
                 generateDpopProof(
                     'some-random-alias', 
                     {
-                        // @ts-expect-error
+                        // @ts-expect-error - intentionally passing invalid value
                         digest: chaoticData,
                         htu: 'https://dummy.domain/some/path',
                         htm: 'POST',
@@ -261,7 +261,7 @@ describe('generateDpopProof()', () => {
                 generateDpopProof(
                     'some-random-alias', 
                     {
-                        // @ts-expect-error
+                        // @ts-expect-error - intentionally passing invalid value
                         htu: chaoticData,
                         htm: 'POST',
                         // jti is NOT included - this will trigger the default behaviour to generate secure random bytes
@@ -303,7 +303,7 @@ describe('generateDpopProof()', () => {
                     'some-random-alias', 
                     {
                         htu: 'https://dummy.domain/some/path',
-                        // @ts-expect-error
+                        // @ts-expect-error - intentionally passing invalid value
                         htm: chaoticData,
                         // jti is NOT included - this will trigger the default behaviour to generate secure random bytes
                     }
@@ -351,7 +351,7 @@ describe('generateDpopProof()', () => {
                     {
                         htu: 'https://dummy.domain/some/path',
                         htm: "POST",
-                        // @ts-expect-error
+                        // @ts-expect-error - intentionally passing invalid value
                         jti: chaoticData
                     }
                 )
@@ -393,7 +393,7 @@ describe('generateDpopProof()', () => {
                     {
                         htu: 'https://dummy.domain/some/path',
                         htm: "POST",
-                        // @ts-expect-error
+                        // @ts-expect-error - intentionally passing invalid value
                         nonce: chaoticData
                     }
                 )

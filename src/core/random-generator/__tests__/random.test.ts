@@ -40,7 +40,7 @@ describe('generateSecureRandomBytes()', () => {
     });
 
     it("should throw when bridge result contains a string but format is 'BYTES'", async () => {
-        const defaultMockData = mockStringResult();
+        mockStringResult();
 
         await expect(generateSecureRandomBytes(3, 'BYTES')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
@@ -54,7 +54,7 @@ describe('generateSecureRandomBytes()', () => {
     });
 
     it("should throw when bridge result contains a Uint8Array but format is 'B64'", async () => {
-        const defaultMockData = mockUint8ArrayResult();
+        mockUint8ArrayResult();
 
         await expect(generateSecureRandomBytes(3, 'B64')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
@@ -68,7 +68,7 @@ describe('generateSecureRandomBytes()', () => {
     });
 
     it("should throw when bridge result contains a Uint8Array but format is 'B64URL'", async () => {
-        const defaultMockData = mockUint8ArrayResult();
+        mockUint8ArrayResult();
 
         await expect(generateSecureRandomBytes(3, 'B64URL')).rejects.instanceOf(SiliconError);
         expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
@@ -119,7 +119,7 @@ describe('generateSecureRandomBytes()', () => {
             expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledOnce();
 
         } else {
-            // @ts-expect-error
+            // @ts-expect-error - intentionally passing invalid value
             await expect(generateSecureRandomBytes(3, chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.generateSecureRandomBytes).toHaveBeenCalledTimes(0);
         }

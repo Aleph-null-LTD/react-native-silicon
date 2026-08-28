@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, onTestFailed } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { test } from '@fast-check/vitest';
 import fc from 'fast-check';
 import { getJwk } from '../jwk';
@@ -44,7 +44,7 @@ describe('getJwk()', () => {
             await expect(getJwk(chaoticData, 'SHA256')).resolves.toStrictEqual(mockVal);
             expect(ReactNativeSiliconModule.getJwk).toHaveBeenCalledOnce();
         } else {
-            // @ts-expect-error
+            // @ts-expect-error - intentionally passing invalid value
             await expect(getJwk(chaoticData, 'SHA256')).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.getJwk).toHaveBeenCalledTimes(0);
         }
@@ -74,7 +74,7 @@ describe('getJwk()', () => {
             await expect(getJwk('some-random-alias', chaoticData)).resolves.toStrictEqual(mockVal);
             expect(ReactNativeSiliconModule.getJwk).toHaveBeenCalledOnce();
         } else {
-            // @ts-expect-error
+            // @ts-expect-error - intentionally passing invalid value
             await expect(getJwk('some-random-alias', chaoticData)).rejects.instanceOf(SiliconError);
             expect(ReactNativeSiliconModule.getJwk).toHaveBeenCalledTimes(0);
         }

@@ -160,7 +160,7 @@ describe('sign()', () => {
         [nonObjectChaoticData],
         { numRuns: 1000 }
     )('should throw when opts is not an object', async (chaoticData) => {
-        const mockData = mockSign('B64');
+        mockSign('B64');
 
         await expect(
             sign(
@@ -207,7 +207,7 @@ describe('sign()', () => {
             expect(ReactNativeSiliconModule.sign).toHaveBeenCalledOnce();
 
         } else {
-            const mockData = mockSign('B64');
+            mockSign('B64');
 
             await expect(
                 sign(

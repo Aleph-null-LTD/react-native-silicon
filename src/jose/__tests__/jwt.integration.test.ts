@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { sign } from "../../core/operations/operations";
 import { signJwt } from "../jwt";
 import ReactNativeSiliconModule from "../../module";
 import { createBridgeSuccess } from "../../__test_utils__/factories/bridge-result";

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect } from "vitest";
 import { test } from "@fast-check/vitest";
 import fc from "fast-check";
 import { ensureUint8Array } from "../bytes";

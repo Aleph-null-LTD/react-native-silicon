@@ -4,7 +4,7 @@ import { test } from '@fast-check/vitest';
 import { sign } from "../../core/operations/operations";
 import { objectToBase64Url } from "../../utils/encoding";
 import { signJwt } from "../jwt";
-import { SiliconError, SiliconErrorCode } from "../../errors";
+import { SiliconError } from "../../errors";
 import { isPlainObject } from "../../utils/validation";
 
 vi.mock("../../core/operations/operations");
@@ -56,7 +56,7 @@ describe('signJwt()', () => {
         } else {
             let didThrow = true;
             try {
-                // @ts-expect-error
+                // @ts-expect-error - intentionally passing invalid value
                 await signJwt(chaoticData, jwtHeader, jwtPayload, 'SHA256');
                 didThrow = false;
             } catch (error) {
@@ -84,7 +84,7 @@ describe('signJwt()', () => {
         } else {
             let didThrow = true;
             try {
-                // @ts-expect-error
+                // @ts-expect-error - intentionally passing invalid value
                 await signJwt('some-random-alias', chaoticData, jwtPayload, 'SHA256');
                 didThrow = false;
             } catch (error) {
@@ -112,7 +112,7 @@ describe('signJwt()', () => {
         } else {
             let didThrow = true;
             try {
-                // @ts-expect-error
+                // @ts-expect-error - intentionally passing invalid value
                 await signJwt('some-random-alias', jwtHeader, chaoticData, 'SHA256');
                 didThrow = false;
             } catch (error) {
@@ -152,7 +152,7 @@ describe('signJwt()', () => {
         } else {
             let didThrow = true;
             try {
-                // @ts-expect-error
+                // @ts-expect-error - intentionally passing invalid value
                 await signJwt('some-random-alias', jwtHeader, jwtPayload, chaoticData);
                 didThrow = false;
             } catch (error) {
