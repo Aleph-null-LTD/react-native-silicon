@@ -72,7 +72,7 @@ Add the plugin to your app.json file:
       [
         "react-native-silicon",
         {
-          "faceIDPermission": "Allow this app to use Face ID for secure keys."
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID for secure cryptographic keys."
         }
       ]
     ]
