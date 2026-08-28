@@ -1,3 +1,5 @@
+import groovy.json.JsonSlurper
+
 plugins {
   id 'com.android.library'
   id 'expo-module-gradle-plugin'
@@ -7,14 +9,18 @@ dependencies {
     implementation 'androidx.biometric:biometric:1.4.0-alpha06' // Use the latest stable/alpha for robust API 30+ support
 }
 
+def packageJsonFile = new File(projectDir, '../package.json')
+def packageJson = new JsonSlurper().parseText(packageJsonFile.text)
+def libraryVersion = packageJson.version
+
 group = 'co.alephnull.reactnative.silicon'
-version = '0.0.1'
+version = libraryVersion
 
 android {
   namespace "co.alephnull.reactnative.silicon"
   defaultConfig {
     versionCode 1
-    versionName "0.0.1"
+    versionName libraryVersion
   }
   lintOptions {
     abortOnError false
