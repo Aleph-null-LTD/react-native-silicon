@@ -79,7 +79,7 @@
   },
   "plugin": "app.plugin.js",
   "files": [
-    "lib",
+    "build",
     "src",
     "!**/__tests__",
     "!**/__mocks__",
