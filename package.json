@@ -85,6 +85,7 @@
     "!**/__mocks__",
     "!**/__test_utils__",
     "android",
+    "!android/build",
     "ios",
     "!ios/Tests",
     "plugin",
@@ -92,6 +93,7 @@
     "expo-module.config.json",
     "LICENSE",
     "README.md",
+    "!*tsconfig*",
     "!*.ignore*"
   ]
 }
