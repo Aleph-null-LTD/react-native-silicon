@@ -304,7 +304,7 @@ export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 
 }
 
 /**
- * Gets the X.509 SPKI pubkey from an asymmetric keypair.
+ * Gets the public key from an asymmetric keypair.
  * @param alias 
  * @param format 
  * @returns 
