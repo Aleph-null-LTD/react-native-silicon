@@ -87,6 +87,9 @@
     "android",
     "ios",
     "!ios/Tests",
+    "plugin",
+    "app.plugin.js",
+    "expo-module.config.json",
     "LICENSE",
     "README.md",
     "!*.ignore*"
