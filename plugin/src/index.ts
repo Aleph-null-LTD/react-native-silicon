@@ -25,7 +25,7 @@ const withIOSFaceID: ConfigPlugin<PluginProps> = (config, props) => {
     config.modResults.NSFaceIDUsageDescription =
       config.modResults.NSFaceIDUsageDescription ||
       props.faceIDPermission ||
-      'Allow $(PRODUCT_NAME) to securely sign cryptographic payloads.';
+      'Allow $(PRODUCT_NAME) to use Face ID for secure cryptographic keys.';
     return config;
   });
 };
