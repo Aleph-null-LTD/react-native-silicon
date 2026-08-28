@@ -45,71 +45,148 @@ class ReactNativeSiliconModule : Module() {
         Name("ReactNativeSilicon")
 
         AsyncFunction("getCapabilities") {
-            val result = device.getCapabilities()
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = device.getCapabilities()
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.GET_CAPABILITIES_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         // ---- Keystore Manager ----
 
         AsyncFunction("generateKey") { alias: String, opts: GenerateKeyOptions, attestChallenge: ByteArray ->
-            // Uint8Array (TS) fails to map to ByteArray correctly when it is nested inside the options
-            // so we extract it out of the options on the TS side and then inject it back in here
-            opts.attestChallenge = attestChallenge
+            try {
+                // Uint8Array (TS) fails to map to ByteArray correctly when it is nested inside the options
+                // so we extract it out of the options on the TS side and then inject it back in here
+                opts.attestChallenge = attestChallenge
 
-            val result = keystoreManager.generateKey(alias, opts)
-            return@AsyncFunction result.toBridgeMap()
+                val result = keystoreManager.generateKey(alias, opts)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.GENERATE_KEY_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         AsyncFunction("deleteKey") { alias: String ->
-            val result = keystoreManager.deleteKey(alias)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = keystoreManager.deleteKey(alias)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.DELETE_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         AsyncFunction("deleteAllKeys") { prefix: String? ->
-            val result = keystoreManager.deleteAllKeys(prefix)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = keystoreManager.deleteAllKeys(prefix)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.DELETE_ALL_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         AsyncFunction("keyExists") { alias: String ->
-            val result = keystoreManager.keyExists(alias)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = keystoreManager.keyExists(alias)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.KEY_EXISTS_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         AsyncFunction("listKeys") { prefix: String? ->
-            val result = keystoreManager.listKeys(prefix)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = keystoreManager.listKeys(prefix)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.LIST_KEYS_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         AsyncFunction("getPubKey") { alias: String, format: PubkeyFormat ->
-            val result = keystoreManager.getPubKey(alias, format)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = keystoreManager.getPubKey(alias, format)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.GET_PUB_KEY_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         // We ignore pubKeyFormat (ios only)
         AsyncFunction("attestKey") { alias: String, format: AttestFormat, pubKeyFormat: String ->
-            val result = keystoreManager.attestKey(alias, format)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = keystoreManager.attestKey(alias, format)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.ATTEST_KEY_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         AsyncFunction("getKeyInfo") { alias: String ->
-            val result = keystoreManager.getKeyInfo(alias)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = keystoreManager.getKeyInfo(alias)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.GET_KEY_INFO_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         AsyncFunction("validateKey") { alias: String ->
-            val result = keystoreManager.validateKey(alias)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = keystoreManager.validateKey(alias)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.VALIDATE_KEY_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         // ---- Sign/Verify ----
 
         AsyncFunction("sign") Coroutine { alias: String, payloadStr: String?, payloadByteArr: ByteArray?, opts: SignOptions ->
-            val bridgePayload = BridgePayloadRecord()
-            bridgePayload.text = payloadStr
-            bridgePayload.bytes = payloadByteArr
+            try {
+                val bridgePayload = BridgePayloadRecord()
+                bridgePayload.text = payloadStr
+                bridgePayload.bytes = payloadByteArr
 
-            val result = signer.sign(alias, bridgePayload.toPayloadType(), opts)
-            return@Coroutine result.toBridgeMap()
+                val result = signer.sign(alias, bridgePayload.toPayloadType(), opts)
+                return@Coroutine result.toBridgeMap()
+            } catch (e: Exception) {
+                return@Coroutine SiliconResult.Failure(
+                    SiliconErrorCode.SIGN_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         AsyncFunction("verify") {
@@ -121,53 +198,74 @@ class ReactNativeSiliconModule : Module() {
             pubkeyByteArr: ByteArray?,
             bridgeOpts: BridgeVerifyOptions ->
 
-            // Pack payload into PayloadType
-            val bridgePayload = BridgePayloadRecord()
-            bridgePayload.text = payloadStr
-            bridgePayload.bytes = payloadByteArr
+            try {
+                // Pack payload into PayloadType
+                val bridgePayload = BridgePayloadRecord()
+                bridgePayload.text = payloadStr
+                bridgePayload.bytes = payloadByteArr
 
-            // Pack signature into PayloadType
-            val bridgeSignature = BridgePayloadRecord()
-            bridgeSignature.text = signatureStr
-            bridgeSignature.bytes = signatureByteArr
+                // Pack signature into PayloadType
+                val bridgeSignature = BridgePayloadRecord()
+                bridgeSignature.text = signatureStr
+                bridgeSignature.bytes = signatureByteArr
 
-            // Pack pubkeyStr and pubkeyBytes into PayloadType
-            var pubkey: BridgePayloadRecord? = null
-            if (pubkeyStr != null || pubkeyByteArr != null) {
-                pubkey = BridgePayloadRecord()
-                pubkey.text = pubkeyStr
-                pubkey.bytes = pubkeyByteArr
+                // Pack pubkeyStr and pubkeyBytes into PayloadType
+                var pubkey: BridgePayloadRecord? = null
+                if (pubkeyStr != null || pubkeyByteArr != null) {
+                    pubkey = BridgePayloadRecord()
+                    pubkey.text = pubkeyStr
+                    pubkey.bytes = pubkeyByteArr
+                }
+
+                // Populate VerifyOptions
+                val opts = VerifyOptions()
+                opts.pubkey = when (pubkey) {
+                    null -> null
+                    else -> pubkey.toPayloadType()
+                }
+                opts.alias = bridgeOpts.alias
+                opts.algorithm = bridgeOpts.algorithm
+
+                val result = verifier.verify(
+                    bridgePayload.toPayloadType(),
+                    bridgeSignature.toPayloadType(),
+                    opts
+                )
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.VERIFY_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
             }
-
-            // Populate VerifyOptions
-            val opts = VerifyOptions()
-            opts.pubkey = when (pubkey) {
-                null -> null
-                else -> pubkey.toPayloadType()
-            }
-            opts.alias = bridgeOpts.alias
-            opts.algorithm = bridgeOpts.algorithm
-
-            val result = verifier.verify(
-                bridgePayload.toPayloadType(),
-                bridgeSignature.toPayloadType(),
-                opts
-            )
-            return@AsyncFunction result.toBridgeMap()
         }
 
         // ---- Random Generator ----
 
         AsyncFunction("generateSecureRandomBytes") { length: Int, format: RandomBytesFormat ->
-            val result = randomGen.generate(length, format)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = randomGen.generate(length, format)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.RANDOM_GEN_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
 
         // ---- JOSE ----
 
         AsyncFunction("getJwk") { alias: String, digest: SignDigest? ->
-            val result = jose.getJwk(alias, digest)
-            return@AsyncFunction result.toBridgeMap()
+            try {
+                val result = jose.getJwk(alias, digest)
+                return@AsyncFunction result.toBridgeMap()
+            } catch (e: Exception) {
+                return@AsyncFunction SiliconResult.Failure(
+                    SiliconErrorCode.GET_JWK_FAILED,
+                    e.localizedMessage ?: "Failed to due to unexpected error"
+                ).toBridgeMap()
+            }
         }
     }
 }
