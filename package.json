@@ -1,11 +1,21 @@
 {
   "name": "react-native-silicon",
   "version": "0.0.1",
+  "author": "Aleph-null Ltd <contact@aleph-null.co.uk> (https://github.com/Aleph-null-Ltd)",
+  "license": "MIT",
+  "homepage": "https://github.com/Aleph-null-Ltd/react-native-silicon",
   "description": "Hardware-backed cryptography for React Native and Expo (WIP)",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "packageManager": "pnpm@11.3.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Aleph-null-Ltd/react-native-silicon"
+  },
+  "bugs": {
+    "url": "https://github.com/Aleph-null-Ltd/react-native-silicon/issues"
+  },
   "scripts": {
     "build": "expo-module build",
     "build:plugin": "tsc --build plugin/tsconfig.json",
@@ -44,16 +54,6 @@
     "dpop",
     "jose"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Aleph-null-Ltd/react-native-silicon"
-  },
-  "bugs": {
-    "url": "https://github.com/Aleph-null-Ltd/react-native-silicon/issues"
-  },
-  "author": "Aleph-null Ltd <contact@aleph-null.co.uk> (https://github.com/Aleph-null-Ltd)",
-  "license": "MIT",
-  "homepage": "https://github.com/Aleph-null-Ltd/react-native-silicon",
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@expo/config-plugins": "55.0.9",
