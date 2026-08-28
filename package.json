@@ -37,8 +37,8 @@
     "prepare": "expo-module prepare && npm run build:plugin",
     "prepublishOnly": "npm run lint && npm run test && expo-module prepublishOnly",
     "expo-module": "expo-module",
-    "open:ios": "xed example/ios",
-    "open:android": "open -a \"Android Studio\" example/android",
+    "open:ios:mac": "xed example/ios",
+    "open:android:mac": "open -a \"Android Studio\" example/android",
     "watch": "tsc --watch"
   },
   "keywords": [
