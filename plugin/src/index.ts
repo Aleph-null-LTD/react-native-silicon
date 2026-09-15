@@ -2,9 +2,9 @@ import {
   ConfigPlugin,
   createRunOncePlugin,
   withInfoPlist,
-  AndroidConfig,
+  //AndroidConfig,
   withPlugins,
-} from '@expo/config-plugins';
+} from 'expo/config-plugins.js';
 
 // Define the props developers can pass in their app.json
 type PluginProps = {
@@ -34,12 +34,14 @@ const withIOSFaceID: ConfigPlugin<PluginProps> = (config, props) => {
  * Android Configuration
  * Injects USE_BIOMETRIC and USE_FINGERPRINT into the AndroidManifest.xml
  */
+/*
 const withAndroidBiometrics: ConfigPlugin = (config) => {
   return AndroidConfig.Permissions.withPermissions(config, [
     'android.permission.USE_BIOMETRIC',
     'android.permission.USE_FINGERPRINT', // Fallback for older Android devices
   ]);
 };
+*/
 
 /**
  * Main Plugin Wrapper
@@ -48,7 +50,7 @@ const withAndroidBiometrics: ConfigPlugin = (config) => {
 const withReactNativeSilicon: ConfigPlugin<PluginProps> = (config, props = {}) => {
   return withPlugins(config, [
     [withIOSFaceID, props],
-    withAndroidBiometrics,
+    //withAndroidBiometrics,
   ]);
 };
 
