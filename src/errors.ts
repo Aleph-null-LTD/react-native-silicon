@@ -251,7 +251,6 @@ export class SiliconError extends Error {
 
             } else {
                 return cause;
-
             }
         };
         
@@ -273,4 +272,8 @@ export class SiliconError extends Error {
     public serialize(space?: string | number | undefined): string {
         return JSON.stringify(this.toJSON(), undefined, space);
     }
+}
+
+export function isSiliconError(error: unknown): error is SiliconError {
+    return error instanceof SiliconError;
 }
