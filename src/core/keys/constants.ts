@@ -121,8 +121,8 @@ export const isIosAlgorithm = createInSetGuard(iosAlgorithmSet);
 // iOS hardware policies
 export const iosHardwarePolicies = {
     REQUIRE_SECURE_ENCLAVE: 'REQUIRE_SECURE_ENCLAVE',
-    PREFER_SECURE_ENCLAVE: 'PREFER_SECURE_ENCLAVE',
-    SOFTWARE_ONLY: 'SOFTWARE_ONLY'
+    //PREFER_SECURE_ENCLAVE: 'PREFER_SECURE_ENCLAVE',
+    //SOFTWARE_ONLY: 'SOFTWARE_ONLY'
 } as const;
 
 const iosHardwarePolicySet: ReadonlySet<keyof typeof iosHardwarePolicies> = new Set(Object.values(iosHardwarePolicies));
