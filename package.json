@@ -17,9 +17,12 @@
     "url": "https://github.com/Aleph-null-Ltd/react-native-silicon/issues"
   },
   "scripts": {
-    "build": "expo-module build",
+    "clean": "rimraf build plugin/build && expo-module clean",
+    "build:esm": "tsc -p ./tsconfig.esm.json",
+    "build:cjs": "tsc -p ./tsconfig.cjs.json",
+    "build:types": "tsc -p ./tsconfig.base.json --emitDeclarationOnly --outDir ./build/types",
     "build:plugin": "tsc --build plugin/tsconfig.json",
-    "clean": "expo-module clean",
+    "build": "pnpm run clean && pnpm run build:esm && pnpm run build:cjs && pnpm run build:types && pnpm run build:plugin",
     "lint": "expo-module lint",
     "test-old": "expo-module test",
     "test": "vitest run",
