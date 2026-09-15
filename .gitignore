@@ -55,3 +55,15 @@ yarn-error.log
 
 # Expo
 .expo/*
+
+# PNPM
+.pnpm-store
+
+# TypeScript cache
+*.tsbuildinfo
+
+# npm tarballs
+*.tgz
+
+# Ignore
+*.ignore*

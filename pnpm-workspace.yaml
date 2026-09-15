@@ -1,0 +1,22 @@
+# https://pnpm.io/settings
+
+packages:
+  - '.'
+  - './example'
+
+storeDir: ./.pnpm-store
+autoInstallPeers: true
+strictPeerDependencies: true
+nodeLinker: hoisted
+#shamefullyHoist: true
+#injectWorkspacePackages: true # Hard-link ALL local workspace packages into sub-projects
+#hoistWorkspacePackages: true
+#publicHoistPattern:
+#  - '*'
+#injectedDeps:
+#  - react
+#  - react-native
+#  - expo
+allowBuilds:
+  msgpackr-extract: true
+  unrs-resolver: true
