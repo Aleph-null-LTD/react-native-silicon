@@ -32,7 +32,7 @@ describe('generateKey()', () => {
             algorithm: 'RSA_2048' as const,
             digests: ['SHA256' as const, 'SHA512' as const],
             signaturePaddingAlgorithm: 'PKCS1' as const,
-            hardwarePolicy: 'SOFTWARE_ONLY' as const
+            hardwarePolicy: 'REQUIRE_SECURE_ENCLAVE' as const
         }
     };
 
