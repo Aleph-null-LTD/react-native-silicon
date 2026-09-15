@@ -10,7 +10,6 @@ Hardware-backed cryptography module for React Native. Currently under active dev
 
 > **Development Status:**
 > This project is currently in early alpha and is **NOT** in a production-ready state. Testing is on-going, and APIs are subject to breaking changes. Use in production environments is highly discouraged at this time.
-> Many of the features in the project 
 
 ## Features
 
