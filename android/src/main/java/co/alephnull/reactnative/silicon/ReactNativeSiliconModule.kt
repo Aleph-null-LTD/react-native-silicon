@@ -58,7 +58,7 @@ class ReactNativeSiliconModule : Module() {
 
         // ---- Keystore Manager ----
 
-        AsyncFunction("generateKey") { alias: String, opts: GenerateKeyOptions, attestChallenge: ByteArray ->
+        AsyncFunction("generateKey") { alias: String, opts: GenerateKeyOptions, attestChallenge: ByteArray? ->
             try {
                 // Uint8Array (TS) fails to map to ByteArray correctly when it is nested inside the options
                 // so we extract it out of the options on the TS side and then inject it back in here
