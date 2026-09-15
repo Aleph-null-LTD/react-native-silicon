@@ -10,6 +10,7 @@ Hardware-backed cryptography module for React Native. Currently under active dev
 
 > **Development Status:**
 > This project is currently in early alpha and is **NOT** in a production-ready state. Testing is on-going, and APIs are subject to breaking changes. Use in production environments is highly discouraged at this time.
+> Many of the features in the project 
 
 ## Features
 
@@ -19,18 +20,18 @@ Hardware-backed cryptography module for React Native. Currently under active dev
 * **Silent Signing:** Sign payloads without unnecessary biometric interruptions for background tasks.
 * **Modern Standards:** First-class support for JOSE and OAuth2.0 (OAuth2.1 pending its official release) compliance.
 * **Attestation:** Hardware attestation to verify key integrity on the backend.
-* **Modern Architecture:** Built from the ground up using the Expo Modules API.
+* **Modern Architecture:** Built from the ground up using Expo Modules.
 
 ## Roadmap & Current Status
 
-Because this library is in active development, some features are still being finalized. Here is the current progress:
+Because this library is in active development, features are still being finalized and may not work as expected. Here is the current progress:
 
 **Core Cryptography**
 - 🧪 Key Generation (RSA, EC)
 - 🧪 Hardware persistence (Keystore / Secure Enclave)
 - 🚧 Software key fallback
 - 🧪 Signing and Verification
-- ⏳ Encryption and Decryption (Planned)
+- ⏳ Encryption and Decryption
 - 🧪 Secure random bytes generation
 - ⏳ ECDH (Elliptic Curve Diffie-Hellman)
 - ⏳ Passkey (FIDO2/WebAuthn) Abstractions
@@ -213,9 +214,17 @@ We provide abstractions to make strict JOSE (JSON Object Signing and Encryption)
 We provide abstractions to make strict OAuth2.0 implementations as simple as possible.
 * **`generateDpopProof`** - Constructs and signs a OAuth2.0 compliant DPoP proof JWT using the key with the given alias.
 
+**Error Handling:**
+* **`SiliconError`** - All errors thrown by the library will be an instance of this class.
+* **`SiliconErrorCode`** - All error codes (stored in the 'code' property of a SiliconError instance) will be one of the values from this enum.
+* **`isSiliconError`** - Returns true if the value passed in is an instance of SiliconError
 ---
 
 ## Helpful Resources
+* Android TEE - https://source.android.com/docs/security/features/trusty
+* iOS Secure Enclave - https://support.apple.com/en-gb/guide/security/sec59b0b31ff/web
+* OAuth2.0 - https://oauth.net/2/
+* JOSE - https://jose.readthedocs.io/en/latest/
 * JWT validation/verification - https://www.jwt.io/
 
 ## License
