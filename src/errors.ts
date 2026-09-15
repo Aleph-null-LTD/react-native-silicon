@@ -207,6 +207,10 @@ export class SiliconError extends Error {
 
     constructor(code: SiliconErrorCode, message: string, opts?: SiliconErrorOpts) {
         super(message);
+        
+        // Restore prototype chain for instanceof checks
+        Object.setPrototypeOf(this, SiliconError.prototype);
+        
         this.name = 'SiliconError';
         this.code = code;
         this.cause = opts?.cause;
