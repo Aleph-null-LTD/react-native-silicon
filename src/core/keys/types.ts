@@ -128,9 +128,6 @@ export type GenerateKeyOpts = {
          * Attempts to use the key with any other digest algorithm will be rejected.
          * 
          * **Default:** Matches the size of the key algorithm (e.g., "SHA256" for "EC_P256").
-         * 
-         * @note For HMAC keys, the default is the digest associated with the key algorithm (e.g., SHA-256 for key algorithm HmacSHA256). 
-         * HMAC keys cannot be authorized for more than one digest.
          */
         digests?: KeyDigests[] | undefined,
 

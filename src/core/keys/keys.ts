@@ -28,9 +28,8 @@ import { AndroidAttestFormatsTypeMap, AttestFormats, AttestResult, GenerateKeyOp
 /**
  * Generate a key
  * 
- * @param alias 
- * @param opts 
- * @returns 
+ * @param alias - The string that will be used to reference the key
+ * @param opts - Options for key generation
  */
 export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promise<void> {
     if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
@@ -220,7 +219,7 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
 /**
  * Delete a key with the specified alias.
  * 
- * @param alias 
+ * @param alias The alias of the key to be deleted
  * @returns true if the key was deleted, false if key not found
  */
 export async function deleteKey(alias: string): Promise<boolean> {
@@ -256,7 +255,7 @@ export async function deleteAllKeys(prefix?: string): Promise<number> {
 /**
  * Checks for the existence of a key with the specified alias.
  * 
- * @param alias 
+ * @param alias The alias of the key
  * @returns true if the key exists
  */
 export async function keyExists(alias: string): Promise<boolean> {
@@ -271,10 +270,8 @@ export async function keyExists(alias: string): Promise<boolean> {
 /**
  * Lists all keys.
  * 
- * prefix can be defined to list only keys with a matching prefix.
- * 
- * @param prefix 
- * @returns An array of the key aliases
+ * @param prefix When defined, only keys with a matching prefix will be listed.
+ * @returns Array of the key aliases
  */
 export async function listKeys(prefix?: string): Promise<string[]> {
     if (prefix !== undefined && typeof prefix !== 'string') {
@@ -287,7 +284,7 @@ export async function listKeys(prefix?: string): Promise<string[]> {
 
 /**
  * Validates the specified key
- * @param alias 
+ * @param alias The alias of the key
  * @returns 
  * * 'VALID' - If the key is valid and ready for use
  * * 'MISSING' - If the key does not exist
@@ -305,9 +302,9 @@ export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 
 
 /**
  * Gets the public key from an asymmetric keypair.
- * @param alias 
- * @param format 
- * @returns 
+ * @param alias The alias of the key
+ * @param format The desired format of the returned public key
+ * @returns The public key
  */
 export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F): Promise<PubKeyFormatTypeMap[F]> {
     if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
@@ -344,7 +341,7 @@ export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F
  * IMPORTANT: This will only work if an attestation challenge was provided when the
  * key was generated (see the generateKey options)
  * 
- * @param alias
+ * @param alias The alias of the key
  * @param format The format to use for the cert chain (Android) or the CBOR object (iOS).
  * @param pubKeyFormat The format to use for the returned signingPubKey on iOS
  * @returns The certificate chain - An array of PEM strings
@@ -415,7 +412,7 @@ export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>
 /**
  * Gets info about the specified key.
  * 
- * @param alias 
+ * @param alias The alias of the target key
  * @returns KeyInfo object
  */
 export async function getKeyInfo(alias: string): Promise<KeyInfo> {

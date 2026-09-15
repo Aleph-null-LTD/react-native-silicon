@@ -8,8 +8,8 @@ import { GenerateDpopProofOpts } from "./types";
 
 /**
  * Generates a RFC 9449 compliant, signed DPoP proof JWT using the key specified with 'alias'
- * @param alias 
- * @param opts 
+ * @param alias alias of the key to use when signing the DPoP proof JWT
+ * @param opts Options
  * @returns the signed DPoP proof JWT
  */
 export async function generateDpopProof(alias: string, opts: GenerateDpopProofOpts): Promise<string> {

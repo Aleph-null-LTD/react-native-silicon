@@ -7,8 +7,8 @@ import { Jwk } from './types';
 
 /**
  * Gets a JSON Web Key (JWK) from the key specified by 'alias'
- * @param alias 
- * @returns 
+ * @param alias
+ * @returns A JWK object
  */
 export async function getJwk(alias: string, digest?: SignDigest): Promise<Jwk> {
     if (typeof alias != 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string");

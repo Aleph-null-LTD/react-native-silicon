@@ -9,10 +9,10 @@ import { JwtHeader, JwtPayload } from "./types";
 /**
  * Sign a JWT using the specified key
  * 
- * @param alias 
- * @param header 
- * @param payload 
- * @param digest 
+ * @param alias alias of the key to use for signing
+ * @param header JWT header
+ * @param payload JWT payload
+ * @param digest digest to use for signing
  * @returns The signed JWT
  */
 export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayload, digest?: SignDigest): Promise<string> {

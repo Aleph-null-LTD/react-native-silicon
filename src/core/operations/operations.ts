@@ -83,7 +83,7 @@ const PEM_REGEX = /(?:-----BEGIN.*?-----|-----END.*?-----|\\s+)/g;
  * 
  * @param payload The payload to verify
  * @param signature The signature to verify against - can be either Raw bytes (Uint8Array), Base64 (string), or Base64Url (string)
- * @param opts 
+ * @param opts Options for the verify operation
  * @returns
  */
 export async function verify(payload: string | Uint8Array, signature: string | Uint8Array, opts: VerifyOpts): Promise<boolean> {
