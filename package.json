@@ -5,8 +5,16 @@
   "license": "MIT",
   "homepage": "https://github.com/Aleph-null-Ltd/react-native-silicon",
   "description": "Hardware-backed cryptography for React Native and Expo (WIP)",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
+  "main": "./build/cjs/index.js",
+  "module": "./build/esm/index.js",
+  "types": "./build/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./build/esm/index.js",
+      "require": "./build/cjs/index.js",
+      "types": "./build/index.d.ts"
+    }
+  },
   "packageManager": "pnpm@11.3.0",
   "type": "module",
   "repository": {
