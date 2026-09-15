@@ -16,16 +16,17 @@ import { JwtHeader, JwtPayload } from "./types";
  * @returns The signed JWT
  */
 export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayload, digest?: SignDigest): Promise<string> {
+  try {  
     if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string");
     if (!isPlainObject(header)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] header must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
     if (!isPlainObject(payload)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
-  
+
     if (digest !== undefined &&
       (typeof digest !== 'string' || !isSignDigest(digest))
     ) {
       throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] digest must be of type ${Object.values(signDigest).join("|")}`);
     }
-  
+
     // Encode the Header and Payload, then concat them with a '.' seperator
     const encodedHeader = objectToBase64Url(header);
     const encodedPayload = objectToBase64Url(payload);
@@ -44,5 +45,11 @@ export async function signJwt(alias: string, header: JwtHeader, payload: JwtPayl
     
     // Concat the signature
     return `${signInput}.${signature}`
+
+  } catch (error) {
+    if (error instanceof SiliconError) throw error;
+
+    throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] signJwt failed with an internal error.", { cause: error });
+  }
 }
 

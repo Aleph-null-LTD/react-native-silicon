@@ -17,59 +17,66 @@ import { SignEncodings, SignEncodingsTypeMap, SignOpts, VerifyOpts } from './typ
  * @note Will automatically prompt for user authentication if enabled on the key
  */
 export async function sign<F extends SignEncodings = 'BYTES'>(alias: string, payload: string | Uint8Array, opts?: SignOpts<F>): Promise<SignEncodingsTypeMap[F]> {
-    if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and must not be empty");
+    try {
+        if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and must not be empty");
 
-    if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be of type string | Uint8Array");
-    if (typeof payload === 'string' && payload.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] string payload must not be empty");
+        if (typeof payload !== 'string' && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be of type string | Uint8Array");
+        if (typeof payload === 'string' && payload.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] string payload must not be empty");
 
-    let payloadStr: string | null = null;
-    let payloadByteArr: Uint8Array | null = null;
+        let payloadStr: string | null = null;
+        let payloadByteArr: Uint8Array | null = null;
 
-    if (typeof payload == 'string') {
-        payloadStr = payload;
-    } else {
-        payloadByteArr = payload;
-    }
-
-    if (opts !== undefined) {
-        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
-        
-        if (hasOwn(opts, 'encoding') &&
-            opts.encoding !== undefined &&
-            !isSignEncoding(opts.encoding)
-        ) {
-            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.encoding must be of type ${Object.values(signEncodings).join("|")}`);
-        }
-        
-        if (hasOwn(opts, 'digest') &&
-            opts.digest !== undefined &&
-            (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
-        ) {
-            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.digest must be of type ${Object.values(signDigest).join("|")}`);
+        if (typeof payload == 'string') {
+            payloadStr = payload;
+        } else {
+            payloadByteArr = payload;
         }
 
-        if (hasOwn(opts, 'format') &&
-            opts.format !== undefined &&
-            !isSignFormat(opts.format)
-        ) {
-            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.format must be of type ${Object.values(signFormats).join("|")}`);
+        if (opts !== undefined) {
+            if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
+            
+            if (hasOwn(opts, 'encoding') &&
+                opts.encoding !== undefined &&
+                !isSignEncoding(opts.encoding)
+            ) {
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.encoding must be of type ${Object.values(signEncodings).join("|")}`);
+            }
+            
+            if (hasOwn(opts, 'digest') &&
+                opts.digest !== undefined &&
+                (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
+            ) {
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.digest must be of type ${Object.values(signDigest).join("|")}`);
+            }
+
+            if (hasOwn(opts, 'format') &&
+                opts.format !== undefined &&
+                !isSignFormat(opts.format)
+            ) {
+                throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.format must be of type ${Object.values(signFormats).join("|")}`);
+            }
+        } else {
+            opts = {};
         }
-    } else {
-        opts = {};
-    }
 
-    // Set default encoding to BYTES if it is not set
-    if (!hasOwn(opts, 'encoding') || opts.encoding === undefined) {
-        opts.encoding = 'BYTES' as F;
-    }
+        // Set default encoding to BYTES if it is not set
+        if (!hasOwn(opts, 'encoding') || opts.encoding === undefined) {
+            opts.encoding = 'BYTES' as F;
+        }
 
-    const result = await NativeSilicon.sign(alias, payloadStr, payloadByteArr, opts);
+        const result = await NativeSilicon.sign(alias, payloadStr, payloadByteArr, opts);
 
-    const signature = handleBridgeResult(result);
-    if (opts.encoding === 'BYTES') {
-        return ensureUint8Array(signature) as SignEncodingsTypeMap[F];
-    } else {
-        return signature;
+        const signature = handleBridgeResult(result);
+        if (opts.encoding === 'BYTES') {
+            return ensureUint8Array(signature) as SignEncodingsTypeMap[F];
+        } else {
+            return signature;
+        }
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] sign failed with an internal error.", { cause: error });
     }
 }
 
@@ -87,79 +94,86 @@ const PEM_REGEX = /(?:-----BEGIN.*?-----|-----END.*?-----|\\s+)/g;
  * @returns
  */
 export async function verify(payload: string | Uint8Array, signature: string | Uint8Array, opts: VerifyOpts): Promise<boolean> {
-    if ((typeof payload !== 'string' || payload.trim().length < 1) && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be of type string | Uint8Array. And must not be an empty string.");
+    try {
+        if ((typeof payload !== 'string' || payload.trim().length < 1) && !(payload instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] payload must be of type string | Uint8Array. And must not be an empty string.");
 
-    let payloadStr: string | null = null;
-    let payloadByteArr: Uint8Array | null = null;
+        let payloadStr: string | null = null;
+        let payloadByteArr: Uint8Array | null = null;
 
-    if (typeof payload == 'string') {
-        payloadStr = payload;
-    } else {
-        payloadByteArr = payload;
-    }
-
-    if ((typeof signature !== 'string' || signature.trim().length < 1) && !(signature instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] signature must be of type string | Uint8Array. And must not be an empty string.");
-    
-    let signatureStr: string | null = null;
-    let signatureByteArr: Uint8Array | null = null;
-
-    if (typeof signature == 'string') {
-        // Normalize all signatures to standard Base64 with padding
-        signatureStr = normalizeToBase64(signature);
-    } else {
-        signatureByteArr = signature;
-    }
-
-    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
-
-    // TODO: Ensure that either pubkey or alias is present, but not both
-    let pubkey: string | Uint8Array | undefined;
-    if (hasOwn(opts, 'pubkey')) {
-        if ((typeof opts.pubkey !== 'string' || opts.pubkey.trim().length < 1) && !(opts.pubkey instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.pubkey must be of type string | Uint8Array.");
-
-        if (typeof opts.pubkey == 'string') {
-            // Strip and PEM headers and normalize to standard Base64 with padding
-            pubkey = opts.pubkey
-                .replace(PEM_REGEX, '')
-                .replace('\n', '')
-                .replace('\r', '')
-                .trim();
-            pubkey = normalizeToBase64(pubkey);
+        if (typeof payload == 'string') {
+            payloadStr = payload;
         } else {
-            pubkey = opts.pubkey;
+            payloadByteArr = payload;
         }
-    }
 
-    let alias: string | undefined = undefined;
-    if (hasOwn(opts, 'alias')) {
-        if (typeof opts.alias !== 'string' || opts.alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.alias must be of type string and not empty");
+        if ((typeof signature !== 'string' || signature.trim().length < 1) && !(signature instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] signature must be of type string | Uint8Array. And must not be an empty string.");
+        
+        let signatureStr: string | null = null;
+        let signatureByteArr: Uint8Array | null = null;
 
-        alias = opts.alias;
-    }
-
-    // Ensure that only either alias or pubkey is present
-    if (alias && pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.alias and opts.pubkey are mutually exclusive");
-    if (!alias && !pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] either opts.alias or opts.pubkey must be supplied");
-
-    if (pubkey && !hasOwn(opts, 'algorithm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must contain the algorithm property");
-    if (pubkey || (alias && hasOwn(opts, 'algorithm') && opts.algorithm !== undefined)) {
-        if (typeof opts.algorithm !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.algorithm must be of type string");
-        if (!isVerifyAlgorithm(opts.algorithm)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.algorithm must be of type ${Object.values(verifyAlgorithms).join("|")}`);
-    }
-
-    const result = await NativeSilicon.verify(
-        payloadStr, 
-        payloadByteArr,
-        signatureStr,
-        signatureByteArr,
-        typeof pubkey == "string" ? pubkey : null,
-        pubkey instanceof Uint8Array ? pubkey : null,
-        {
-            alias: alias,
-            algorithm: opts.algorithm
+        if (typeof signature == 'string') {
+            // Normalize all signatures to standard Base64 with padding
+            signatureStr = normalizeToBase64(signature);
+        } else {
+            signatureByteArr = signature;
         }
-    );
-    return handleBridgeResult(result);
+
+        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
+
+        // TODO: Ensure that either pubkey or alias is present, but not both
+        let pubkey: string | Uint8Array | undefined;
+        if (hasOwn(opts, 'pubkey')) {
+            if ((typeof opts.pubkey !== 'string' || opts.pubkey.trim().length < 1) && !(opts.pubkey instanceof Uint8Array)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.pubkey must be of type string | Uint8Array.");
+
+            if (typeof opts.pubkey == 'string') {
+                // Strip and PEM headers and normalize to standard Base64 with padding
+                pubkey = opts.pubkey
+                    .replace(PEM_REGEX, '')
+                    .replace('\n', '')
+                    .replace('\r', '')
+                    .trim();
+                pubkey = normalizeToBase64(pubkey);
+            } else {
+                pubkey = opts.pubkey;
+            }
+        }
+
+        let alias: string | undefined = undefined;
+        if (hasOwn(opts, 'alias')) {
+            if (typeof opts.alias !== 'string' || opts.alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.alias must be of type string and not empty");
+
+            alias = opts.alias;
+        }
+
+        // Ensure that only either alias or pubkey is present
+        if (alias && pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.alias and opts.pubkey are mutually exclusive");
+        if (!alias && !pubkey) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] either opts.alias or opts.pubkey must be supplied");
+
+        if (pubkey && !hasOwn(opts, 'algorithm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must contain the algorithm property");
+        if (pubkey || (alias && hasOwn(opts, 'algorithm') && opts.algorithm !== undefined)) {
+            if (typeof opts.algorithm !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.algorithm must be of type string");
+            if (!isVerifyAlgorithm(opts.algorithm)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.algorithm must be of type ${Object.values(verifyAlgorithms).join("|")}`);
+        }
+
+        const result = await NativeSilicon.verify(
+            payloadStr, 
+            payloadByteArr,
+            signatureStr,
+            signatureByteArr,
+            typeof pubkey == "string" ? pubkey : null,
+            pubkey instanceof Uint8Array ? pubkey : null,
+            {
+                alias: alias,
+                algorithm: opts.algorithm
+            }
+        );
+        return handleBridgeResult(result);
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] verify failed with an internal error.", { cause: error });
+    }
 }
 
 const HYPHEN_REGEX = /-/g;

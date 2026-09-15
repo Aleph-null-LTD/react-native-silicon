@@ -13,73 +13,80 @@ import { GenerateDpopProofOpts } from "./types";
  * @returns the signed DPoP proof JWT
  */
 export async function generateDpopProof(alias: string, opts: GenerateDpopProofOpts): Promise<string> {
-    if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
-    
-    if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
-    if (!hasOwn(opts, 'htu')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu is required");
-    if (typeof opts.htu !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu must be of type string");
-    if (!URL.canParse(opts.htu))  throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu must be a valid URL");
+    try {
+        if (typeof alias !== 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
+        
+        if (!isPlainObject(opts)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts must be a plain object. If you are using a class or builder pattern, spread the object first: { ...myConfig }");
+        if (!hasOwn(opts, 'htu')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu is required");
+        if (typeof opts.htu !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu must be of type string");
+        if (!URL.canParse(opts.htu))  throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htu must be a valid URL");
 
-    // Parse and normalize the htu
-    const parsedHtu = new URL(opts.htu);
-    const normalizedHtu = `${parsedHtu.protocol}//${parsedHtu.host}${parsedHtu.pathname}`;
+        // Parse and normalize the htu
+        const parsedHtu = new URL(opts.htu);
+        const normalizedHtu = `${parsedHtu.protocol}//${parsedHtu.host}${parsedHtu.pathname}`;
 
-    if (!hasOwn(opts, 'htm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htm is required");
-    if (typeof opts.htm !== 'string' || opts.htm.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htm must be of type string");
-    
-    const htmUpper = opts.htm.toUpperCase();
+        if (!hasOwn(opts, 'htm')) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htm is required");
+        if (typeof opts.htm !== 'string' || opts.htm.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.htm must be of type string");
+        
+        const htmUpper = opts.htm.toUpperCase();
 
-    if (hasOwn(opts, 'digest') &&
-        opts.digest !== undefined &&
-        (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
-    ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.digest must be of type ${Object.values(signDigest).join('|')}`);
+        if (hasOwn(opts, 'digest') &&
+            opts.digest !== undefined &&
+            (typeof opts.digest !== 'string' || !isSignDigest(opts.digest))
+        ) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] opts.digest must be of type ${Object.values(signDigest).join('|')}`);
+        }
+
+        let jti: string;
+        if (hasOwn(opts, 'jti') &&
+            opts.jti !== undefined
+        ) {
+            if (typeof opts.jti !== 'string' || opts.jti.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.jti must be of type string, and not empty");
+            jti = opts.jti;
+        } else {
+            // Default the jti to 16 random bytes Base64Url encoded
+            jti = await generateSecureRandomBytes(16, 'B64URL');
+        }
+
+        if (hasOwn(opts, 'nonce') &&
+            opts.nonce !== undefined &&
+            (typeof opts.nonce !== 'string' || opts.nonce.trim().length < 1)
+        ) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.nonce must be of type string, and not empty");
+        }
+        
+        const jwk = await getJwk(alias, opts.digest);
+        
+        // Strip the alg out of the JWK so we can store it in the header seperately
+        const alg = jwk.alg;
+        delete jwk.alg;
+        if (typeof alg !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] Internal Error: alg was not of type string. Please report this error at https://github.com/Aleph-null-LTD/react-native-silicon/issues")
+        
+        // Generate the iat timestamp (in seconds)
+        const iat = Math.floor(Date.now() / 1000);
+
+        const dpopProofJwt = await signJwt(
+            alias,
+            {
+                typ: 'dpop+jwt',
+                alg: alg,
+                jwk: jwk
+            },
+            {
+                htu: normalizedHtu,
+                htm: htmUpper,
+                jti: jti,
+                iat: iat,
+                nonce: opts.nonce
+            },
+            opts.digest
+        );
+
+        return dpopProofJwt;
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] generateDpopProof failed with an internal error.", { cause: error });
     }
-
-    let jti: string;
-    if (hasOwn(opts, 'jti') &&
-        opts.jti !== undefined
-    ) {
-        if (typeof opts.jti !== 'string' || opts.jti.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.jti must be of type string, and not empty");
-        jti = opts.jti;
-    } else {
-        // Default the jti to 16 random bytes Base64Url encoded
-        jti = await generateSecureRandomBytes(16, 'B64URL');
-    }
-
-    if (hasOwn(opts, 'nonce') &&
-        opts.nonce !== undefined &&
-        (typeof opts.nonce !== 'string' || opts.nonce.trim().length < 1)
-    ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] opts.nonce must be of type string, and not empty");
-    }
-    
-    const jwk = await getJwk(alias, opts.digest);
-    
-    // Strip the alg out of the JWK so we can store it in the header seperately
-    const alg = jwk.alg;
-    delete jwk.alg;
-    if (typeof alg !== 'string') throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] Internal Error: alg was not of type string. Please report this error at https://github.com/Aleph-null-LTD/react-native-silicon/issues")
-    
-    // Generate the iat timestamp (in seconds)
-    const iat = Math.floor(Date.now() / 1000);
-
-    const dpopProofJwt = await signJwt(
-        alias,
-        {
-            typ: 'dpop+jwt',
-            alg: alg,
-            jwk: jwk
-        },
-        {
-            htu: normalizedHtu,
-            htm: htmUpper,
-            jti: jti,
-            iat: iat,
-            nonce: opts.nonce
-        },
-        opts.digest
-    );
-
-    return dpopProofJwt;
 }

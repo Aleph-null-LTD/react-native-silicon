@@ -11,9 +11,16 @@ import { Jwk } from './types';
  * @returns A JWK object
  */
 export async function getJwk(alias: string, digest?: SignDigest): Promise<Jwk> {
-    if (typeof alias != 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string");
-    if (digest !== undefined && !isSignDigest(digest)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] digest must be of type ${Object.values(signDigest).join(' | ')}`);
+    try {
+        if (typeof alias != 'string' || alias.trim().length < 1) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string");
+        if (digest !== undefined && !isSignDigest(digest)) throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] digest must be of type ${Object.values(signDigest).join(' | ')}`);
 
-    const result = await NativeSilicon.getJwk(alias, digest);
-    return handleBridgeResult(result);
+        const result = await NativeSilicon.getJwk(alias, digest);
+        return handleBridgeResult(result);
+    
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] getJwk failed with an internal error.", { cause: error });
+    }
 }

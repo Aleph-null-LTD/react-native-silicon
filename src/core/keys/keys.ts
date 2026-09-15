@@ -32,19 +32,26 @@ import { AndroidAttestFormatsTypeMap, AttestFormats, AttestResult, GenerateKeyOp
  * @param opts - Options for key generation
  */
 export async function generateKey(alias: string, opts?: GenerateKeyOpts): Promise<void> {
-    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
+    try {
+        if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
+        }
+
+        opts = validateGenerateKeyOpts(opts);
+
+        // Uint8Array fails to map correctly when passed over the bridge if it is nested inside an object
+        // so we extract the attest challenge (if provided) and pass it as a top level parameter so it can be correctly mapped on the native side
+        const attestChallenge = opts.attestChallenge;
+        opts.attestChallenge = undefined;
+        
+        const result = await NativeSilicon.generateKey(alias, opts ?? {}, attestChallenge);
+        handleBridgeResult(result);
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] generateKey failed with an internal error.", { cause: error });
     }
-
-    opts = validateGenerateKeyOpts(opts);
-
-    // Uint8Array fails to map correctly when passed over the bridge if it is nested inside an object
-    // so we extract the attest challenge (if provided) and pass it as a top level parameter so it can be correctly mapped on the native side
-    const attestChallenge = opts.attestChallenge;
-    opts.attestChallenge = undefined;
-
-    const result = await NativeSilicon.generateKey(alias, opts ?? {}, attestChallenge);
-    handleBridgeResult(result);
 }
 
 function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKeyOpts {
@@ -223,12 +230,19 @@ function validateGenerateKeyOpts(opts: GenerateKeyOpts | undefined): GenerateKey
  * @returns true if the key was deleted, false if key not found
  */
 export async function deleteKey(alias: string): Promise<boolean> {
-    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
+    try {
+        if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
+        }
+        
+        const result = await NativeSilicon.deleteKey(alias);
+        return handleBridgeResult(result);
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] deleteKey failed with an internal error.", { cause: error });
     }
-    
-    const result = await NativeSilicon.deleteKey(alias);
-    return handleBridgeResult(result);
 }
 
 /**
@@ -244,12 +258,19 @@ export async function deleteKey(alias: string): Promise<boolean> {
  * @returns The number of keys that were deleted
  */
 export async function deleteAllKeys(prefix?: string): Promise<number> {
-    if (prefix !== undefined && (typeof prefix !== 'string' || prefix.trim().length < 1)) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] prefix must be of type string");
-    }
+    try {
+        if (prefix !== undefined && (typeof prefix !== 'string' || prefix.trim().length < 1)) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] prefix must be of type string");
+        }
 
-    const result = await NativeSilicon.deleteAllKeys(prefix);
-    return handleBridgeResult(result);
+        const result = await NativeSilicon.deleteAllKeys(prefix);
+        return handleBridgeResult(result);
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] deleteAllKeys failed with an internal error.", { cause: error });
+    }
 }
 
 /**
@@ -259,12 +280,19 @@ export async function deleteAllKeys(prefix?: string): Promise<number> {
  * @returns true if the key exists
  */
 export async function keyExists(alias: string): Promise<boolean> {
-    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
-    }
+    try {
+        if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
+        }
 
-    const result = await NativeSilicon.keyExists(alias);
-    return handleBridgeResult(result);
+        const result = await NativeSilicon.keyExists(alias);
+        return handleBridgeResult(result);
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] keyExists failed with an internal error.", { cause: error });
+    }
 }
 
 /**
@@ -274,12 +302,19 @@ export async function keyExists(alias: string): Promise<boolean> {
  * @returns Array of the key aliases
  */
 export async function listKeys(prefix?: string): Promise<string[]> {
-    if (prefix !== undefined && typeof prefix !== 'string') {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] prefix must be of type string");
-    }
+    try {
+        if (prefix !== undefined && typeof prefix !== 'string') {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] prefix must be of type string");
+        }
 
-    const result = await NativeSilicon.listKeys(prefix)
-    return handleBridgeResult(result);
+        const result = await NativeSilicon.listKeys(prefix)
+        return handleBridgeResult(result);
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] listKeys failed with an internal error.", { cause: error });
+    }
 }
 
 /**
@@ -292,12 +327,19 @@ export async function listKeys(prefix?: string): Promise<string[]> {
  * * 'UNRECOVERABLE' - If the key is in an unrecoverable state
  */
 export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 'INVALIDATED' | 'UNRECOVERABLE'> {
-    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
-    }
+    try {
+        if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
+        }
 
-    const result = await NativeSilicon.validateKey(alias)
-    return handleBridgeResult(result);
+        const result = await NativeSilicon.validateKey(alias)
+        return handleBridgeResult(result);
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] validateKey failed with an internal error.", { cause: error });
+    }
 }
 
 /**
@@ -307,32 +349,39 @@ export async function validateKey(alias: string): Promise<'VALID' | 'MISSING' | 
  * @returns The public key
  */
 export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F): Promise<PubKeyFormatTypeMap[F]> {
-    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
-    }
-
-    if (typeof format !== 'string' || 
-        !isPubkeyFormat(format)
-    ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] format must be of type ${Object.values(pubkeyFormats).join("|")}`);
-    }
-
-    const result = await NativeSilicon.getPubKey(alias, format);
-    const pubKey = handleBridgeResult(result);
-
-    let ret: PubKeyFormatTypeMap[F];
-    if (format == "SPKI") {
-        ret = ensureUint8Array(pubKey) as PubKeyFormatTypeMap[F];
-
-    } else {
-        if (typeof pubKey != 'string') {
-            throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] returned data was not of type string when format was set to ${format}`);
+    try {
+        if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
         }
 
-        ret = pubKey;
-    }
+        if (typeof format !== 'string' || 
+            !isPubkeyFormat(format)
+        ) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] format must be of type ${Object.values(pubkeyFormats).join("|")}`);
+        }
 
-    return ret;
+        const result = await NativeSilicon.getPubKey(alias, format);
+        const pubKey = handleBridgeResult(result);
+
+        let ret: PubKeyFormatTypeMap[F];
+        if (format == "SPKI") {
+            ret = ensureUint8Array(pubKey) as PubKeyFormatTypeMap[F];
+
+        } else {
+            if (typeof pubKey != 'string') {
+                throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] returned data was not of type string when format was set to ${format}`);
+            }
+
+            ret = pubKey;
+        }
+
+        return ret;
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] getPubKey failed with an internal error.", { cause: error });
+    }
 }
 
 /**
@@ -347,66 +396,73 @@ export async function getPubKey<F extends PubkeyFormat>(alias: string, format: F
  * @returns The certificate chain - An array of PEM strings
  */
 export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>(alias: string, format: F, pubKeyFormat: P): Promise<AttestResult<F, P>> {
-    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
-    }
-
-    if (typeof format !== 'string' ||
-        !isAttestFormat(format)
-    ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] format must be of type ${Object.values(attestFormats).join("|")}`);
-    }
-
-    if (typeof pubKeyFormat !== 'string' || 
-        !isPubkeyFormat(pubKeyFormat)
-    ) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] pubKeyFormat must be of type ${Object.values(pubkeyFormats).join("|")}`);
-    }
-
-    const result = await NativeSilicon.attestKey(alias, format, pubKeyFormat);
-    const attestResult = handleBridgeResult(result) as AttestResult<F, P>;
-
-    if (attestResult.platform === "IOS") {
-        if (pubKeyFormat === "SPKI") {
-            attestResult.signingPubKey = ensureUint8Array(attestResult.signingPubKey) as PubKeyFormatTypeMap[P];
-
-        } else if (typeof attestResult.signingPubKey != 'string') {
-            throw new SiliconError(
-                SiliconErrorCode.INTERNAL_ERROR, 
-                `[RN-Silicon] returned data was not of type string when pubKeyFormat was set to ${pubKeyFormat}`
-            );
+    try {
+        if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
         }
 
-        if (format === "BYTES") {
-            attestResult.attestationObject = ensureUint8Array(attestResult.attestationObject) as IosAttestFormatsTypeMap[F];
-        } else { // format === "STRING"
-            if (typeof attestResult.attestationObject !== 'string') throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] Expected bridge to return CBOR string, but got ${typeof attestResult.attestationObject}`);
+        if (typeof format !== 'string' ||
+            !isAttestFormat(format)
+        ) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] format must be of type ${Object.values(attestFormats).join("|")}`);
         }
 
-    } else { // attestResult.platform === "ANDROID"
-        if (format === "BYTES") {
-            if (Array.isArray(attestResult.certChain)) {
-                const buffer: AndroidAttestFormatsTypeMap['BYTES'] = [];
-                for (const e of attestResult.certChain) {
-                    buffer.push(ensureUint8Array(e));
-                }
-                attestResult.certChain = buffer as AndroidAttestFormatsTypeMap[F];
+        if (typeof pubKeyFormat !== 'string' || 
+            !isPubkeyFormat(pubKeyFormat)
+        ) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, `[RN-Silicon] pubKeyFormat must be of type ${Object.values(pubkeyFormats).join("|")}`);
+        }
 
-            } else {
-                throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
+        const result = await NativeSilicon.attestKey(alias, format, pubKeyFormat);
+        const attestResult = handleBridgeResult(result) as AttestResult<F, P>;
+
+        if (attestResult.platform === "IOS") {
+            if (pubKeyFormat === "SPKI") {
+                attestResult.signingPubKey = ensureUint8Array(attestResult.signingPubKey) as PubKeyFormatTypeMap[P];
+
+            } else if (typeof attestResult.signingPubKey != 'string') {
+                throw new SiliconError(
+                    SiliconErrorCode.INTERNAL_ERROR, 
+                    `[RN-Silicon] returned data was not of type string when pubKeyFormat was set to ${pubKeyFormat}`
+                );
             }
-        } else { // format === "STRING"
-            if (Array.isArray(attestResult.certChain)) {
-                for (const i in attestResult.certChain) {
-                    if (typeof attestResult.certChain[i] !== 'string') throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return cert chain string array, but got ${typeof attestResult.certChain[i]} at index ${i}`);
+
+            if (format === "BYTES") {
+                attestResult.attestationObject = ensureUint8Array(attestResult.attestationObject) as IosAttestFormatsTypeMap[F];
+            } else { // format === "STRING"
+                if (typeof attestResult.attestationObject !== 'string') throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] Expected bridge to return CBOR string, but got ${typeof attestResult.attestationObject}`);
+            }
+
+        } else { // attestResult.platform === "ANDROID"
+            if (format === "BYTES") {
+                if (Array.isArray(attestResult.certChain)) {
+                    const buffer: AndroidAttestFormatsTypeMap['BYTES'] = [];
+                    for (const e of attestResult.certChain) {
+                        buffer.push(ensureUint8Array(e));
+                    }
+                    attestResult.certChain = buffer as AndroidAttestFormatsTypeMap[F];
+
+                } else {
+                    throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
                 }
-            } else {
-                throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
+            } else { // format === "STRING"
+                if (Array.isArray(attestResult.certChain)) {
+                    for (const i in attestResult.certChain) {
+                        if (typeof attestResult.certChain[i] !== 'string') throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `Expected bridge to return cert chain string array, but got ${typeof attestResult.certChain[i]} at index ${i}`);
+                    }
+                } else {
+                    throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, `[RN-Silicon] Expected bridge to return cert chain array, but got ${typeof attestResult.certChain}`);
+                }
             }
         }
-    }
 
-    return attestResult;
+        return attestResult;
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] attestKey failed with an internal error.", { cause: error });
+    }
 }
 
 /**
@@ -416,17 +472,24 @@ export async function attestKey<F extends AttestFormats, P extends PubkeyFormat>
  * @returns KeyInfo object
  */
 export async function getKeyInfo(alias: string): Promise<KeyInfo> {
-    if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
-        throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
+    try {
+        if (!alias || typeof alias !== 'string' || alias.trim().length < 1) {
+            throw new SiliconError(SiliconErrorCode.INVALID_ARGUMENT, "[RN-Silicon] alias must be of type string and not empty");
+        }
+
+        const result = await NativeSilicon.getKeyInfo(alias)
+        const keyInfo = handleBridgeResult(result);
+
+        // Remove the curve from the KeyInfo if it is null (i.e., not an EC key)
+        if (keyInfo.curve == null) delete keyInfo.curve;
+
+        return keyInfo;
+
+    } catch (error) {
+        if (error instanceof SiliconError) throw error;
+
+        throw new SiliconError(SiliconErrorCode.INTERNAL_ERROR, "[RN-Silicon] getKeyInfo failed with an internal error.", { cause: error });
     }
-
-    const result = await NativeSilicon.getKeyInfo(alias)
-    const keyInfo = handleBridgeResult(result);
-
-    // Remove the curve from the KeyInfo if it is null (i.e., not an EC key)
-    if (keyInfo.curve == null) delete keyInfo.curve;
-
-    return keyInfo;
 }
 
 /*
