@@ -31,7 +31,6 @@
     "build:plugin": "tsc --build plugin/tsconfig.json",
     "build": "pnpm run clean && pnpm run build:esm && pnpm run build:cjs && pnpm run build:types && pnpm run build:plugin",
     "lint": "expo-module lint",
-    "test-old": "expo-module test",
     "test": "vitest run",
     "test:open-ui": "vitest --ui",
     "test:watch": "vitest -w",
@@ -44,13 +43,11 @@
     "test:coverage": "vitest run --coverage",
     "test:clear-cache": "vitest --clearCache",
     "clear-test-cache-old": "expo-module jest --clearCache",
-    "prepare-old": "expo-module prepare && npm run build:plugin",
     "prepare": "pnpm run build",
     "prepublishOnly": "npm run lint && npm run test && expo-module prepublishOnly",
     "expo-module": "expo-module",
     "open:ios:mac": "xed example/ios",
-    "open:android:mac": "open -a \"Android Studio\" example/android",
-    "watch": "tsc --watch"
+    "open:android:mac": "open -a \"Android Studio\" example/android"
   },
   "keywords": [
     "react-native",
